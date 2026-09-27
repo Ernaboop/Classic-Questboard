@@ -2,6 +2,12 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.6.6] - 2026-09-28
+
+### Changed
+
+- Set the addon-list icon to the same map texture used by the minimap button.
+
 ## [0.6.5] - 2026-09-28
 
 ### Changed
