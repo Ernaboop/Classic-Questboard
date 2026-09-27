@@ -2,6 +2,13 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.4.2] - 2026-09-27
+
+### Fixed
+
+- Reset the previously saved lower-right minimap-button position once so existing characters receive the corrected upper-right default.
+- Continue saving later user repositioning separately from that one-time position migration.
+
 ## [0.4.1] - 2026-09-27
 
 ### Fixed

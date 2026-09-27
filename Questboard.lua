@@ -657,7 +657,7 @@ local function CreateBoard()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 24, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.4.1 (0.4.1)")
+    title:SetText("WoW Forever | Questboard — Alpha V0.4.2 (0.4.2)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Elwynn Forest commissions, assembled from category, objective, and amount.")
@@ -797,6 +797,11 @@ events:SetScript("OnEvent", function(self, event, loaded)
     if loaded ~= addonName then return end
     WoWForeverDB = type(WoWForeverDB) == "table" and WoWForeverDB or {}
     db = WoWForeverDB
+    if db.minimapPositionVersion ~= 2 then
+        -- Older releases saved the button at the lower-right tracking control.
+        db.minimapAngle = 45
+        db.minimapPositionVersion = 2
+    end
     if db.generatorDataVersion ~= "0.4.0" then
         db.displayedQuests = nil
         db.generatorDataVersion = "0.4.0"
