@@ -7,6 +7,7 @@ local CreateMinimapButton
 local RefreshQuestBrowser, SetDebugMode
 local CreateBoard
 local debugMode = false
+local forcedLeftCategory
 local QuestGenerationLevel
 local ELWYNN_MAX_LEVEL = 12
 
@@ -370,10 +371,12 @@ local function BuildQuest(category, branch, objective, amount)
     }
 end
 
-local function GenerateQuest(playerLevel, outleveled, excluded)
+local function GenerateQuest(playerLevel, outleveled, excluded, forcedCategory)
     playerLevel = playerLevel or NormalGenerationLevel()
     local function Options(category, branch)
         local result = {}
+        local categoryId = category.profession and "gather" or category.id
+        if forcedCategory and categoryId ~= forcedCategory then return result end
         for _, objective in ipairs(ObjectiveOptions(category, branch, playerLevel, outleveled)) do
             local key = table.concat({category.id, branch and branch.id or "", objective.id}, ":")
             if not excluded or not excluded[key] then result[#result + 1] = objective end
@@ -420,6 +423,13 @@ local function PickDisplayedQuests()
     if db.activeQuest then
         chosen[1] = db.activeQuest
         seen[db.activeQuest.selectionId or db.activeQuest.id] = true
+    elseif debugMode and forcedLeftCategory then
+        local quest = GenerateQuest(generationLevel, outleveled, nil, forcedLeftCategory)
+        if not quest then
+            print("|cffffd27fClassic Questboard:|r No eligible objectives for the selected left-card category. Change category, generation level, or learned professions. Offers were kept.")
+            return db.displayedQuests or {}
+        end
+        chosen[1], seen[quest.selectionId] = quest, true
     end
     local attempts = 0
     while #chosen < 3 and attempts < 100 do
@@ -823,11 +833,17 @@ local function TurnInSlot(index)
     local excluded = {}
     for _, offer in ipairs(db.displayedQuests) do excluded[offer.selectionId or offer.id] = true end
     local generationLevel, outleveled = QuestGenerationLevel()
-    local replacement = GenerateQuest(generationLevel, outleveled, excluded)
+    local forcedCategory = debugMode and index == 1 and forcedLeftCategory or nil
+    local replacement = GenerateQuest(generationLevel, outleveled, excluded, forcedCategory)
     if not replacement then
         local current = db.displayedQuests[index]
         excluded[current.selectionId or current.id] = nil
+        replacement = GenerateQuest(generationLevel, outleveled, excluded, forcedCategory)
+    end
+    if not replacement and forcedCategory then
+        -- A debug preference must not block handing in an already-ready quest.
         replacement = GenerateQuest(generationLevel, outleveled, excluded)
+        if replacement then print("|cffffd27fClassic Questboard:|r No unique eligible replacement in the forced category; using a normal replacement.") end
     end
     if not replacement or not Tracking.TurnIn(debugMode) then return end
     db.displayedQuests[index] = replacement
@@ -850,10 +866,11 @@ CreateBoard = function()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.6.2 (0.6.2)")
+    title:SetText("WoW Forever | Questboard — Alpha V0.6.3 (0.6.3)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")
+    board.subtitle = subtitle
     local close = CreateFrame("Button", nil, board, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -4, -4)
     board.options = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
@@ -983,6 +1000,32 @@ CreateBoard = function()
     board.debugProgress:SetText("+1 Progress")
     board.debugProgress:SetScript("OnClick", function() Tracking.DebugAddKillProgress(debugMode) end)
     board.debugProgress:Hide()
+    local categoryChoices = {
+        {label = "Any category"}, {id = "kill", label = "Kill"},
+        {id = "collect_sell", label = "Collect & Sell"},
+        {id = "hunt", label = "Hunt"}, {id = "gather", label = "Gather"},
+    }
+    local categoryIndex = 1
+    board.debugCategory = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
+    board.debugCategory:SetSize(242, 24)
+    board.debugCategory:SetPoint("TOPLEFT", 24, -47)
+    board.debugCategory:SetText("Left card: Any category")
+    board.debugCategory:SetScript("OnClick", function(self)
+        if not debugMode then return end
+        categoryIndex = categoryIndex % #categoryChoices + 1
+        local choice = categoryChoices[categoryIndex]
+        forcedLeftCategory = choice.id
+        self:SetText("Left card: " .. choice.label)
+    end)
+    board.debugCategory:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Left card category")
+        GameTooltip:AddLine("Click to cycle: Any, Kill, Collect & Sell, Hunt, Gather.", 1, 1, 1)
+        GameTooltip:AddLine("Applies on Reroll Quests or left-card turn-in. Eligibility rules still apply.", 0.7, 0.7, 0.7, true)
+        GameTooltip:Show()
+    end)
+    board.debugCategory:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    board.debugCategory:Hide()
     board:Hide()
 end
 
@@ -1036,6 +1079,8 @@ Refresh = function()
         card:SetBackdropBorderColor(accepted and 0.9 or 0.36, accepted and 0.3 or 0.3, accepted and 0.16 or 0.16, 1)
     end
     local active = db.activeQuest
+    board.subtitle:SetShown(not debugMode)
+    board.debugCategory:SetShown(debugMode)
     board.debugProgress:SetShown(debugMode)
     board.debugProgress:SetEnabled(debugMode and active ~= nil and active.categoryName == "Kill" and active.state == "Active")
     if abandonDialog and abandonDialog:IsShown() and abandonDialog.quest ~= active then abandonDialog:Hide() end

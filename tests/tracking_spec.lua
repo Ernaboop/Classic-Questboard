@@ -355,6 +355,36 @@ for _ = 1, 60 do
 end
 check(debugCategories.Kill and debugCategories['Collect & Sell'] and debugCategories.Hunt,
     'debug level 12 rerolls include lower-ceiling categories')
+local otherCategories = {}
+for _, expected in ipairs({'Kill', 'Collect & Sell', 'Hunt'}) do
+    local previous = WoWForeverDB.displayedQuests
+    board.debugCategory.scripts.OnClick(board.debugCategory)
+    check(WoWForeverDB.displayedQuests == previous, 'category selection leaves existing offers unchanged')
+    for _ = 1, 20 do
+        board.reroll.scripts.OnClick()
+        local offers = WoWForeverDB.displayedQuests
+        check(offers[1].categoryName == expected, 'forced category applies to left card')
+        check(offers[1].selectionId ~= offers[2].selectionId and offers[1].selectionId ~= offers[3].selectionId
+            and offers[2].selectionId ~= offers[3].selectionId, 'forced rerolls preserve uniqueness')
+        otherCategories[offers[2].categoryName] = true
+        otherCategories[offers[3].categoryName] = true
+    end
+end
+check(otherCategories.Kill and otherCategories['Collect & Sell'] and otherCategories.Hunt, 'other slots retain normal category selection')
+board.debugCategory.scripts.OnClick(board.debugCategory) -- Gather, no profession
+local beforeUnavailable = WoWForeverDB.displayedQuests
+board.reroll.scripts.OnClick()
+check(WoWForeverDB.displayedQuests == beforeUnavailable, 'unavailable forced category preserves offers')
+professionSlots, professionLines = {1}, {[1] = 393}
+board.reroll.scripts.OnClick()
+check(WoWForeverDB.displayedQuests[1].professionId == 'skinning', 'forced Gather respects learned professions and category ceiling')
+professionSlots, professionLines = {}, {}
+WoWForeverDebugModeButton.scripts.OnClick()
+board.reroll.scripts.OnClick()
+check(not board.debugCategory.shown and #WoWForeverDB.displayedQuests == 3, 'debug-off generation ignores forced Gather')
+WoWForeverDebugModeButton.scripts.OnClick()
+board.debugCategory.scripts.OnClick(board.debugCategory) -- Any
+check(board.debugCategory.text == 'Left card: Any category', 'selector cycles back to unrestricted generation')
 for _ = 1, 6 do board.debugLevelDown.scripts.OnClick() end
 WoWForeverDebugModeButton.scripts.OnClick()
 board.reroll.scripts.OnClick()
@@ -483,6 +513,28 @@ check(debugKill.progress.count == 1, 'debug button reaches tracking increment lo
 WoWForeverDebugModeButton.scripts.OnClick()
 WoWForeverQuestboard.debugProgress.scripts.OnClick()
 check(not WoWForeverQuestboard.debugProgress.shown and debugKill.progress.count == 1, 'hidden debug control cannot increment')
+reloadedCards[2].button.scripts.OnClick() -- confirmation remains disabled
+WoWForeverDebugModeButton.scripts.OnClick()
+WoWForeverQuestboard.debugCategory.scripts.OnClick(WoWForeverQuestboard.debugCategory) -- Kill
+WoWForeverQuestboard.reroll.scripts.OnClick()
+reloadedCards[1].button.scripts.OnClick()
+local forcedActive = WoWForeverDB.activeQuest
+local keptRight = {WoWForeverDB.displayedQuests[2], WoWForeverDB.displayedQuests[3]}
+WoWForeverQuestboard.debugCategory.scripts.OnClick(WoWForeverQuestboard.debugCategory) -- Collect & Sell
+check(WoWForeverDB.activeQuest == forcedActive and forcedActive.categoryName == 'Kill', 'changing forced category preserves active quest')
+forcedActive.state = 'Ready to Turn In'
+reloadedCards[1].button.scripts.OnClick()
+check(not WoWForeverDB.activeQuest and WoWForeverDB.displayedQuests[1].categoryName == 'Collect & Sell',
+    'left-slot replacement uses selected forced category')
+check(WoWForeverDB.displayedQuests[2] == keptRight[1] and WoWForeverDB.displayedQuests[3] == keptRight[2],
+    'forced replacement leaves other slots unchanged')
+reloadedCards[1].button.scripts.OnClick()
+WoWForeverDB.activeQuest.state = 'Ready to Turn In'
+WoWForeverQuestboard.debugCategory.scripts.OnClick(WoWForeverQuestboard.debugCategory) -- Hunt
+WoWForeverQuestboard.debugCategory.scripts.OnClick(WoWForeverQuestboard.debugCategory) -- Gather
+reloadedCards[1].button.scripts.OnClick()
+check(not WoWForeverDB.activeQuest and #WoWForeverDB.displayedQuests == 3,
+    'unavailable forced replacement does not block turn-in')
 -- Debug increment is limited to Kill category and uses the normal ready state.
 fresh(); q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 2); q.categoryName = 'Kill'; T.Accept(q)
 check(not T.DebugAddKillProgress(false) and q.progress.count == 0, 'debug increment denied with mode off')

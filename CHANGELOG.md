@@ -2,6 +2,14 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.6.3] - 2026-09-28
+
+### Added
+
+- Debug Mode has a left-card category selector: Any category, Kill, Collect & Sell, Hunt, or Gather. Click to cycle and use Reroll Quests to apply. The other cards roll normally; level, profession, and duplicate-objective rules remain enforced.
+- Left-card turn-in replacements honor the selected category when a unique eligible objective is available. If none exists, a chat message explains the normal replacement. An impossible forced reroll instead keeps all existing offers and explains why.
+- Selection is session-only, inactive outside Debug Mode, and never changes accepted quests or existing offers by itself.
+
 ## [0.6.2] - 2026-09-27
 
 ### Changed
