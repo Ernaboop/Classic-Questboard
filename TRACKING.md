@@ -1,4 +1,4 @@
-# Alpha 0.6.13 tracking
+# Alpha 0.7.0 tracking
 
 ## Forever compatibility
 
@@ -38,7 +38,11 @@ Options, Help (the question-mark button), and Quest Browser toggle open/closed. 
 
 Statistics opens a toggleable window with per-character totals for quests accepted, handed in, and abandoned. Each statistic has its own +/− button, expanding its Kill, Collect & Sell, Hunt, and Gather counts directly underneath. Sections expand independently and push later sections down. Totals include successful Debug Mode actions and persist independently of recent-completion history. Failed actions, cancelled abandonment, ready-state changes, and reloads do not increment totals. Existing totals without category records are listed under Earlier / unclassified rather than guessed or discarded.
 
-Quest Browser's Show all levels checkbox shows every objective in its Elwynn Forest pool across all category tabs. Switching it off restores the selected level view. The toggle only changes browsing; it does not alter generated offers, generation level, or profession requirements.
+The top-centre zone dropdown selects Elwynn Forest or Dun Morogh for the board, browser, and generator. Each zone's three offers are saved separately. First-time selection generates offers; returning to a zone restores its existing offers. Reroll only changes the selected board, and successful hand-in replaces only its completed slot. Both curated pools support generation levels 1–12; each category/profession still falls back independently to its highest eligible band for overleveled characters.
+
+Only one quest may be active across both zones. Switching boards leaves that quest and progress intact; return to its zone with the dropdown to view its card or hand it in. Existing Elwynn offers and active progress migrate unchanged. Debug amount edits and tracking resolve the accepted quest's own data even when another board is selected.
+
+Quest Browser's Show all levels checkbox shows every objective in the selected zone's pool across all category tabs. Switching it off restores the selected level view. The toggle only changes browsing; it does not alter generated offers, generation level, or profession requirements. Hunt objective prose omits single-target counts and rare/elite labels; the browser retains the underlying subtype and eligibility data.
 
 ## What earns progress
 
@@ -51,7 +55,7 @@ The accepted quest and progress are saved in `WoWForeverDB`. Existing accepted q
 
 ## Limits and client verification
 
-The current creature definitions use English names from the existing generator. Items use numeric IDs. Non-English creature names are not yet localized. Location hints such as Fargodeep Mine remain guidance: tracking enforces Elwynn membership and the exact target, not a radius around each landmark.
+The current creature definitions use English names from the generator. Items use numeric IDs. Non-English creature names are not yet localized. Location hints such as Fargodeep Mine and Gol'Bolar Quarry remain guidance: tracking enforces the accepted quest's zone and exact target, not a radius around each landmark. Elwynn map IDs 1429/37 and Dun Morogh 1426/48 (including child maps) are recognized; English zone-name matching is the fallback. The selected board does not change these tracking restrictions.
 
 Tracking requires positive loot/sale evidence. Deferred group-roll awards, loot systems without normal loot-window/source events, or sales combined with a repair/purchase that hides the net money gain may be missed rather than credited speculatively. Individual vendor sales and normal loot/autoloot are the intended first client test paths. World data remains subject to Forever beta changes.
 
@@ -67,5 +71,7 @@ In-game smoke test:
 6. Change the debug generation level without an active quest. Outside a rest area, accept and turn in a completed quest while Debug Mode is active. Disable Debug Mode and verify those actions require a rest area again. Confirm the active quest remains stable while toggling the mode.
 7. Bind a toggle key, test open/close, and open the Options cog. Cancel abandonment, then confirm with the opt-out checked; reload and verify the preference persists. Re-enable confirmation in Options.
 8. Accept each card in turn. Abandon and verify all offers stay put; complete and hand in to verify only that slot changes. In Debug Mode, use +1 Progress on a Kill quest and hover a matching mob to check the updated tooltip and ready state.
+9. Switch zones with the top-centre dropdown and back; verify the original three offers return. Reload while browsing a different zone from the active quest and check both boards and active progress survive.
+10. In Dun Morogh, test Crag Boar kills, Rockjaw spoils/sales, and every learned gathering profession. Confirm matching names/items in another zone do not count. Verify browser tabs and Show all levels switch to the selected zone, and the zone dropdown remains clear of the title and debug controls at your UI scale.
 
 API events were checked against Blizzard's extracted [Classic loot documentation](https://github.com/Gethe/wow-ui-source/blob/classic/Interface/AddOns/Blizzard_APIDocumentationGenerated/LootDocumentation.lua) and [merchant documentation](https://github.com/Gethe/wow-ui-source/blob/classic/Interface/AddOns/Blizzard_APIDocumentationGenerated/MerchantFrameDocumentation.lua).

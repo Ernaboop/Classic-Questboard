@@ -869,4 +869,190 @@ for _, category in ipairs({'Kill', 'Collect & Sell', 'Hunt', 'Gather'}) do
     check(saved.statistics.acceptedByCategory[category] == 1 and saved.statistics.abandonedByCategory[category] == 1,
         'new category counters track accepted and abandoned: ' .. category)
 end
+-- Multi-zone generation, saved boards, and real tracking share the same data.
+do
+    fresh()
+    local function loadZoneBoard(data)
+        WoWForeverDB = data
+        local addon = {}
+        assert(loadstring(tracking_source))('Classic Questbook', addon)
+        assert(loadstring(windows_source))('Classic Questbook', addon)
+        assert(loadstring(board_source))('Classic Questbook', addon)
+        for _, frame in ipairs(frames) do
+            if frame.registered.ADDON_LOADED then frame.scripts.OnEvent(frame, 'ADDON_LOADED', 'Classic Questbook') end
+        end
+        SlashCmdList.WOWFOREVERQUESTBOARD('')
+        return addon, WoWForeverQuestboard
+    end
+    local addon, ui = loadZoneBoard(nil)
+    local function chooseZone(name)
+        menuEntries = {}
+        local dropdown = ui.zoneDropdown
+        dropdown.initialize(dropdown, 1)
+        check(#menuEntries == 2, 'zone dropdown lists both supported zones')
+        for _, entry in ipairs(menuEntries) do
+            if entry.text == name then entry.func(); check(dropdown.text == name, 'zone selection updates label'); return end
+        end
+        error('missing zone ' .. name)
+    end
+    local function uiCards()
+        local result = {}
+        for _, frame in ipairs(frames) do
+            if frame.parent == ui and rawget(frame, 'heading') then result[#result + 1] = frame end
+        end
+        return result
+    end
+    local elwynnOffers = WoWForeverDB.displayedQuests
+    chooseZone('Dun Morogh')
+    local dunOffers = WoWForeverDB.displayedQuests
+    check(#dunOffers == 3 and dunOffers ~= elwynnOffers, 'first visit generates a separate Dun Morogh board')
+    for _, offer in ipairs(dunOffers) do check(offer.zone == 'Dun Morogh', 'Dun Morogh board contains only local objectives') end
+    chooseZone('Elwynn Forest')
+    check(WoWForeverDB.displayedQuests == elwynnOffers, 'switching back preserves all Elwynn offers')
+    chooseZone('Dun Morogh')
+    check(WoWForeverDB.displayedQuests == dunOffers, 'switching back preserves all Dun Morogh offers')
+    local pool, counts = {}, {Kill = 0, ['Collect & Sell'] = 0, Hunt = 0, Gather = 0}
+    professionSlots, professionLines = {1, 2, 3, 4}, {[1] = 182, [2] = 186, [3] = 393, [4] = 356}
+    for testLevel = 1, 12 do
+        local excluded, reachedEnd = {}, false
+        for _ = 1, 80 do
+            local offer = addon.GenerateQuestForLevel(testLevel, false, excluded)
+            if not offer then reachedEnd = true; break end
+            check(offer.zoneId == 'dun_morogh' and offer.zone == 'Dun Morogh', 'all generated data belongs to selected zone')
+            check(not excluded[offer.selectionId] and addon.Tracking.CanTrack(offer), 'Dun Morogh objectives unique and trackable')
+            check(offer.amount >= 1 and offer.minPlayerLevel <= testLevel, 'objective eligibility never advances low-level characters')
+            excluded[offer.selectionId] = true
+            if not pool[offer.objectiveId] then counts[offer.categoryName] = counts[offer.categoryName] + 1 end
+            pool[offer.objectiveId] = offer
+            if offer.categoryName == 'Hunt' then
+                check(not offer.objective:lower():find('rare') and not offer.objective:lower():find('elite'), 'Hunt objective omits classification')
+                check(offer.amount == 1 and not offer.objective:find('1'), 'single-target Hunt has no amount in description')
+                check(offer.minPlayerLevel == tonumber(offer.level) - 2, 'Dun Morogh Hunt unlocks two levels early')
+            end
+        end
+        check(reachedEnd, 'Dun Morogh pool enumeration terminates without duplicates')
+    end
+    check(counts.Kill == 20 and counts['Collect & Sell'] == 11 and counts.Hunt == 7 and counts.Gather == 11,
+        'Dun Morogh has 49 objectives across every category')
+    check(pool.dm_copper_vein_prospecting.tracking.kind == 'nodes'
+        and pool.dm_copper_vein_prospecting.objective:find('Dun Morogh'), 'Dun Morogh prospecting counts nodes and names correct zone')
+    check(pool.dm_boar_leather.tracking.targets[1] == 'Crag Boar', 'skinning uses Dun Morogh creature sources')
+    local cappedCategories, cappedProfessions, excluded = {}, {}, {}
+    for _ = 1, 80 do
+        local offer = addon.GenerateQuestForLevel(12, true, excluded)
+        if not offer then break end
+        excluded[offer.selectionId] = true
+        cappedCategories[offer.categoryName] = true
+        if offer.professionId then cappedProfessions[offer.professionId] = true end
+    end
+    check(cappedCategories.Kill and cappedCategories['Collect & Sell'] and cappedCategories.Hunt and cappedCategories.Gather,
+        'outleveled Dun Morogh keeps all category ceilings')
+    for _, profession in ipairs({'herbalism', 'mining', 'skinning', 'fishing'}) do
+        check(cappedProfessions[profession], 'outleveled Dun Morogh retains learned profession ' .. profession)
+    end
+    professionSlots, professionLines = {}, {}
+    check(not addon.GenerateQuestForLevel(12, true, nil, 'gather'), 'Dun Morogh preserves profession gating')
+    level = 60
+    for _ = 1, 20 do
+        ui.reroll.scripts.OnClick()
+        local seen = {}
+        check(#WoWForeverDB.displayedQuests == 3, 'overleveled Dun Morogh still fills three cards')
+        for _, offer in ipairs(WoWForeverDB.displayedQuests) do
+            check(not seen[offer.selectionId] and offer.minPlayerLevel <= 12, 'three Dun Morogh cards remain unique and capped')
+            seen[offer.selectionId] = true
+        end
+    end
+    WoWForeverDebugModeButton.scripts.OnClick()
+    for _ = 1, 12 do ui.debugLevelDown.scripts.OnClick() end
+    ui.reroll.scripts.OnClick()
+    for _, offer in ipairs(WoWForeverDB.displayedQuests) do
+        check(offer.minPlayerLevel <= 1 and offer.maxPlayerLevel >= 1, 'Dun Morogh debug override drives rolled eligibility')
+    end
+    ui.debugButton.scripts.OnClick()
+    local browser = WoWForeverQuestBrowser
+    browser.allLevels:SetChecked(true); browser.allLevels.scripts.OnClick()
+    local n = 0
+    for _, row in ipairs(browser.objectiveRows) do if row:IsShown() then n = n + 1 end end
+    check(n == 20 and browser.levelLabel.text:find('Dun Morogh'), 'all-level browser shows selected zone and all 20 Kill objectives')
+    browser.objectiveRows[1].scripts.OnClick()
+    chooseZone('Elwynn Forest')
+    check(browser.preview.text == '' and browser.levelLabel.text:find('Elwynn Forest'), 'zone switch refreshes browser and clears stale preview')
+    chooseZone('Dun Morogh')
+    local active = pool.dm_crag_boar
+    WoWForeverDB.displayedQuests[2] = active
+    uiCards()[2].button.scripts.OnClick()
+    check(WoWForeverDB.activeQuest == active, 'Dun Morogh quest accepts through card')
+    local keptDun = WoWForeverDB.displayedQuests
+    chooseZone('Elwynn Forest')
+    check(WoWForeverDB.activeQuest == active and not ui.reroll.enabled and ui.note.text:find('Dun Morogh'),
+        'browsing another zone preserves active quest, locks reroll and explains how to return')
+    uiCards()[1].button.scripts.OnClick()
+    check(WoWForeverDB.activeQuest == active, 'cannot accept a second quest in another zone')
+    local previousT = T; T = addon.Tracking
+    zone = 'Elwynn Forest'; hit('dmwrongzone', 'Crag Boar'); die('dmwrongzone', 'Crag Boar')
+    check(active.progress.count == 0, 'Dun Morogh kill cannot be credited in Elwynn')
+    zone = 'Dun Morogh'; hit('dmrightzone', 'Crag Boar'); die('dmrightzone', 'Crag Boar')
+    check(active.progress.count == 1, 'active Dun Morogh quest tracks while Elwynn board is selected')
+    C_Map = {GetBestMapForUnit = function() return 9999 end,
+        GetMapInfo = function(id) return {parentMapID = id == 9999 and 1426 or 0} end}
+    zone = 'localized zone'; hit('dmchildmap', 'Crag Boar'); die('dmchildmap', 'Crag Boar')
+    check(active.progress.count == 2, 'Classic Dun Morogh child map ancestry counts without English zone text')
+    C_Map = nil
+    local preserved = clone(WoWForeverDB)
+    addon, ui = loadZoneBoard(preserved); T = addon.Tracking
+    check(WoWForeverDB.selectedZone == 'elwynn' and WoWForeverDB.activeQuest.progress.count == 2,
+        'reload retains selected zone and active quest in another zone')
+    chooseZone('Dun Morogh')
+    active = WoWForeverDB.activeQuest
+    check(WoWForeverDB.displayedQuests[2] == active and active.tracking.targets[1] == 'Crag Boar',
+        'reload restores authoritative active card and its Dun Morogh tracking spec')
+    local untouched = {WoWForeverDB.displayedQuests[1], WoWForeverDB.displayedQuests[3]}
+    while T.DebugAddProgress(true) do end
+    resting = true
+    uiCards()[2].button.scripts.OnClick()
+    check(not WoWForeverDB.activeQuest and WoWForeverDB.displayedQuests[2] ~= active
+        and WoWForeverDB.displayedQuests[2].zone == 'Dun Morogh', 'turn-in replaces only the finished slot in its zone')
+    check(WoWForeverDB.displayedQuests[1] == untouched[1] and WoWForeverDB.displayedQuests[3] == untouched[2],
+        'Dun Morogh turn-in preserves the other two cards')
+    chooseZone('Elwynn Forest')
+    for i = 1, 3 do check(WoWForeverDB.displayedQuests[i].id == elwynnOffers[i].id, 'Dun Morogh turn-in leaves Elwynn board unchanged') end
+    zone = 'Dun Morogh'
+    local collection = pool.dm_coldridge_trogg_spoils
+    check(T.Accept(collection), 'Dun Morogh collection resolver works with another board selected')
+    lootStart(2672, 1, 'Creature-dmtroggwrong', 'Kobold Miner'); receive(2672, 1)
+    check(collection.progress.collected == 0, 'Dun Morogh collection rejects Elwynn source')
+    lootStart(2672, 1, 'Creature-dmtrogg', 'Rockjaw Trogg'); receive(2672, 1)
+    check(collection.progress.collected == 1, 'Dun Morogh collection credits its named source')
+    T.Abandon()
+    for _, test in ipairs({
+        {'dm_peacebloom', 2366, 'GameObject-dmherb', 'Peacebloom'},
+        {'dm_copper_ore', 2575, 'GameObject-dmcopper', 'Copper Vein'},
+        {'dm_copper_vein_prospecting', 2575, 'GameObject-dmnode', 'Copper Vein'},
+        {'dm_boar_leather', 8613, 'Creature-dmboar', 'Crag Boar'},
+        {'dm_longjaw_mud_snapper', 7620, 'GameObject-dmfish', 'Fishing Bobber'},
+    }) do
+        local offer = pool[test[1]]
+        check(T.Accept(offer), 'Dun Morogh gathering resolver: ' .. test[1])
+        T.OnEvent(test[2] == 7620 and 'UNIT_SPELLCAST_CHANNEL_START' or 'UNIT_SPELLCAST_SUCCEEDED', 'player', 'cast', test[2])
+        lootStart(offer.tracking.itemID, 1, test[3], test[4]); receive(offer.tracking.itemID, 1)
+        check(offer.progress.count == 1, 'Dun Morogh gathering credits verified source: ' .. test[1])
+        T.Abandon()
+    end
+    -- A legacy board upgrades without rerolling, even with malformed new settings.
+    local legacy = {generatorDataVersion = '0.5.0', displayedQuests = clone(elwynnOffers),
+        selectedZone = 'invalid', zoneOffers = 'bad'}
+    addon, ui = loadZoneBoard(legacy)
+    check(WoWForeverDB.selectedZone == 'elwynn' and WoWForeverDB.zoneOffers.elwynn == legacy.displayedQuests,
+        'legacy offers migrate and invalid zone settings are repaired')
+    for i = 1, 3 do check(legacy.displayedQuests[i].id == elwynnOffers[i].id, 'migration keeps old generated IDs and amounts') end
+    -- Hunt wording is shared by both zones, including multiple-target elites.
+    local hunt = addon.GenerateQuestForLevel(5, false, nil, 'hunt')
+    for _ = 1, 100 do
+        if hunt.objectiveId == 'mine_spider' then break end
+        hunt = addon.GenerateQuestForLevel(5, false, nil, 'hunt')
+    end
+    check(hunt.objectiveId == 'mine_spider' and hunt.objective:find(tostring(hunt.amount))
+        and not hunt.objective:lower():find('elite'), 'multi-target Hunt retains count but omits elite wording')
+    T = previousT
+end
 print('PASS: ' .. passed .. ' tracking and UI assertions (Lua 5.1)')

@@ -24,16 +24,20 @@ local function ItemInfo(id)
     if fn then return fn(id) end
 end
 local function InZone()
+    local quest = db and db.activeQuest
+    local zoneName = quest and quest.zone or "Elwynn Forest"
+    local mapIDs = zoneName == "Dun Morogh" and {[48] = true, [1426] = true}
+        or zoneName == "Elwynn Forest" and {[37] = true, [1429] = true} or {}
     if C_Map and C_Map.GetBestMapForUnit and C_Map.GetMapInfo then
         local id = C_Map.GetBestMapForUnit("player")
         for _ = 1, 12 do
-            if id == 37 then return true end -- Elwynn, including its child maps.
+            if mapIDs[id] then return true end -- Classic/Forever maps and child maps.
             local info = id and C_Map.GetMapInfo(id)
             if not info or not info.parentMapID or info.parentMapID == 0 then break end
             id = info.parentMapID
         end
     end
-    return GetRealZoneText and GetRealZoneText() == "Elwynn Forest"
+    return GetRealZoneText and GetRealZoneText() == zoneName
 end
 function Tracking.IsResting() return IsResting and not not IsResting() end
 local function Working()

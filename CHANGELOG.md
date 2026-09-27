@@ -2,6 +2,22 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.7.0] - 2026-09-28
+
+### Added
+
+- Dun Morogh has 49 objectives: 20 Kill, 11 Collect & Sell, 7 Hunt (6 rare targets and Vagash), and 11 Gather (3 Herbalism, 3 Mining, 3 Skinning, 2 Fishing). Targets/resources were checked against Forever data; see ZONE_DATA.md.
+- A top-centre zone dropdown switches between Elwynn Forest and Dun Morogh. Each zone keeps its own three offers between switches and sessions. The first visit generates a board; revisiting does not reroll it.
+- Quest Browser, all-level browsing, test generation, level override, and forced-category testing use the selected zone. Both curated starting-zone pools cap generation at 12 and retain independent category/profession ceiling fallback.
+
+### Changed
+
+- Tracking and saved-objective resolution use the accepted quest's zone, independent of the board currently being browsed. Classic map IDs and child maps are supported alongside zone-name fallback.
+- Existing Elwynn offers, accepted quests, progress, statistics, and settings migrate without rerolling. One active quest remains the global limit; other-zone cards and reroll stay unavailable until it is abandoned or handed in. A notice identifies the active quest's zone.
+- Successful turn-in replaces only the completed slot; offers in the other zone remain unchanged.
+- Hunt objective descriptions omit the count when only one target is required and no longer describe targets as rare/elite. Multiple-target Hunts still show their count. Subtype data, eligibility, rarity rules, and tracking remain intact; existing Hunt card text is refreshed too.
+- Release advances to Alpha 0.7.0, retaining the pre-1.0 version series.
+
 ## [0.6.13] - 2026-09-28
 
 ### Added

@@ -10,10 +10,9 @@ local CreateBoard
 local debugMode = false
 local forcedLeftCategory
 local QuestGenerationLevel
-local ELWYNN_MAX_LEVEL = 12
 
 -- Amount ranges are deliberately curated per objective. Mob levels and zone
--- data use the WoW Forever Elwynn Forest tables; counts are balance choices.
+-- data use the WoW Forever zone tables; counts are balance choices.
 local database = {
     categories = {
         {
@@ -122,6 +121,133 @@ local database = {
     },
 }
 
+-- Dun Morogh uses the same curated layers as Elwynn. See ZONE_DATA.md for
+-- Forever source IDs and verification notes. Counts and eligibility bands are
+-- addon balancing choices, not Blizzard quest requirements.
+local dunMoroghData = {
+    categories = {
+        {
+            id = "kill", name = "Kill", source = "A Dun Morogh mountaineer",
+            objectives = {
+                {id = "dm_ragged_young_wolf", name = "Ragged Young Wolf", level = "1", minPlayerLevel = 1, maxPlayerLevel = 3, minAmount = 8, maxAmount = 12, location = "Coldridge Valley"},
+                {id = "dm_rockjaw_trogg", name = "Rockjaw Trogg", level = "1-2", minPlayerLevel = 1, maxPlayerLevel = 3, minAmount = 8, maxAmount = 12, location = "Coldridge Valley"},
+                {id = "dm_burly_rockjaw_trogg", name = "Burly Rockjaw Trogg", level = "2", minPlayerLevel = 1, maxPlayerLevel = 3, minAmount = 7, maxAmount = 10, location = "Coldridge Valley"},
+                {id = "dm_small_crag_boar", name = "Small Crag Boar", level = "3", minPlayerLevel = 2, maxPlayerLevel = 4, minAmount = 6, maxAmount = 9, location = "Coldridge Valley"},
+                {id = "dm_frostmane_troll_whelp", name = "Frostmane Troll Whelp", level = "3-4", minPlayerLevel = 2, maxPlayerLevel = 4, minAmount = 6, maxAmount = 9, location = "the troll camps in Coldridge Valley"},
+                {id = "dm_frostmane_novice", name = "Frostmane Novice", level = "3-4", minPlayerLevel = 2, maxPlayerLevel = 4, minAmount = 6, maxAmount = 9, location = "the troll cave in Coldridge Valley"},
+                {id = "dm_rockjaw_raider", name = "Rockjaw Raider", level = "3-4", minPlayerLevel = 2, maxPlayerLevel = 5, minAmount = 6, maxAmount = 9, location = "Coldridge Pass"},
+                {id = "dm_crag_boar", name = "Crag Boar", level = "5-6", minPlayerLevel = 4, maxPlayerLevel = 7, minAmount = 6, maxAmount = 9, location = "the slopes around Kharanos"},
+                {id = "dm_large_crag_boar", name = "Large Crag Boar", level = "6-7", minPlayerLevel = 5, maxPlayerLevel = 8, minAmount = 6, maxAmount = 9, location = "the hills around Kharanos"},
+                {id = "dm_young_black_bear", name = "Young Black Bear", level = "5-6", minPlayerLevel = 4, maxPlayerLevel = 7, minAmount = 6, maxAmount = 9, location = "the woods around Kharanos"},
+                {id = "dm_young_wendigo", name = "Young Wendigo", level = "5-6", minPlayerLevel = 4, maxPlayerLevel = 7, minAmount = 6, maxAmount = 9, location = "the entrance to the Grizzled Den"},
+                {id = "dm_wendigo", name = "Wendigo", level = "6-7", minPlayerLevel = 5, maxPlayerLevel = 8, minAmount = 5, maxAmount = 8, location = "the Grizzled Den"},
+                {id = "dm_elder_crag_boar", name = "Elder Crag Boar", level = "7-8", minPlayerLevel = 6, maxPlayerLevel = 9, minAmount = 5, maxAmount = 8, location = "the eastern hills"},
+                {id = "dm_ice_claw_bear", name = "Ice Claw Bear", level = "7-8", minPlayerLevel = 6, maxPlayerLevel = 10, minAmount = 5, maxAmount = 8, location = "the snowy wilderness"},
+                {id = "dm_winter_wolf", name = "Winter Wolf", level = "7-8", minPlayerLevel = 6, maxPlayerLevel = 10, minAmount = 5, maxAmount = 8, location = "the shores of Iceflow Lake"},
+                {id = "dm_rockjaw_skullthumper", name = "Rockjaw Skullthumper", level = "8-9", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 5, maxAmount = 8, location = "Gol'Bolar Quarry"},
+                {id = "dm_rockjaw_ambusher", name = "Rockjaw Ambusher", level = "9-10", minPlayerLevel = 8, maxPlayerLevel = 10, minAmount = 4, maxAmount = 7, location = "Gol'Bolar Quarry"},
+                {id = "dm_rockjaw_bonesnapper", name = "Rockjaw Bonesnapper", level = "9-10", minPlayerLevel = 8, maxPlayerLevel = 10, minAmount = 4, maxAmount = 7, location = "Gol'Bolar Quarry Mine"},
+                {id = "dm_frostmane_snowstrider", name = "Frostmane Snowstrider", level = "8-9", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 5, maxAmount = 8, location = "Frostmane Hold"},
+                {id = "dm_leper_gnome", name = "Leper Gnome", level = "8-10", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 5, maxAmount = 8, location = "the surface ruins outside Gnomeregan"},
+            },
+        },
+        {
+            id = "collect_sell", name = "Collect & Sell", source = "A Kharanos trader",
+            objectives = {
+                {id = "dm_coldridge_trogg_spoils", name = "Coldridge Trogg Spoils", level = "1-2", minPlayerLevel = 1, maxPlayerLevel = 3, minAmount = 3, maxAmount = 5, location = "Coldridge Valley", target = "Rockjaw Trogg or Burly Rockjaw Trogg", targets = {"Rockjaw Trogg", "Burly Rockjaw Trogg"}},
+                {id = "dm_troll_camp_spoils", name = "Troll Camp Salvage", level = "3-4", minPlayerLevel = 2, maxPlayerLevel = 4, minAmount = 3, maxAmount = 5, location = "the troll camps in Coldridge Valley", target = "Frostmane Troll Whelp", targets = {"Frostmane Troll Whelp"}},
+                {id = "dm_novice_spoils", name = "Cold Cave Supplies", level = "3-4", minPlayerLevel = 2, maxPlayerLevel = 4, minAmount = 3, maxAmount = 5, location = "the troll cave in Coldridge Valley", target = "Frostmane Novice", targets = {"Frostmane Novice"}},
+                {id = "dm_pass_spoils", name = "Coldridge Pass Salvage", level = "3-4", minPlayerLevel = 2, maxPlayerLevel = 5, minAmount = 3, maxAmount = 5, location = "Coldridge Pass", target = "Rockjaw Raider", targets = {"Rockjaw Raider"}},
+                {id = "dm_boar_spoils", name = "Kharanos Boar Spoils", level = "5-7", minPlayerLevel = 4, maxPlayerLevel = 8, minAmount = 4, maxAmount = 6, location = "the hills around Kharanos", target = "Crag Boar or Large Crag Boar", targets = {"Crag Boar", "Large Crag Boar"}},
+                {id = "dm_bear_spoils", name = "Black Bear Spoils", level = "5-6", minPlayerLevel = 4, maxPlayerLevel = 7, minAmount = 3, maxAmount = 5, location = "the woods around Kharanos", target = "Young Black Bear", targets = {"Young Black Bear"}},
+                {id = "dm_wendigo_spoils", name = "Grizzled Den Spoils", level = "5-7", minPlayerLevel = 4, maxPlayerLevel = 8, minAmount = 4, maxAmount = 6, location = "the Grizzled Den", target = "Young Wendigo or Wendigo", targets = {"Young Wendigo", "Wendigo"}},
+                {id = "dm_winter_wolf_spoils", name = "Iceflow Wolf Spoils", level = "7-9", minPlayerLevel = 6, maxPlayerLevel = 10, minAmount = 3, maxAmount = 5, location = "Iceflow Lake", target = "Winter Wolf or Starving Winter Wolf", targets = {"Winter Wolf", "Starving Winter Wolf"}},
+                {id = "dm_quarry_spoils", name = "Quarry Salvage", level = "8-10", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 3, maxAmount = 5, location = "Gol'Bolar Quarry", target = "Rockjaw Skullthumper or Rockjaw Ambusher or Rockjaw Bonesnapper", targets = {"Rockjaw Skullthumper", "Rockjaw Ambusher", "Rockjaw Bonesnapper"}},
+                {id = "dm_frostmane_spoils", name = "Frostmane Hold Supplies", level = "8-10", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 3, maxAmount = 5, location = "Frostmane Hold", target = "Frostmane Snowstrider or Frostmane Headhunter or Frostmane Hideskinner", targets = {"Frostmane Snowstrider", "Frostmane Headhunter", "Frostmane Hideskinner"}},
+                {id = "dm_gnome_spoils", name = "Gnomeregan Surface Salvage", level = "8-10", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 3, maxAmount = 5, location = "the surface ruins outside Gnomeregan", target = "Leper Gnome", targets = {"Leper Gnome"}},
+            },
+        },
+        {
+            id = "hunt", name = "Hunt", source = "A dwarven scout",
+            branches = {
+                {
+                    id = "rare", name = "Rare target",
+                    objectives = {
+                        {id = "dm_edan", name = "Edan the Howler", level = "9", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 1, maxAmount = 1, location = "the Grizzled Den", rarity = "Rare"},
+                        {id = "dm_timber", name = "Timber", level = "10", minPlayerLevel = 8, maxPlayerLevel = 10, minAmount = 1, maxAmount = 1, location = "the islands of Iceflow Lake", rarity = "Rare"},
+                        {id = "dm_arctikus", name = "Great Father Arctikus", level = "11", minPlayerLevel = 9, maxPlayerLevel = 12, minAmount = 1, maxAmount = 1, location = "Frostmane Hold", rarity = "Rare"},
+                        {id = "dm_gibblewilt", name = "Gibblewilt", level = "11", minPlayerLevel = 9, maxPlayerLevel = 12, minAmount = 1, maxAmount = 1, location = "the surface ruins outside Gnomeregan", rarity = "Rare"},
+                        {id = "dm_hammerspine", name = "Hammerspine", level = "12", minPlayerLevel = 10, maxPlayerLevel = 12, minAmount = 1, maxAmount = 1, location = "Gol'Bolar Quarry Mine", rarity = "Rare"},
+                        {id = "dm_bjarn", name = "Bjarn", level = "12", minPlayerLevel = 10, maxPlayerLevel = 12, minAmount = 1, maxAmount = 1, location = "the Tundrid Hills", rarity = "Rare"},
+                    },
+                },
+                {
+                    id = "elite", name = "Elite target",
+                    objectives = {
+                        {id = "dm_vagash", name = "Vagash", level = "11", minPlayerLevel = 9, maxPlayerLevel = 12, minAmount = 1, maxAmount = 1, location = "the cave above Amberstill Ranch", rarity = "Elite"},
+                    },
+                },
+            },
+        },
+    },
+    gather = {
+        {
+            id = "herbalism", name = "Herbalism", skillLine = 182,
+            objectives = {
+                {id = "dm_peacebloom", name = "Peacebloom", level = "Herbalism 1", minPlayerLevel = 1, maxPlayerLevel = 5, minAmount = 4, maxAmount = 8, location = "the open slopes of Dun Morogh", itemID = 2447},
+                {id = "dm_silverleaf", name = "Silverleaf", level = "Herbalism 1", minPlayerLevel = 1, maxPlayerLevel = 7, minAmount = 4, maxAmount = 8, location = "trees throughout Dun Morogh", itemID = 765},
+                {id = "dm_earthroot", name = "Earthroot", level = "Herbalism 15", minPlayerLevel = 3, maxPlayerLevel = 10, minAmount = 3, maxAmount = 5, location = "rocky hillsides in Dun Morogh", itemID = 2449},
+            },
+        },
+        {
+            id = "mining", name = "Mining", skillLine = 186,
+            objectives = {
+                {id = "dm_copper_ore", name = "Copper Ore", level = "Mining 1", minPlayerLevel = 1, maxPlayerLevel = 12, minAmount = 5, maxAmount = 9, location = "Copper Veins throughout Dun Morogh", itemID = 2770},
+                {id = "dm_rough_stone", name = "Rough Stone", level = "Mining 1", minPlayerLevel = 1, maxPlayerLevel = 12, minAmount = 5, maxAmount = 9, location = "Copper Veins throughout Dun Morogh", itemID = 2835},
+                {id = "dm_copper_vein_prospecting", name = "Copper Vein Prospecting", level = "Mining 1", minPlayerLevel = 1, maxPlayerLevel = 12, minAmount = 3, maxAmount = 5, location = "Copper Veins throughout Dun Morogh", itemID = 2770, trackingKind = "nodes"},
+            },
+        },
+        {
+            id = "skinning", name = "Skinning", skillLine = 393,
+            objectives = {
+                {id = "dm_ruined_leather_scraps", name = "Ruined Leather Scraps", level = "Skinning 1", minPlayerLevel = 1, maxPlayerLevel = 5, minAmount = 4, maxAmount = 8, location = "skinnable low-level beasts in Dun Morogh", itemID = 2934},
+                {id = "dm_boar_leather", name = "Light Leather from Crag Boars", level = "Skinning 1", minPlayerLevel = 4, maxPlayerLevel = 8, minAmount = 3, maxAmount = 5, location = "boars around Kharanos", itemID = 2318, targets = {"Crag Boar", "Large Crag Boar", "Elder Crag Boar"}},
+                {id = "dm_winter_leather", name = "Light Leather from Winter Beasts", level = "Skinning 1", minPlayerLevel = 6, maxPlayerLevel = 10, minAmount = 3, maxAmount = 5, location = "wolves and bears in Dun Morogh", itemID = 2318, targets = {"Winter Wolf", "Starving Winter Wolf", "Ice Claw Bear"}},
+            },
+        },
+        {
+            id = "fishing", name = "Fishing", skillLine = 356,
+            objectives = {
+                {id = "dm_brilliant_smallfish", name = "Raw Brilliant Smallfish", level = "Fishing 1", minPlayerLevel = 1, maxPlayerLevel = 5, minAmount = 5, maxAmount = 9, location = "the open water of Iceflow Lake", itemID = 6291},
+                {id = "dm_longjaw_mud_snapper", name = "Raw Longjaw Mud Snapper", level = "Fishing 50", minPlayerLevel = 4, maxPlayerLevel = 10, minAmount = 4, maxAmount = 8, location = "the open water of Iceflow Lake", itemID = 6289},
+            },
+        },
+    },
+}
+
+local zones = {
+    elwynn = {id = "elwynn", name = "Elwynn Forest", maxLevel = 12, data = database},
+    dun_morogh = {id = "dun_morogh", name = "Dun Morogh", maxLevel = 12, data = dunMoroghData},
+}
+local zoneOrder = {"elwynn", "dun_morogh"}
+for id, zone in pairs(zones) do
+    for _, category in ipairs(zone.data.categories) do category.zoneId = id end
+end
+
+local function SelectedZone()
+    return zones[db and db.selectedZone] or zones.elwynn
+end
+
+local function QuestZone(quest)
+    if zones[quest.zoneId] then return zones[quest.zoneId] end
+    for _, zone in pairs(zones) do
+        if quest.zone == zone.name then return zone end
+    end
+    -- Legacy quests predate explicit zone IDs and were all Elwynn objectives.
+    if not quest.zone then return zones.elwynn end
+end
+
+
 -- Explicit source groups avoid treating a plural display label as a mob name.
 local collectSources = {
     northshire_kobold_loot = {"Kobold Vermin", "Kobold Laborer"},
@@ -151,13 +277,16 @@ local function TrackingSpec(categoryId, objective, profession)
     if categoryId == "kill" or categoryId == "hunt" then
         return {kind = "kill", targets = {objective.name}}
     elseif categoryId == "collect_sell" then
-        return {kind = "collect_sell", targets = collectSources[objective.id], itemID = trackedItems[objective.id]}
+        return {kind = "collect_sell", targets = objective.targets or collectSources[objective.id], itemID = objective.itemID or trackedItems[objective.id]}
     elseif profession then
-        return {kind = objective.id == "copper_vein_prospecting" and "nodes" or "gather",
-            profession = profession, itemID = trackedItems[objective.id], targets = skinSources[objective.id]}
+        return {kind = objective.trackingKind or (objective.id == "copper_vein_prospecting" and "nodes" or "gather"),
+            profession = profession, itemID = objective.itemID or trackedItems[objective.id], targets = objective.targets or skinSources[objective.id]}
     end
 end
 local function ResolveTracking(quest)
+    local zone = QuestZone(quest)
+    if not zone then return end
+    local database = zone.data
     for _, category in ipairs(database.categories) do
         if category.branches then
             for _, branch in ipairs(category.branches) do
@@ -203,7 +332,7 @@ local function LearnedGatherProfessions()
     local function IncludeProfession(index)
         if index then
             local _, _, _, _, _, _, skillLine = GetProfessionInfo(index)
-            for _, profession in ipairs(database.gather) do
+            for _, profession in ipairs(SelectedZone().data.gather) do
                 if skillLine == profession.skillLine then known[profession.id] = true end
             end
         end
@@ -216,7 +345,9 @@ local function LearnedGatherProfessions()
     return known
 end
 
-local function CategoryOptions(includeUnlearned)
+local function CategoryOptions(includeUnlearned, zone)
+    zone = zone or SelectedZone()
+    local database = zone.data
     local result = {}
     for _, category in ipairs(database.categories) do result[#result + 1] = category end
     local known = LearnedGatherProfessions()
@@ -224,6 +355,7 @@ local function CategoryOptions(includeUnlearned)
         if includeUnlearned or known[profession.id] then
             result[#result + 1] = {
                 id = "gather:" .. profession.id,
+                zoneId = zone.id,
                 name = "Gather — " .. profession.name,
                 baseName = "Gather",
                 profession = profession,
@@ -240,14 +372,14 @@ local function CurrentPlayerLevel()
 end
 
 local function NormalGenerationLevel()
-    return math.min(CurrentPlayerLevel(), ELWYNN_MAX_LEVEL)
+    return math.min(CurrentPlayerLevel(), SelectedZone().maxLevel)
 end
 
 local function ProgressionBand(level)
     if level <= 3 then return "Early" end
     if level <= 6 then return "Mid" end
     if level <= 12 then return "Late" end
-    return "Beyond Elwynn"
+    return "Beyond zone range"
 end
 
 local function EligibleObjectives(objectives, playerLevel)
@@ -330,21 +462,20 @@ end
 
 local function BuildQuest(category, branch, objective, amount)
     if not category or not objective then return nil end
+    local zone = zones[category.zoneId] or SelectedZone()
     amount = amount or RollAmount(objective)
     local kind = category.baseName or category.name
     local target = objective.target or objective.name
-    local location = objective.location and (" at " .. objective.location) or " in Elwynn Forest"
+    local location = objective.location and (" at " .. objective.location) or (" in " .. zone.name)
     local action
     if category.id == "kill" then
         action = "Travel to " .. objective.location .. " and defeat " .. amount .. " " .. target .. "."
     elseif category.id == "collect_sell" then
         action = "Collect " .. amount .. " " .. (objective.item or "vendor-value item") .. (amount == 1 and "" or "s") .. " from " .. target .. " near " .. objective.location .. ", then sell them to a vendor."
-    elseif category.id == "hunt" and branch.id == "rare" then
-        action = "Find and defeat " .. target .. (amount > 1 and (" " .. amount .. " times") or "") .. ", a " .. objective.rarity .. " target, " .. location .. "."
     elseif category.id == "hunt" then
-        action = "Travel to " .. objective.location .. " and defeat " .. amount .. " " .. target .. " elites."
-    elseif objective.id == "copper_vein_prospecting" then
-        action = "Mine " .. amount .. " different Copper Veins in Elwynn Forest and loot their ore."
+        action = "Find and defeat " .. (amount > 1 and (amount .. " ") or "") .. target .. location .. "."
+    elseif objective.trackingKind == "nodes" or objective.id == "copper_vein_prospecting" then
+        action = "Mine " .. amount .. " different Copper Veins in " .. zone.name .. " and loot their ore."
     elseif category.profession then
         action = "Gather " .. amount .. " " .. target .. " " .. location .. "."
     end
@@ -354,7 +485,8 @@ local function BuildQuest(category, branch, objective, amount)
         title = objective.name,
         kind = kind .. (branch and (" — " .. branch.name) or (category.profession and (" — " .. category.profession.name) or "")),
         categoryName = kind,
-        zone = "Elwynn Forest",
+        zone = zone.name,
+        zoneId = zone.id,
         level = objective.level,
         source = category.source,
         description = (category.profession and (category.profession.name .. " supplies are needed.") or
@@ -375,7 +507,9 @@ local function BuildQuest(category, branch, objective, amount)
 end
 
 local function UpdatedObjectiveText(quest)
-    for _, category in ipairs(CategoryOptions(true)) do
+    local zone = QuestZone(quest)
+    if not zone then return quest.objective end
+    for _, category in ipairs(CategoryOptions(true, zone)) do
         if category.branches then
             for _, branch in ipairs(category.branches) do
                 for _, objective in ipairs(branch.objectives) do
@@ -461,9 +595,9 @@ local function PickDisplayedQuests()
         generationLevel, outleveled = QuestGenerationLevel()
     else
         generationLevel = NormalGenerationLevel()
-        outleveled = CurrentPlayerLevel() > ELWYNN_MAX_LEVEL
+        outleveled = CurrentPlayerLevel() > SelectedZone().maxLevel
     end
-    if db.activeQuest then
+    if db.activeQuest and QuestZone(db.activeQuest) == SelectedZone() then
         chosen[1] = db.activeQuest
         seen[db.activeQuest.selectionId or db.activeQuest.id] = true
     elseif debugMode and forcedLeftCategory then
@@ -505,12 +639,20 @@ local function ValidDisplayedQuests(displayed)
     return true
 end
 
-local debugState = {testLevel = math.min(CurrentPlayerLevel(), ELWYNN_MAX_LEVEL)}
+local function ValidZoneOffers(offers, zone)
+    if not ValidDisplayedQuests(offers) then return false end
+    for _, quest in ipairs(offers) do
+        if QuestZone(quest) ~= zone then return false end
+    end
+    return true
+end
+
+local debugState = {testLevel = math.min(CurrentPlayerLevel(), SelectedZone().maxLevel)}
 local ChangeDebugLevel
 
 QuestGenerationLevel = function()
     if debugMode then return debugState.testLevel, false end
-    return NormalGenerationLevel(), CurrentPlayerLevel() > ELWYNN_MAX_LEVEL
+    return NormalGenerationLevel(), CurrentPlayerLevel() > SelectedZone().maxLevel
 end
 
 -- Kept on the private addon namespace for deterministic generator diagnostics.
@@ -525,13 +667,31 @@ local function Text(parent, size, color)
 end
 
 ChangeDebugLevel = function(delta)
-    debugState.testLevel = math.min(ELWYNN_MAX_LEVEL, math.max(1, debugState.testLevel + delta))
+    debugState.testLevel = math.min(SelectedZone().maxLevel, math.max(1, debugState.testLevel + delta))
     if board and board.debugLevelText then
         board.debugLevelText:SetText("Generation level: " .. debugState.testLevel .. " (" .. ProgressionBand(debugState.testLevel) .. ")")
         board.debugLevelDown:SetEnabled(debugState.testLevel > 1)
-        board.debugLevelUp:SetEnabled(debugState.testLevel < ELWYNN_MAX_LEVEL)
+        board.debugLevelUp:SetEnabled(debugState.testLevel < SelectedZone().maxLevel)
     end
     if questBrowser and questBrowser:IsShown() then RefreshQuestBrowser() end
+end
+
+-- Each zone retains its own notices. Switching boards is browsing, not rerolling.
+local function SelectZone(id)
+    if not db or not zones[id] or id == db.selectedZone then return end
+    db.zoneOffers[db.selectedZone] = db.displayedQuests
+    db.selectedZone = id
+    db.displayedQuests = db.zoneOffers[id]
+    if not ValidZoneOffers(db.displayedQuests, SelectedZone()) then
+        db.displayedQuests = PickDisplayedQuests()
+    end
+    db.zoneOffers[id] = db.displayedQuests
+    ChangeDebugLevel(0)
+    if questBrowser then
+        questBrowser.preview:SetText("")
+        RefreshQuestBrowser()
+    end
+    Refresh()
 end
 
 local browserTab = "kill"
@@ -543,7 +703,7 @@ local browserTabData = {
 }
 
 local function BrowserCategory(categoryId)
-    for _, category in ipairs(database.categories) do
+    for _, category in ipairs(SelectedZone().data.categories) do
         if category.id == categoryId then return category end
     end
 end
@@ -648,9 +808,9 @@ end
 
 RefreshQuestBrowser = function()
     if not questBrowser then return end
-    questBrowser.levelLabel:SetText("Generation Level: " .. debugState.testLevel .. " (" .. ProgressionBand(debugState.testLevel) .. ")")
+    questBrowser.levelLabel:SetText(SelectedZone().name .. " — Level " .. debugState.testLevel .. " (" .. ProgressionBand(debugState.testLevel) .. ")")
     questBrowser.levelDown:SetEnabled(debugState.testLevel > 1)
-    questBrowser.levelUp:SetEnabled(debugState.testLevel < ELWYNN_MAX_LEVEL)
+    questBrowser.levelUp:SetEnabled(debugState.testLevel < SelectedZone().maxLevel)
     for index, tab in ipairs(questBrowser.tabs) do
         local active = browserTabData[index].id == browserTab
         tab.activeMark:SetShown(active)
@@ -659,7 +819,7 @@ RefreshQuestBrowser = function()
     local sectionRows, objectiveRows = questBrowser.sectionRows, questBrowser.objectiveRows
     local sectionCount, objectiveCount, y = 0, 0, -8
     local function AddSection(label, icon)
-        if questBrowser.allLevels:GetChecked() then label = label .. " — Elwynn Forest: all levels" end
+        if questBrowser.allLevels:GetChecked() then label = label .. " — " .. SelectedZone().name .. ": all levels" end
         sectionCount = sectionCount + 1
         local row = sectionRows[sectionCount]
         if not row then
@@ -720,7 +880,7 @@ RefreshQuestBrowser = function()
             end
         end
     elseif browserTab == "gather" then
-        for _, profession in ipairs(database.gather) do
+        for _, profession in ipairs(SelectedZone().data.gather) do
             local category = BrowserGatherCategory(profession)
             local objectives, effectiveLevel = BrowserObjectives(profession.objectives, debugState.testLevel)
             local label = profession.name
@@ -1016,11 +1176,33 @@ CreateBoard = function()
     board:SetBackdrop({bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", tile = true, tileSize = 32, edgeSize = 16, insets = {left = 4, right = 4, top = 4, bottom = 4}})
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("Classic Questbook — Alpha V0.6.13 (0.6.13)")
+    title:SetPoint("TOPLEFT", 54, -12)
+    title:SetText("Classic Questbook")
+    local version = Text(board, "GameFontHighlightSmall")
+    version:SetPoint("TOPLEFT", 54, -31)
+    version:SetText("Alpha V0.7.0")
+    board.zoneDropdown = CreateFrame("Frame", "WoWForeverZoneDropdown", board, "UIDropDownMenuTemplate")
+    board.zoneDropdown:SetPoint("TOP", board, "TOP", 0, -8)
+    UIDropDownMenu_SetWidth(board.zoneDropdown, 190)
+    UIDropDownMenu_Initialize(board.zoneDropdown, function(self, menuLevel)
+        for _, id in ipairs(zoneOrder) do
+            local zoneId = id
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = zones[zoneId].name
+            info.checked = db.selectedZone == zoneId
+            info.func = function()
+                SelectZone(zoneId)
+                CloseDropDownMenus()
+            end
+            UIDropDownMenu_AddButton(info, menuLevel)
+        end
+    end)
+    board.zoneDropdown:HookScript("OnHide", function(self)
+        if UIDROPDOWNMENU_OPEN_MENU == self then CloseDropDownMenus() end
+    end)
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
-    subtitle:SetText("Generated Elwynn Forest adventures.")
+    subtitle:SetText("Generated " .. SelectedZone().name .. " adventures.")
     board.subtitle = subtitle
     local close = CreateFrame("Button", nil, board, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -4, -4)
@@ -1271,7 +1453,7 @@ SetDebugMode = function(enabled, openBrowser)
     if board then
         board.debugLevelText:SetText("Generation level: " .. debugState.testLevel .. " (" .. ProgressionBand(debugState.testLevel) .. ")")
         board.debugLevelDown:SetEnabled(debugState.testLevel > 1)
-        board.debugLevelUp:SetEnabled(debugState.testLevel < ELWYNN_MAX_LEVEL)
+        board.debugLevelUp:SetEnabled(debugState.testLevel < SelectedZone().maxLevel)
         board.debugLevelControls:SetShown(debugMode)
         board.debugButton:SetShown(debugMode)
         Refresh()
@@ -1279,8 +1461,11 @@ SetDebugMode = function(enabled, openBrowser)
 end
 
 Refresh = function()
+    if db and db.zoneOffers then db.zoneOffers[db.selectedZone] = db.displayedQuests end
     RefreshStatistics()
     if not board or not db then return end
+    UIDropDownMenu_SetText(board.zoneDropdown, SelectedZone().name)
+    board.subtitle:SetText("Generated " .. SelectedZone().name .. " adventures.")
     local resting = Tracking.IsResting()
     local locationAllowed = debugMode or resting
     for index, card in ipairs(cards) do
@@ -1293,7 +1478,7 @@ Refresh = function()
         local hunt = quest and quest.categoryName == "Hunt"
         local objectiveText = hunt and UpdatedObjectiveText(quest) or (quest and quest.objective)
         card.heading:SetText(quest and quest.title or "No suitable quest")
-        card.meta:SetText(quest and (quest.kind .. "  |  " .. quest.zone .. "\n" .. (hunt and "" or ("Level or skill: " .. quest.level .. "  |  ")) .. quest.source) or "Elwynn Forest")
+        card.meta:SetText(quest and (quest.kind .. "  |  " .. quest.zone .. "\n" .. (hunt and "" or ("Level or skill: " .. quest.level .. "  |  ")) .. quest.source) or SelectedZone().name)
         card.story:SetText(quest and quest.description or "No objectives match your current level and known professions.")
         card.objective:SetText(quest and ("Your objective\n|cffffffff" .. objectiveText .. "|r") or "")
         card.prompt:SetText(accepted and Tracking.ProgressText(quest) or (quest and not trackable and "Automatic tracking is unavailable for this objective on this client." or (quest and ("Roleplay prompt\n|cffffffff" .. quest.prompt .. "|r") or "")))
@@ -1319,13 +1504,15 @@ Refresh = function()
     board.debugProgress:SetShown(debugMode)
     board.debugProgress:SetEnabled(debugMode and active ~= nil and Tracking.CanTrack(active) and active.state == "Active")
     if abandonDialog and abandonDialog:IsShown() and abandonDialog.quest ~= active then abandonDialog:Hide() end
-    board.status:SetText(active and (active.state .. ": " .. active.title) or (#db.displayedQuests == 0 and "No Elwynn objectives match your current level and known professions." or "Choose one notice to begin your adventure."))
+    board.status:SetText(active and (active.state .. ": " .. active.title) or (#db.displayedQuests == 0 and "No " .. SelectedZone().name .. " objectives match your level and professions." or "Choose one notice to begin your adventure."))
     board.reroll:SetEnabled(active == nil)
     local notice = debugMode and "Debug Mode: accept and turn-in location requirements are bypassed."
         or resting and "Rest area: you can accept quests and turn in finished objectives here."
         or "Visit an inn, city, or other rest area to accept or turn in quests. Progress still tracks outside rest areas."
     local last = db.completedQuests and db.completedQuests[#db.completedQuests]
-    board.note:SetText(notice .. (last and ("\nLast completed: " .. last.title) or ""))
+    local activeElsewhere = active and QuestZone(active) ~= SelectedZone()
+    board.note:SetText(notice .. (activeElsewhere and ("\nYour active quest is in " .. (active.zone or "Elwynn Forest") .. ". Select that zone above to view or turn it in.")
+        or last and ("\nLast completed: " .. last.title) or ""))
 end
 
 local events = CreateFrame("Frame")
@@ -1347,15 +1534,37 @@ events:SetScript("OnEvent", function(self, event, loaded)
     end
     if not ValidQuest(db.activeQuest) then db.activeQuest = nil end
     if db.activeQuest then db.activeQuestId = nil end
+    db.zoneOffers = type(db.zoneOffers) == "table" and db.zoneOffers or {}
+    for id, zone in pairs(zones) do
+        if not ValidZoneOffers(db.zoneOffers[id], zone) then db.zoneOffers[id] = nil end
+    end
+    -- Migrate the existing board without changing any generated objective/amount.
+    local oldOffers = db.displayedQuests
+    local oldZone = type(oldOffers) == "table" and type(oldOffers[1]) == "table" and QuestZone(oldOffers[1])
+    if oldZone and ValidZoneOffers(oldOffers, oldZone) then db.zoneOffers[oldZone.id] = oldOffers end
+    if not zones[db.selectedZone] then db.selectedZone = oldZone and oldZone.id or "elwynn" end
     Tracking.Initialize(db, ResolveTracking, Refresh)
     if db.activeQuest then
-        local found = false
-        for _, quest in ipairs(type(db.displayedQuests) == "table" and db.displayedQuests or {}) do
-            if type(quest) == "table" and quest.id == db.activeQuest.id then found = true end
+        local activeZone = QuestZone(db.activeQuest) or zones.elwynn
+        local activeOffers = db.zoneOffers[activeZone.id]
+        local found
+        for index, quest in ipairs(activeOffers or {}) do
+            if quest.id == db.activeQuest.id then
+                activeOffers[index] = db.activeQuest -- SavedVariables restores independent tables.
+                found = true
+                break
+            end
         end
-        if not found then db.displayedQuests = nil end
+        if not found then
+            local selected = db.selectedZone
+            db.selectedZone = activeZone.id
+            db.zoneOffers[activeZone.id] = PickDisplayedQuests()
+            db.selectedZone = selected
+        end
     end
-    if not ValidDisplayedQuests(db.displayedQuests) then db.displayedQuests = PickDisplayedQuests() end
+    db.displayedQuests = db.zoneOffers[db.selectedZone]
+    if not ValidZoneOffers(db.displayedQuests, SelectedZone()) then db.displayedQuests = PickDisplayedQuests() end
+    db.zoneOffers[db.selectedZone] = db.displayedQuests
     CreateMinimapButton()
     self:UnregisterEvent("ADDON_LOADED")
 end)
