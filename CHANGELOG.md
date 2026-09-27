@@ -2,6 +2,13 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.6.11] - 2026-09-28
+
+### Changed
+
+- Hunt objectives unlock two levels below the target's minimum listed level. Mine Spider and Mother Fang now unlock at player level 5; Narg/Morgaine at 8, Hogger at 9, and Fedfennel/Gruff at 10 already followed this rule.
+- Existing upper bands, Hunt category weight, rare/elite amounts, and hidden level descriptions are preserved. Reroll to refresh existing offers.
+
 ## [0.6.10] - 2026-09-28
 
 ### Changed

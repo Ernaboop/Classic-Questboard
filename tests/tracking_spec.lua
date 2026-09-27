@@ -333,6 +333,24 @@ check(noProfessions.Kill > noProfessions['Collect & Sell'] and noProfessions['Co
     'weighted category ordering favors ordinary quests')
 math.randomseed(1)
 local outleveledSeen = {}
+local function huntPoolAt(playerLevel)
+    local excluded, found = {}, {}
+    for _ = 1, 20 do
+        local offer = realNS.GenerateQuestForLevel(playerLevel, false, excluded, 'hunt')
+        if not offer then return found end
+        found[offer.objectiveId] = offer
+        excluded[offer.selectionId] = true
+    end
+    error('Hunt pool enumeration failed to terminate')
+end
+for id, unlock in pairs({mine_spider = 5, mother_fang = 5, narg = 8, morgaine = 8,
+    hogger = 9, fedfennel = 10, gruff_swiftbite = 10}) do
+    check(not huntPoolAt(unlock - 1)[id], 'Hunt not available before two-level lead: ' .. id)
+    local offer = huntPoolAt(unlock)[id]
+    check(offer and offer.minPlayerLevel == unlock, 'Hunt unlocks at two-level lead: ' .. id)
+    check(not offer.objective:find('level'), 'Hunt descriptions continue to omit levels')
+    if offer.branchId == 'rare' then check(offer.amount == 1, 'rare Hunt amount remains one') end
+end
 for _ = 1, 1200 do
     local offer = realNS.GenerateQuestForLevel(12, true)
     outleveledSeen[offer.categoryName] = true

@@ -58,6 +58,7 @@ local database = {
             },
         },
         {
+            -- Hunt unlocks two levels below the target's minimum listed level.
             id = "hunt", name = "Hunt", source = "A local scout",
             branches = {
                 {
@@ -72,8 +73,8 @@ local database = {
                 {
                     id = "elite", name = "Elite targets",
                     objectives = {
-                        {id = "mine_spider", name = "Mine Spider", level = "7-9", minPlayerLevel = 6, maxPlayerLevel = 9, minAmount = 3, maxAmount = 5, location = "Jasperlode Mine", rarity = "Elite"},
-                        {id = "mother_fang", name = "Mother Fang", level = "7-10", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 1, maxAmount = 1, location = "Jasperlode Mine", rarity = "Elite"},
+                        {id = "mine_spider", name = "Mine Spider", level = "7-9", minPlayerLevel = 5, maxPlayerLevel = 9, minAmount = 3, maxAmount = 5, location = "Jasperlode Mine", rarity = "Elite"},
+                        {id = "mother_fang", name = "Mother Fang", level = "7-10", minPlayerLevel = 5, maxPlayerLevel = 10, minAmount = 1, maxAmount = 1, location = "Jasperlode Mine", rarity = "Elite"},
                         {id = "hogger", name = "Hogger", level = "11", minPlayerLevel = 9, maxPlayerLevel = 12, minAmount = 1, maxAmount = 1, location = "the Hogger camp", rarity = "Elite"},
                     },
                 },
@@ -923,7 +924,7 @@ CreateBoard = function()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("Classic Questbook — Alpha V0.6.10 (0.6.10)")
+    title:SetText("Classic Questbook — Alpha V0.6.11 (0.6.11)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")
