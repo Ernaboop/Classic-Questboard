@@ -98,6 +98,9 @@ function Tracking.Accept(q, bypassLocation)
     Normalize(q)
     db.activeQuest = q
     db.statistics.accepted = db.statistics.accepted + 1
+    if statisticCategories[q.categoryName] then
+        db.statistics.acceptedByCategory[q.categoryName] = db.statistics.acceptedByCategory[q.categoryName] + 1
+    end
     ResetTransient()
     return true
 end
@@ -105,6 +108,9 @@ function Tracking.Abandon()
     if not db or not db.activeQuest then return false end
     db.statistics.abandoned = db.statistics.abandoned + 1
     local q = db.activeQuest
+    if statisticCategories[q.categoryName] then
+        db.statistics.abandonedByCategory[q.categoryName] = db.statistics.abandonedByCategory[q.categoryName] + 1
+    end
     q.state, q.progress, q.acceptedAt, q.completedAt = nil, nil, nil, nil
     db.activeQuest = nil
     ResetTransient()
@@ -131,12 +137,14 @@ function Tracking.TurnIn(bypassLocation)
 end
 function Tracking.GetStatistics()
     local stats = db and db.statistics or {}
-    local categories = {}
-    for category in pairs(statisticCategories) do
-        categories[category] = stats.completedByCategory and stats.completedByCategory[category] or 0
+    local result = {accepted = stats.accepted or 0, handedIn = stats.handedIn or 0, abandoned = stats.abandoned or 0}
+    for _, field in ipairs({"acceptedByCategory", "completedByCategory", "abandonedByCategory"}) do
+        result[field] = {}
+        for category in pairs(statisticCategories) do
+            result[field][category] = stats[field] and stats[field][category] or 0
+        end
     end
-    return {accepted = stats.accepted or 0, handedIn = stats.handedIn or 0, abandoned = stats.abandoned or 0,
-        completedByCategory = categories}
+    return result
 end
 
 function Tracking.ProgressText(q)
@@ -499,10 +507,12 @@ function Tracking.Initialize(saved, resolver, callback)
         local value = tonumber(db.statistics[key])
         db.statistics[key] = value and value == value and value >= 0 and value < math.huge and math.floor(value) or 0
     end
-    db.statistics.completedByCategory = type(db.statistics.completedByCategory) == "table" and db.statistics.completedByCategory or {}
-    for category in pairs(statisticCategories) do
-        local value = tonumber(db.statistics.completedByCategory[category])
-        db.statistics.completedByCategory[category] = value and value == value and value >= 0 and value < math.huge and math.floor(value) or 0
+    for _, field in ipairs({"acceptedByCategory", "completedByCategory", "abandonedByCategory"}) do
+        db.statistics[field] = type(db.statistics[field]) == "table" and db.statistics[field] or {}
+        for category in pairs(statisticCategories) do
+            local value = tonumber(db.statistics[field][category])
+            db.statistics[field][category] = value and value == value and value >= 0 and value < math.huge and math.floor(value) or 0
+        end
     end
     db.completedQuests = type(db.completedQuests) == "table" and db.completedQuests or {}
     if db.activeQuest then Normalize(db.activeQuest) end

@@ -426,10 +426,18 @@ local cs = cards()
 board.statistics.scripts.OnClick()
 local statsWindow = WoWForeverStatistics
 check(statsWindow:IsShown() and statsWindow.values.accepted.text == '0', 'statistics window opens with starting totals')
-statsWindow.expand.scripts.OnClick(statsWindow.expand)
-check(statsWindow.categories:IsShown() and statsWindow.categoryValues.Hunt.text == '0', 'plus expands category completion totals')
-statsWindow.expand.scripts.OnClick(statsWindow.expand)
-check(not statsWindow.categories:IsShown() and statsWindow.expand.text == '+', 'minus collapses category completion totals')
+local acceptedSection, handedSection, abandonedSection = statsWindow.sections.accepted, statsWindow.sections.handedIn, statsWindow.sections.abandoned
+acceptedSection.expand.scripts.OnClick()
+handedSection.expand.scripts.OnClick()
+abandonedSection.expand.scripts.OnClick()
+check(acceptedSection.categories:IsShown() and handedSection.categories:IsShown() and abandonedSection.categories:IsShown(),
+    'each statistic expands independently')
+check(acceptedSection.point[5] > handedSection.point[5] and handedSection.point[5] > abandonedSection.point[5],
+    'expanded statistics stack underneath their own headers')
+handedSection.expand.scripts.OnClick()
+check(not handedSection.categories:IsShown() and acceptedSection.categories:IsShown() and abandonedSection.categories:IsShown(),
+    'collapsing one statistic preserves other expanded sections')
+acceptedSection.expand.scripts.OnClick(); abandonedSection.expand.scripts.OnClick()
 board.statistics.scripts.OnClick()
 check(not statsWindow:IsShown(), 'statistics button toggles window closed')
 board.help.scripts.OnClick()
@@ -449,6 +457,24 @@ check(not WoWForeverOptions:IsShown(), 'options button closes options')
 WoWForeverDebugModeButton.scripts.OnClick()
 board.debugButton.scripts.OnClick()
 check(WoWForeverQuestBrowser:IsShown(), 'browser button opens browser')
+local browser = WoWForeverQuestBrowser
+local function visibleObjectives()
+    local count = 0
+    for _, row in ipairs(browser.objectiveRows) do if row:IsShown() then count = count + 1 end end
+    return count
+end
+local filteredCount = visibleObjectives()
+local keptBrowserOffers = WoWForeverDB.displayedQuests
+browser.allLevels:SetChecked(true); browser.allLevels.scripts.OnClick()
+check(visibleObjectives() > filteredCount, 'show all levels expands current zone objective list')
+check(WoWForeverDB.displayedQuests == keptBrowserOffers, 'browser level toggle never changes offers')
+for _, tab in ipairs(browser.tabs) do
+    tab.scripts.OnClick()
+    check(visibleObjectives() > 0, 'all-level browser supports each category tab')
+end
+browser.tabs[1].scripts.OnClick()
+browser.allLevels:SetChecked(false); browser.allLevels.scripts.OnClick()
+check(visibleObjectives() == filteredCount, 'turning off all levels restores selected level filter')
 board.debugButton.scripts.OnClick()
 check(not WoWForeverQuestBrowser:IsShown(), 'browser button closes browser')
 for _ = 1, 6 do board.debugLevelUp.scripts.OnClick() end
@@ -545,7 +571,7 @@ resting = false; realNS.Tracking.OnEvent('PLAYER_UPDATE_RESTING'); cs[1].button.
 check(WoWForeverDB.activeQuest == active, 'ready card cannot turn in outside rest')
 resting = true; realNS.Tracking.OnEvent('PLAYER_UPDATE_RESTING'); cs[1].button.scripts.OnClick()
 check(not WoWForeverDB.activeQuest and board.reroll.enabled and #WoWForeverDB.completedQuests == 1, 'manual turn-in returns to three selectable cards')
-check(statsWindow.values.handedIn.text == '1' and statsWindow.categoryValues[active.categoryName].text == '1',
+check(statsWindow.values.handedIn.text == '1' and statsWindow.sections.handedIn.categoryValues[active.categoryName].text == '1',
     'statistics total and category refresh after successful turn-in')
 check(WoWForeverDB.displayedQuests == originalOffers and originalOffers[1] ~= active
     and originalOffers[2] == beforeAbandon[2] and originalOffers[3] == beforeAbandon[3],
@@ -806,11 +832,14 @@ check(not T.TurnIn() and saved.statistics.handedIn == 0, 'failed turn-in does no
 T.Abandon()
 check(saved.statistics.abandoned == 1 and saved.statistics.completedByCategory.Kill == 0, 'abandoning ready quest does not count completion')
 check(not T.Abandon() and saved.statistics.abandoned == 1, 'repeated abandonment does not count')
+check(saved.statistics.acceptedByCategory.Kill == 1 and saved.statistics.abandonedByCategory.Kill == 1,
+    'successful acceptance and abandonment count by category exactly once')
 resting = true
 for _, category in ipairs({'Kill', 'Collect & Sell', 'Hunt', 'Gather'}) do
     q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 1); q.categoryName = category
     T.Accept(q); T.DebugAddProgress(true); T.TurnIn()
     check(saved.statistics.completedByCategory[category] == 1, 'completion category counted: ' .. category)
+    check(saved.statistics.acceptedByCategory[category] >= 1, 'acceptance category counted: ' .. category)
 end
 for _ = 1, 24 do
     q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 1); q.categoryName = 'Kill'
@@ -829,4 +858,15 @@ T.Initialize(saved, function(v) return v.tracking end, function() end)
 check(saved.statistics.accepted == 0 and saved.statistics.handedIn == 0 and saved.statistics.abandoned == 0
     and saved.statistics.completedByCategory.Kill == 0 and saved.statistics.completedByCategory.Hunt == 3,
     'malformed statistics repaired safely')
+saved.statistics = {accepted = 20, handedIn = 5, abandoned = 10, completedByCategory = {Kill = 5}}
+T.Initialize(saved, function(v) return v.tracking end, function() end)
+check(saved.statistics.accepted == 20 and saved.statistics.abandoned == 10
+    and saved.statistics.completedByCategory.Kill == 5 and saved.statistics.acceptedByCategory.Kill == 0,
+    'upgrade preserves old totals and completion categories without inventing historical category counts')
+for _, category in ipairs({'Kill', 'Collect & Sell', 'Hunt', 'Gather'}) do
+    q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 1); q.categoryName = category
+    T.Accept(q); T.Abandon()
+    check(saved.statistics.acceptedByCategory[category] == 1 and saved.statistics.abandonedByCategory[category] == 1,
+        'new category counters track accepted and abandoned: ' .. category)
+end
 print('PASS: ' .. passed .. ' tracking and UI assertions (Lua 5.1)')

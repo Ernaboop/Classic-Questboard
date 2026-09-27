@@ -289,6 +289,7 @@ end
 -- The browser is an inspection tool, so keep showing a category's nearest
 -- supported band when the selected level falls outside its available ranges.
 local function BrowserObjectives(objectives, playerLevel)
+    if questBrowser and questBrowser.allLevels:GetChecked() then return objectives or {}, nil end
     local eligible = EligibleObjectives(objectives, playerLevel)
     if #eligible > 0 then return eligible, playerLevel end
 
@@ -589,6 +590,14 @@ local function CreateQuestBrowser()
     questBrowser.levelUp:SetPoint("LEFT", questBrowser.levelDown, "RIGHT", 4, 0)
     questBrowser.levelUp:SetText(">")
     questBrowser.levelUp:SetScript("OnClick", function() ChangeDebugLevel(1) end)
+    questBrowser.allLevels = CreateFrame("CheckButton", nil, questBrowser, "UICheckButtonTemplate")
+    questBrowser.allLevels:SetSize(26, 26)
+    questBrowser.allLevels:SetPoint("TOPLEFT", 390, -51)
+    questBrowser.allLevels:SetChecked(false)
+    questBrowser.allLevels.label = Text(questBrowser.allLevels)
+    questBrowser.allLevels.label:SetPoint("LEFT", questBrowser.allLevels, "RIGHT", 4, 0)
+    questBrowser.allLevels.label:SetText("Show all levels")
+    questBrowser.allLevels:SetScript("OnClick", function() RefreshQuestBrowser() end)
     questBrowser.tabs = {}
     for index, tabInfo in ipairs(browserTabData) do
         local tabId = tabInfo.id
@@ -650,6 +659,7 @@ RefreshQuestBrowser = function()
     local sectionRows, objectiveRows = questBrowser.sectionRows, questBrowser.objectiveRows
     local sectionCount, objectiveCount, y = 0, 0, -8
     local function AddSection(label, icon)
+        if questBrowser.allLevels:GetChecked() then label = label .. " — Elwynn Forest: all levels" end
         sectionCount = sectionCount + 1
         local row = sectionRows[sectionCount]
         if not row then
@@ -826,12 +836,40 @@ local function OpenOptions()
     Windows.Open(optionsWindow, Windows.Previous(board, optionsWindow))
 end
 
+local statisticSections = {
+    {key = "accepted", label = "Quests accepted", field = "acceptedByCategory"},
+    {key = "handedIn", label = "Quests handed in", field = "completedByCategory"},
+    {key = "abandoned", label = "Quests abandoned", field = "abandonedByCategory"},
+}
+local function LayoutStatistics()
+    local y = -58
+    for _, definition in ipairs(statisticSections) do
+        local section = statisticsWindow.sections[definition.key]
+        section:ClearAllPoints()
+        section:SetPoint("TOPLEFT", statisticsWindow, "TOPLEFT", 24, y)
+        local height = section.expanded and 164 or 40
+        section:SetHeight(height)
+        section.categories:SetShown(section.expanded)
+        section.expand:SetText(section.expanded and "−" or "+")
+        y = y - height
+    end
+    statisticsWindow:SetHeight(-y + 78)
+    statisticsWindow:SetScale(math.min(1, (UIParent:GetHeight() - 40) / statisticsWindow:GetHeight()))
+end
+
 local function RefreshStatistics()
     if not statisticsWindow then return end
     local stats = Tracking.GetStatistics()
-    for key, label in pairs(statisticsWindow.values) do label:SetText(tostring(stats[key])) end
-    for category, label in pairs(statisticsWindow.categoryValues) do
-        label:SetText(tostring(stats.completedByCategory[category]))
+    for _, definition in ipairs(statisticSections) do
+        local section = statisticsWindow.sections[definition.key]
+        statisticsWindow.values[definition.key]:SetText(tostring(stats[definition.key]))
+        local sum = 0
+        for category, label in pairs(section.categoryValues) do
+            local count = stats[definition.field][category]
+            label:SetText(tostring(count))
+            sum = sum + count
+        end
+        section.unclassified:SetText(tostring(math.max(0, stats[definition.key] - sum)))
     end
 end
 
@@ -839,44 +877,45 @@ local function ToggleStatistics()
     if statisticsWindow and statisticsWindow:IsShown() then statisticsWindow:Hide(); return end
     if not statisticsWindow then
         statisticsWindow = SecondaryWindow("WoWForeverStatistics", "Classic Questbook Statistics", 440, 260)
-        statisticsWindow.values = {}
-        statisticsWindow.categoryValues = {}
-        for index, entry in ipairs({{"accepted", "Quests accepted"}, {"handedIn", "Quests handed in"}, {"abandoned", "Quests abandoned"}}) do
-            local label = Text(statisticsWindow)
-            label:SetPoint("TOPLEFT", 28, -62 - (index - 1) * 40)
-            label:SetText(entry[2])
-            local value = Text(statisticsWindow, "GameFontNormalLarge")
-            value:SetPoint("TOPRIGHT", -32, -62 - (index - 1) * 40)
-            statisticsWindow.values[entry[1]] = value
+        statisticsWindow.values, statisticsWindow.sections = {}, {}
+        for _, definition in ipairs(statisticSections) do
+            local section = CreateFrame("Frame", nil, statisticsWindow)
+            section:SetWidth(392)
+            section.expanded = false
+            statisticsWindow.sections[definition.key] = section
+            section.expand = CreateFrame("Button", nil, section, "UIPanelButtonTemplate")
+            section.expand:SetSize(22, 22)
+            section.expand:SetPoint("TOPLEFT", 0, 0)
+            local label = Text(section)
+            label:SetPoint("TOPLEFT", 32, -4)
+            label:SetText(definition.label)
+            local value = Text(section, "GameFontNormalLarge")
+            value:SetPoint("TOPRIGHT", -8, -4)
+            statisticsWindow.values[definition.key] = value
+            section.categories = CreateFrame("Frame", nil, section)
+            section.categories:SetSize(352, 120)
+            section.categories:SetPoint("TOPLEFT", 32, -30)
+            section.categoryValues = {}
+            for index, category in ipairs({"Kill", "Collect & Sell", "Hunt", "Gather", "Earlier / unclassified"}) do
+                local categoryLabel = Text(section.categories, "GameFontHighlightSmall")
+                categoryLabel:SetPoint("TOPLEFT", 8, -(index - 1) * 24)
+                categoryLabel:SetText(category)
+                local count = Text(section.categories, "GameFontNormal")
+                count:SetPoint("TOPRIGHT", 0, -(index - 1) * 24)
+                if index == 5 then section.unclassified = count else section.categoryValues[category] = count end
+            end
+            section.expand:SetScript("OnClick", function()
+                section.expanded = not section.expanded
+                LayoutStatistics()
+            end)
         end
-        statisticsWindow.expand = CreateFrame("Button", nil, statisticsWindow, "UIPanelButtonTemplate")
-        statisticsWindow.expand:SetSize(22, 22)
-        statisticsWindow.expand:SetPoint("TOPLEFT", 206, -98)
-        statisticsWindow.expand:SetText("+")
-        statisticsWindow.categories = CreateFrame("Frame", nil, statisticsWindow)
-        statisticsWindow.categories:SetSize(380, 128)
-        statisticsWindow.categories:SetPoint("TOPLEFT", 28, -181)
-        for index, category in ipairs({"Kill", "Collect & Sell", "Hunt", "Gather"}) do
-            local label = Text(statisticsWindow.categories, "GameFontHighlightSmall")
-            label:SetPoint("TOPLEFT", 12, -(index - 1) * 30)
-            label:SetText(category)
-            local value = Text(statisticsWindow.categories, "GameFontNormal")
-            value:SetPoint("TOPRIGHT", -4, -(index - 1) * 30)
-            statisticsWindow.categoryValues[category] = value
-        end
-        statisticsWindow.categories:Hide()
-        statisticsWindow.expand:SetScript("OnClick", function(self)
-            local expanded = not statisticsWindow.categories:IsShown()
-            statisticsWindow.categories:SetShown(expanded)
-            statisticsWindow:SetHeight(expanded and 400 or 260)
-            self:SetText(expanded and "−" or "+")
-        end)
         local note = Text(statisticsWindow, "GameFontHighlightSmall", {0.65, 0.65, 0.65})
-        note:SetPoint("BOTTOMLEFT", 28, 24)
-        note:SetSize(380, 42)
-        note:SetText("This character, since statistics were added.\nIncludes Debug Mode actions; earlier history is not counted.")
+        note:SetPoint("BOTTOMLEFT", 28, 20)
+        note:SetSize(380, 50)
+        note:SetText("Per character; includes Debug Mode actions.\nEarlier totals without category records are unclassified.")
     end
     RefreshStatistics()
+    LayoutStatistics()
     Windows.Open(statisticsWindow, Windows.Previous(board, statisticsWindow))
 end
 
@@ -978,7 +1017,7 @@ CreateBoard = function()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("Classic Questbook — Alpha V0.6.12 (0.6.12)")
+    title:SetText("Classic Questbook — Alpha V0.6.13 (0.6.13)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")

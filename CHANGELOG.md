@@ -2,6 +2,14 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.6.13] - 2026-09-28
+
+### Added
+
+- Accepted, handed-in, and abandoned statistics each have independent plus/minus controls. Category breakdowns expand directly underneath their own header and move subsequent sections down.
+- Added persistent accepted/abandoned category counters. Existing totals and completion breakdowns are preserved; earlier events without category records appear under Earlier / unclassified.
+- Quest Browser has a Show all levels checkbox for the current Elwynn data pool across every category tab. This is inspection-only; normal generation, test generation, and profession gating remain unchanged.
+
 ## [0.6.12] - 2026-09-28
 
 ### Added

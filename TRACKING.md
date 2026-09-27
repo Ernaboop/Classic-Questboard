@@ -1,4 +1,4 @@
-# Alpha 0.6.12 tracking
+# Alpha 0.6.13 tracking
 
 ## Forever compatibility
 
@@ -36,7 +36,9 @@ Debug Mode also exposes Required amount at the bottom of the board. Enter a whol
 
 Options, Help (the question-mark button), and Quest Browser toggle open/closed. Secondary windows open beside the previous visible window with support for nested windows; they use the left side when needed and remain clamped to the screen.
 
-Statistics opens a toggleable window with per-character totals for quests accepted, handed in, and abandoned. Use the + beside Quests handed in to expand completion counts for Kill, Collect & Sell, Hunt, and Gather; use − to collapse. Totals start when statistics are installed, include successful Debug Mode actions, and persist independently of recent-completion history. Failed actions, cancelled abandonment, ready-state changes, and reloads do not increment totals. Earlier activity cannot be reconstructed reliably and is not backfilled.
+Statistics opens a toggleable window with per-character totals for quests accepted, handed in, and abandoned. Each statistic has its own +/− button, expanding its Kill, Collect & Sell, Hunt, and Gather counts directly underneath. Sections expand independently and push later sections down. Totals include successful Debug Mode actions and persist independently of recent-completion history. Failed actions, cancelled abandonment, ready-state changes, and reloads do not increment totals. Existing totals without category records are listed under Earlier / unclassified rather than guessed or discarded.
+
+Quest Browser's Show all levels checkbox shows every objective in its Elwynn Forest pool across all category tabs. Switching it off restores the selected level view. The toggle only changes browsing; it does not alter generated offers, generation level, or profession requirements.
 
 ## What earns progress
 
