@@ -1,4 +1,4 @@
-# Alpha 0.6.0 tracking
+# Alpha 0.6.4 tracking
 
 ## Forever compatibility
 
@@ -22,7 +22,9 @@ Abandon is available on the active card anywhere. A ready quest has a smaller Ab
 
 Turning in replaces only the completed slot using current generation settings and excludes objectives already on the other two cards. The completed objective is also excluded when alternatives exist. Only Reroll Quests regenerates the entire board; it is disabled while a quest is active or ready. Debug level/mode changes apply to the next reroll or replacement.
 
-Debug Mode's +1 Progress control is enabled only for an active Kill-category quest. It caps the count and uses normal Ready to Turn In logic, requiring a manual turn-in. Matching creature tooltips display progress, updating while hovered and showing Ready to Turn In when finished.
+Debug Mode's +1 Progress control supports every active tracked quest type. Kill, Hunt, gathering, and node objectives gain one count. Collect & Sell advances collection until full, then selling. Counts are capped and use normal Ready to Turn In logic, requiring a manual turn-in. Debug increments do not create inventory items or perform actual sales. Matching creature tooltips display progress, updating while hovered and showing Ready to Turn In when finished.
+
+The Debug Mode left-card category dropdown offers Any category, Kill, Collect & Sell, Hunt, and Gather directly. Choose a category, then use Reroll Quests. The selection also applies to left-slot turn-in replacements when eligible objectives exist, without changing active quests or the other two slots. Normal eligibility rules remain enforced.
 
 ## What earns progress
 

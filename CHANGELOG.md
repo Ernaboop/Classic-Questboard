@@ -2,6 +2,13 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.6.4] - 2026-09-28
+
+### Changed
+
+- Replaced the Debug Mode left-card category cycling button with a standard WoW dropdown. All five choices are directly selectable, the current selection is checked, and existing generation behavior is preserved.
+- Debug +1 Progress now supports every tracked quest type, including Hunt, all gathering professions, node objectives, and Collect & Sell. Collection advances before selling; counts stay capped and completion still requires manual turn-in. This test control does not create items or perform real sales.
+
 ## [0.6.3] - 2026-09-28
 
 ### Added

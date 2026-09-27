@@ -128,10 +128,17 @@ function Tracking.ProgressText(q)
     end
     return q.state .. "\nProgress: " .. p.count .. "/" .. q.amount
 end
-function Tracking.DebugAddKillProgress(enabled)
+function Tracking.DebugAddProgress(enabled)
     local q = Working()
-    if not enabled or not q or q.categoryName ~= "Kill" or q.tracking.kind ~= "kill" then return false end
-    q.progress.count = math.min(q.amount, q.progress.count + 1)
+    if not enabled or not q then return false end
+    if q.tracking.kind == "collect_sell" then
+        local field = q.progress.collected < q.amount and "collected" or "sold"
+        q.progress[field] = math.min(q.amount, q.progress[field] + 1)
+    elseif q.tracking.kind == "kill" or q.tracking.kind == "gather" or q.tracking.kind == "nodes" then
+        q.progress.count = math.min(q.amount, q.progress.count + 1)
+    else
+        return false
+    end
     UpdateState(q)
     return true
 end

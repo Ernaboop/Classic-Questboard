@@ -54,6 +54,26 @@ function CreateFrame(_, name, parent)
     if name then _G[name] = o end
     return o
 end
+local menuEntries = {}
+function UIDropDownMenu_SetWidth(frame, width) frame:SetWidth(width) end
+function UIDropDownMenu_SetText(frame, text) frame.text = text end
+function UIDropDownMenu_Initialize(frame, initialize) frame.initialize = initialize end
+function UIDropDownMenu_CreateInfo() return {} end
+function UIDropDownMenu_AddButton(info) menuEntries[#menuEntries + 1] = info end
+function CloseDropDownMenus() UIDROPDOWNMENU_OPEN_MENU = nil end
+local function selectCategory(frame, label)
+    menuEntries = {}; UIDROPDOWNMENU_OPEN_MENU = frame
+    frame.initialize(frame, 1)
+    check(#menuEntries == 5, 'dropdown exposes all five categories')
+    for _, info in ipairs(menuEntries) do
+        if info.text == label then
+            info.func()
+            check(frame.text == 'Left card: ' .. label and not UIDROPDOWNMENU_OPEN_MENU, 'dropdown selection updates label and closes menu')
+            return
+        end
+    end
+    error('Missing category: ' .. label)
+end
 UIParent = object(); UIParent:SetSize(1920, 1080)
 Minimap = object(); Minimap:SetSize(140, 140)
 UISpecialFrames, SlashCmdList, GameTooltip = {}, {}, object('GameTooltip')
@@ -358,7 +378,7 @@ check(debugCategories.Kill and debugCategories['Collect & Sell'] and debugCatego
 local otherCategories = {}
 for _, expected in ipairs({'Kill', 'Collect & Sell', 'Hunt'}) do
     local previous = WoWForeverDB.displayedQuests
-    board.debugCategory.scripts.OnClick(board.debugCategory)
+    selectCategory(board.debugCategory, expected)
     check(WoWForeverDB.displayedQuests == previous, 'category selection leaves existing offers unchanged')
     for _ = 1, 20 do
         board.reroll.scripts.OnClick()
@@ -371,7 +391,7 @@ for _, expected in ipairs({'Kill', 'Collect & Sell', 'Hunt'}) do
     end
 end
 check(otherCategories.Kill and otherCategories['Collect & Sell'] and otherCategories.Hunt, 'other slots retain normal category selection')
-board.debugCategory.scripts.OnClick(board.debugCategory) -- Gather, no profession
+selectCategory(board.debugCategory, 'Gather') -- no profession
 local beforeUnavailable = WoWForeverDB.displayedQuests
 board.reroll.scripts.OnClick()
 check(WoWForeverDB.displayedQuests == beforeUnavailable, 'unavailable forced category preserves offers')
@@ -383,8 +403,8 @@ WoWForeverDebugModeButton.scripts.OnClick()
 board.reroll.scripts.OnClick()
 check(not board.debugCategory.shown and #WoWForeverDB.displayedQuests == 3, 'debug-off generation ignores forced Gather')
 WoWForeverDebugModeButton.scripts.OnClick()
-board.debugCategory.scripts.OnClick(board.debugCategory) -- Any
-check(board.debugCategory.text == 'Left card: Any category', 'selector cycles back to unrestricted generation')
+selectCategory(board.debugCategory, 'Any category')
+check(board.debugCategory.text == 'Left card: Any category', 'dropdown restores unrestricted generation')
 for _ = 1, 6 do board.debugLevelDown.scripts.OnClick() end
 WoWForeverDebugModeButton.scripts.OnClick()
 board.reroll.scripts.OnClick()
@@ -515,12 +535,12 @@ WoWForeverQuestboard.debugProgress.scripts.OnClick()
 check(not WoWForeverQuestboard.debugProgress.shown and debugKill.progress.count == 1, 'hidden debug control cannot increment')
 reloadedCards[2].button.scripts.OnClick() -- confirmation remains disabled
 WoWForeverDebugModeButton.scripts.OnClick()
-WoWForeverQuestboard.debugCategory.scripts.OnClick(WoWForeverQuestboard.debugCategory) -- Kill
+selectCategory(WoWForeverQuestboard.debugCategory, 'Kill')
 WoWForeverQuestboard.reroll.scripts.OnClick()
 reloadedCards[1].button.scripts.OnClick()
 local forcedActive = WoWForeverDB.activeQuest
 local keptRight = {WoWForeverDB.displayedQuests[2], WoWForeverDB.displayedQuests[3]}
-WoWForeverQuestboard.debugCategory.scripts.OnClick(WoWForeverQuestboard.debugCategory) -- Collect & Sell
+selectCategory(WoWForeverQuestboard.debugCategory, 'Collect & Sell')
 check(WoWForeverDB.activeQuest == forcedActive and forcedActive.categoryName == 'Kill', 'changing forced category preserves active quest')
 forcedActive.state = 'Ready to Turn In'
 reloadedCards[1].button.scripts.OnClick()
@@ -530,18 +550,17 @@ check(WoWForeverDB.displayedQuests[2] == keptRight[1] and WoWForeverDB.displayed
     'forced replacement leaves other slots unchanged')
 reloadedCards[1].button.scripts.OnClick()
 WoWForeverDB.activeQuest.state = 'Ready to Turn In'
-WoWForeverQuestboard.debugCategory.scripts.OnClick(WoWForeverQuestboard.debugCategory) -- Hunt
-WoWForeverQuestboard.debugCategory.scripts.OnClick(WoWForeverQuestboard.debugCategory) -- Gather
+selectCategory(WoWForeverQuestboard.debugCategory, 'Gather')
 reloadedCards[1].button.scripts.OnClick()
 check(not WoWForeverDB.activeQuest and #WoWForeverDB.displayedQuests == 3,
     'unavailable forced replacement does not block turn-in')
 -- Debug increment is limited to Kill category and uses the normal ready state.
 fresh(); q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 2); q.categoryName = 'Kill'; T.Accept(q)
-check(not T.DebugAddKillProgress(false) and q.progress.count == 0, 'debug increment denied with mode off')
-check(T.DebugAddKillProgress(true) and q.progress.count == 1, 'debug increment adds one kill')
-check(T.DebugAddKillProgress(true) and q.state == 'Ready to Turn In' and saved.activeQuest == q,
+check(not T.DebugAddProgress(false) and q.progress.count == 0, 'debug increment denied with mode off')
+check(T.DebugAddProgress(true) and q.progress.count == 1, 'debug increment adds one kill')
+check(T.DebugAddProgress(true) and q.state == 'Ready to Turn In' and saved.activeQuest == q,
     'debug completion becomes ready without auto turn-in')
-check(not T.DebugAddKillProgress(true) and q.progress.count == 2, 'debug count cannot exceed objective amount')
+check(not T.DebugAddProgress(true) and q.progress.count == 2, 'debug count cannot exceed objective amount')
 units.mouseover = {name = 'Kobold Miner', guid = killGUID('tooltip'), controlled = false}
 check(T.TooltipText('mouseover'):find('2/2 %(Ready to Turn In%)'), 'matching tooltip shows ready progress')
 units.mouseover.name = 'Wolf'; check(not T.TooltipText('mouseover'), 'unrelated tooltip has no quest line')
@@ -552,18 +571,36 @@ local hiddenName = {}; issecretvalue = function(v) return v == hiddenName end
 units.mouseover.name = hiddenName; check(not T.TooltipText('mouseover'), 'secret tooltip name is ignored')
 issecretvalue = nil; units.mouseover.name = 'Kobold Miner'
 T.Abandon(); q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 2); q.categoryName = 'Hunt'; T.Accept(q)
-check(not T.DebugAddKillProgress(true) and q.progress.count == 0, 'debug increment excludes Hunt')
+check(T.DebugAddProgress(true) and q.progress.count == 1, 'debug increment supports Hunt')
 T.Abandon(); q = quest({kind = 'gather', profession = 'mining', itemID = 2770}); q.categoryName = 'Gather'; T.Accept(q)
-check(not T.DebugAddKillProgress(true), 'debug increment excludes gathering')
+check(T.DebugAddProgress(true) and q.progress.count == 1, 'debug increment supports gathering')
+for _, spec in ipairs({
+    {kind = 'gather', profession = 'herbalism', itemID = 2447},
+    {kind = 'gather', profession = 'skinning', itemID = 2318},
+    {kind = 'gather', profession = 'fishing', itemID = 6291},
+    {kind = 'nodes', profession = 'mining', itemID = 2770},
+}) do
+    T.Abandon(); q = quest(spec, 2); T.Accept(q)
+    check(T.DebugAddProgress(true) and q.progress.count == 1, 'debug increments gathering or node progress')
+    check(T.DebugAddProgress(true) and q.state == 'Ready to Turn In', 'debug gathering/node reaches ready state')
+    check(not T.DebugAddProgress(true) and q.progress.count == 2, 'debug gathering/node count is capped')
+end
+T.Abandon(); q = quest({kind = 'collect_sell', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
+check(T.DebugAddProgress(true) and q.progress.collected == 1 and q.progress.sold == 0, 'debug collect increments collection first')
+check(T.DebugAddProgress(true) and q.progress.collected == 2 and q.state == 'Active', 'full collection still requires selling')
+check(T.DebugAddProgress(true) and q.progress.sold == 1 and q.state == 'Active', 'debug then advances selling')
+check(T.DebugAddProgress(true) and q.progress.sold == 2 and q.state == 'Ready to Turn In' and saved.activeQuest == q,
+    'debug sale completion is ready without auto turn-in')
+check(not T.DebugAddProgress(true) and q.progress.collected == 2 and q.progress.sold == 2, 'debug collection and sales stay capped')
 T.Abandon(); q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 2); q.categoryName = 'Kill'; T.Accept(q)
 assert(loadstring(tooltip_source))('WoWForever', ns)
 tooltipUnit = 'mouseover'; GameTooltip:Show()
 GameTooltip.scripts.OnTooltipCleared(GameTooltip); tooltipLines = {}
 GameTooltip.scripts.OnTooltipSetUnit(GameTooltip)
 check(#tooltipLines == 1 and tooltipLines[1].text:find('0/2'), 'tooltip hook adds current quest progress')
-T.DebugAddKillProgress(true); GameTooltip.scripts.OnUpdate(GameTooltip, 0.2)
+T.DebugAddProgress(true); GameTooltip.scripts.OnUpdate(GameTooltip, 0.2)
 check(#tooltipLines == 1 and tooltipLines[1].text:find('1/2'), 'hovered tooltip updates without duplicate lines')
-T.DebugAddKillProgress(true); GameTooltip.scripts.OnUpdate(GameTooltip, 0.2)
+T.DebugAddProgress(true); GameTooltip.scripts.OnUpdate(GameTooltip, 0.2)
 check(tooltipLines[1].text:find('Ready to Turn In'), 'hovered tooltip reflects completion')
 T.Abandon(); GameTooltip.scripts.OnUpdate(GameTooltip, 0.2)
 check(tooltipLines[1].text == '', 'abandon removes tooltip progress')

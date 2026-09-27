@@ -866,7 +866,7 @@ CreateBoard = function()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.6.3 (0.6.3)")
+    title:SetText("WoW Forever | Questboard — Alpha V0.6.4 (0.6.4)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")
@@ -998,29 +998,47 @@ CreateBoard = function()
     board.debugProgress:SetSize(115, 24)
     board.debugProgress:SetPoint("TOPLEFT", 280, -47)
     board.debugProgress:SetText("+1 Progress")
-    board.debugProgress:SetScript("OnClick", function() Tracking.DebugAddKillProgress(debugMode) end)
+    board.debugProgress:SetScript("OnClick", function() Tracking.DebugAddProgress(debugMode) end)
+    board.debugProgress:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Add quest progress (Debug Mode)")
+        GameTooltip:AddLine("Adds one to the active objective. Collect & Sell advances collection first, then selling.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    board.debugProgress:SetScript("OnLeave", function() GameTooltip:Hide() end)
     board.debugProgress:Hide()
     local categoryChoices = {
         {label = "Any category"}, {id = "kill", label = "Kill"},
         {id = "collect_sell", label = "Collect & Sell"},
         {id = "hunt", label = "Hunt"}, {id = "gather", label = "Gather"},
     }
-    local categoryIndex = 1
-    board.debugCategory = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
-    board.debugCategory:SetSize(242, 24)
-    board.debugCategory:SetPoint("TOPLEFT", 24, -47)
-    board.debugCategory:SetText("Left card: Any category")
-    board.debugCategory:SetScript("OnClick", function(self)
+    board.debugCategory = CreateFrame("Frame", "WoWForeverCategoryDropdown", board, "UIDropDownMenuTemplate")
+    board.debugCategory:SetPoint("TOPLEFT", 8, -43)
+    UIDropDownMenu_SetWidth(board.debugCategory, 210)
+    UIDropDownMenu_SetText(board.debugCategory, "Left card: Any category")
+    UIDropDownMenu_Initialize(board.debugCategory, function(self, menuLevel)
         if not debugMode then return end
-        categoryIndex = categoryIndex % #categoryChoices + 1
-        local choice = categoryChoices[categoryIndex]
-        forcedLeftCategory = choice.id
-        self:SetText("Left card: " .. choice.label)
+        for _, entry in ipairs(categoryChoices) do
+            local choice = entry
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = choice.label
+            info.checked = forcedLeftCategory == choice.id
+            info.func = function()
+                if not debugMode then return end
+                forcedLeftCategory = choice.id
+                UIDropDownMenu_SetText(self, "Left card: " .. choice.label)
+                CloseDropDownMenus()
+            end
+            UIDropDownMenu_AddButton(info, menuLevel)
+        end
+    end)
+    board.debugCategory:HookScript("OnHide", function(self)
+        if UIDROPDOWNMENU_OPEN_MENU == self then CloseDropDownMenus() end
     end)
     board.debugCategory:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:AddLine("Left card category")
-        GameTooltip:AddLine("Click to cycle: Any, Kill, Collect & Sell, Hunt, Gather.", 1, 1, 1)
+        GameTooltip:AddLine("Choose Any, Kill, Collect & Sell, Hunt, or Gather from the dropdown.", 1, 1, 1)
         GameTooltip:AddLine("Applies on Reroll Quests or left-card turn-in. Eligibility rules still apply.", 0.7, 0.7, 0.7, true)
         GameTooltip:Show()
     end)
@@ -1082,7 +1100,7 @@ Refresh = function()
     board.subtitle:SetShown(not debugMode)
     board.debugCategory:SetShown(debugMode)
     board.debugProgress:SetShown(debugMode)
-    board.debugProgress:SetEnabled(debugMode and active ~= nil and active.categoryName == "Kill" and active.state == "Active")
+    board.debugProgress:SetEnabled(debugMode and active ~= nil and Tracking.CanTrack(active) and active.state == "Active")
     if abandonDialog and abandonDialog:IsShown() and abandonDialog.quest ~= active then abandonDialog:Hide() end
     board.status:SetText(active and (active.state .. ": " .. active.title) or (#db.displayedQuests == 0 and "No Elwynn objectives match your current level and known professions." or "Choose one notice to begin your adventure."))
     board.reroll:SetEnabled(active == nil)
