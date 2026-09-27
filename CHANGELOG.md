@@ -2,6 +2,18 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.6.8] - 2026-09-28
+
+### Added
+
+- Debug Mode can edit the active quest's required amount (whole numbers 1–1000) using an amount field and Apply button. Updates objective text and readiness without rerolling, losing progress, or changing quest identity; applies to all tracked types. Raising a ready quest's target can make it Active again. Generated rare hunts still default to one.
+- Added a Help window via the question-mark button beside Options, with a quest-themed placeholder joke.
+
+### Changed
+
+- Options, Help, and Quest Browser buttons now toggle their respective windows open and closed. The existing minimap and keybind toggles are preserved.
+- Added shared window management with logical nesting, opening beside the previous visible window, left-side placement when the right side is full, screen clamping, and nested frame ordering. The main Questboard remains underneath secondary windows.
+
 ## [0.6.7] - 2026-09-28
 
 ### Changed

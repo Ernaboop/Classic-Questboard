@@ -29,6 +29,9 @@ local function object(name, parent)
     end
     function o:UnregisterEvent(e) self.registered[e] = nil end
     function o:SetText(text) self.text = text end
+    function o:GetText() return self.text end
+    function o:GetEffectiveScale() return 1 end
+    function o:SetPoint(...) self.point = {...} end
     function o:SetSize(w, h) self.width, self.height = w, h end
     function o:SetHeight(h) self.height = h end
     function o:SetWidth(w) self.width = w end
@@ -133,6 +136,23 @@ end
 LOOT_ITEM_SELF = "You receive loot: %s."
 LOOT_ITEM_SELF_MULTIPLE = "You receive loot: %sx%d."
 local ns = {}
+local windowNS = {}
+assert(loadstring(windows_source))('Classic Questbook', windowNS)
+local wm = windowNS.Windows
+local parentWindow, childWindow, nestedWindow = object(), object(), object()
+parentWindow:SetFrameLevel(20); childWindow:SetSize(400, 200); nestedWindow:SetSize(300, 200)
+function parentWindow:GetRight() return 1850 end
+function parentWindow:GetLeft() return 1010 end
+wm.Register(parentWindow); wm.Register(childWindow, parentWindow); wm.Register(nestedWindow, childWindow)
+nestedWindow:Hide()
+wm.Open(childWindow, parentWindow)
+check(childWindow.point[1] == 'TOPRIGHT' and childWindow.point[3] == 'TOPLEFT', 'screen edge places child on available left side')
+wm.Open(nestedWindow, childWindow)
+wm.Raise(childWindow)
+check(nestedWindow:GetFrameLevel() > childWindow:GetFrameLevel() and parentWindow:GetFrameLevel() == 20,
+    'raising parent keeps nested child above it and main below both')
+wm.Open(childWindow, nestedWindow)
+check(wm.entries[childWindow].parent == parentWindow, 'window manager rejects nesting cycles')
 assert(loadstring(tracking_source))('Classic Questbook', ns)
 local T = ns.Tracking
 local saved
@@ -286,6 +306,7 @@ check(q.progress.held[2672] == 0, 'banking loses sale eligibility even with an e
 -- Exercise real generator/UI wiring with mocked WoW frame APIs.
 fresh(); local realNS = {}
 assert(loadstring(tracking_source))('Classic Questbook', realNS)
+assert(loadstring(windows_source))('Classic Questbook', realNS)
 assert(loadstring(board_source))('Classic Questbook', realNS)
 local outleveledSeen = {}
 for _ = 1, 1200 do
@@ -360,8 +381,25 @@ local function cards()
     return result
 end
 local cs = cards()
+board.help.scripts.OnClick()
+check(WoWForeverHelp:IsShown(), 'help button opens help window')
+board.help.scripts.OnClick()
+check(not WoWForeverHelp:IsShown(), 'help button closes help window')
+board.options.scripts.OnClick()
+check(WoWForeverOptions:IsShown(), 'options button opens options')
+check(WoWForeverOptions.point[2] == board and WoWForeverOptions.point[3] == 'TOPRIGHT', 'secondary opens beside main window')
+board.help.scripts.OnClick()
+check(WoWForeverHelp.point[2] == WoWForeverOptions, 'nested window opens beside previous window')
+check(WoWForeverHelp:GetFrameLevel() > WoWForeverOptions:GetFrameLevel(), 'nested window stacks above parent')
+board.help.scripts.OnClick()
+board.options.scripts.OnClick()
+check(not WoWForeverOptions:IsShown(), 'options button closes options')
 -- Exercise the actual debug selector and Reroll button at the zone cap.
 WoWForeverDebugModeButton.scripts.OnClick()
+board.debugButton.scripts.OnClick()
+check(WoWForeverQuestBrowser:IsShown(), 'browser button opens browser')
+board.debugButton.scripts.OnClick()
+check(not WoWForeverQuestBrowser:IsShown(), 'browser button closes browser')
 for _ = 1, 6 do board.debugLevelUp.scripts.OnClick() end
 local debugCategories = {}
 for _ = 1, 60 do
@@ -485,6 +523,7 @@ WoWForeverDB.settings.showAbandonConfirmation = false
 WoWForeverDB = clone(WoWForeverDB) -- SavedVariables reload recreates independent tables.
 local reloadNS = {}
 assert(loadstring(tracking_source))('Classic Questbook', reloadNS)
+assert(loadstring(windows_source))('Classic Questbook', reloadNS)
 assert(loadstring(board_source))('Classic Questbook', reloadNS)
 for _, frame in ipairs(frames) do
     if frame.registered.ADDON_LOADED then frame.scripts.OnEvent(frame, 'ADDON_LOADED', 'Classic Questbook') end
@@ -528,6 +567,14 @@ assert(debugKill)
 WoWForeverDB.displayedQuests[2] = debugKill
 reloadedCards[2].button.scripts.OnClick()
 check(WoWForeverQuestboard.debugProgress.enabled and WoWForeverQuestboard.debugProgress.shown, 'debug Kill progress control is available')
+local editBoard = WoWForeverQuestboard
+local originalID, originalOther = debugKill.id, WoWForeverDB.displayedQuests[1]
+editBoard.debugAmount:SetText('25'); editBoard.debugAmountApply.scripts.OnClick()
+check(debugKill.amount == 25 and debugKill.objective:find('25') and debugKill.id == originalID,
+    'amount editor updates objective text without changing quest identity')
+check(WoWForeverDB.displayedQuests[1] == originalOther, 'amount edit preserves other offers')
+editBoard.debugAmount:SetText('0'); editBoard.debugAmountApply.scripts.OnClick()
+check(debugKill.amount == 25, 'invalid amount rejected by UI')
 WoWForeverQuestboard.debugProgress.scripts.OnClick()
 check(debugKill.progress.count == 1, 'debug button reaches tracking increment logic')
 WoWForeverDebugModeButton.scripts.OnClick()
@@ -592,6 +639,21 @@ check(T.DebugAddProgress(true) and q.progress.sold == 1 and q.state == 'Active',
 check(T.DebugAddProgress(true) and q.progress.sold == 2 and q.state == 'Ready to Turn In' and saved.activeQuest == q,
     'debug sale completion is ready without auto turn-in')
 check(not T.DebugAddProgress(true) and q.progress.collected == 2 and q.progress.sold == 2, 'debug collection and sales stay capped')
+check(T.DebugSetAmount(true, 5, q) and q.state == 'Active' and q.progress.sold == 2, 'raising target reactivates ready collection quest')
+check(T.DebugSetAmount(true, 1, q) and q.state == 'Ready to Turn In' and q.progress.sold == 2,
+    'lowering target preserves earned collection and sale progress')
+T.Initialize(saved, function(v) return v.tracking end, function() end)
+check(q.amount == 1 and q.progress.collected == 2 and q.progress.sold == 2 and q.state == 'Ready to Turn In',
+    'edited amount and excess progress survive reload normalization')
+for _, value in ipairs({'', 'oops', 0, -1, 1.5, 1001, math.huge}) do
+    check(not T.DebugSetAmount(true, value, q) and q.amount == 1, 'invalid required amounts are rejected')
+end
+check(not T.DebugSetAmount(false, 10, q) and q.amount == 1, 'amount changes require debug mode')
+check(not T.DebugSetAmount(true, 10, {}) and q.amount == 1, 'stale amount editor cannot modify a different quest')
+T.Abandon(); q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 5); T.Accept(q)
+T.DebugAddProgress(true); T.DebugAddProgress(true)
+check(T.DebugSetAmount(true, 1, q) and q.state == 'Ready to Turn In' and q.progress.count == 2, 'lowering kill amount marks ready and preserves kills')
+check(T.DebugSetAmount(true, 4, q) and q.state == 'Active' and q.progress.count == 2, 'raising kill amount reactivates without resetting progress')
 T.Abandon(); q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 2); q.categoryName = 'Kill'; T.Accept(q)
 assert(loadstring(tooltip_source))('Classic Questbook', ns)
 tooltipUnit = 'mouseover'; GameTooltip:Show()

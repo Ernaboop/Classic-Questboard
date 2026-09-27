@@ -1,4 +1,4 @@
-# Alpha 0.6.5 tracking
+# Alpha 0.6.8 tracking
 
 ## Forever compatibility
 
@@ -29,6 +29,10 @@ Turning in replaces only the completed slot using current generation settings an
 Debug Mode's +1 Progress control supports every active tracked quest type. Kill, Hunt, gathering, and node objectives gain one count. Collect & Sell advances collection until full, then selling. Counts are capped and use normal Ready to Turn In logic, requiring a manual turn-in. Debug increments do not create inventory items or perform actual sales. Matching creature tooltips display progress, updating while hovered and showing Ready to Turn In when finished.
 
 The Debug Mode left-card category dropdown offers Any category, Kill, Collect & Sell, Hunt, and Gather directly. Choose a category, then use Reroll Quests. The selection also applies to left-slot turn-in replacements when eligible objectives exist, without changing active quests or the other two slots. Normal eligibility rules remain enforced.
+
+Debug Mode also exposes Required amount at the bottom of the board. Enter a whole number from 1 to 1000 and click Apply (or press Enter). This edits only the accepted quest and refreshes its objective text and readiness. Earned progress is preserved, including across reloads; lowering the target may show progress above the new requirement. Raising it can return a ready quest to Active. No quest is handed in automatically.
+
+Options, Help (the question-mark button), and Quest Browser toggle open/closed. Secondary windows open beside the previous visible window with support for nested windows; they use the left side when needed and remain clamped to the screen.
 
 ## What earns progress
 

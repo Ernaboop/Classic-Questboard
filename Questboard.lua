@@ -1,5 +1,6 @@
 local addonName, ns = ...
 local Tracking = ns.Tracking
+local Windows = ns.Windows
 local board, cards, db, minimapButton, questBrowser, debugModeButton
 local Refresh
 local ToggleBoard
@@ -337,7 +338,7 @@ local function BuildQuest(category, branch, objective, amount)
     elseif category.id == "collect_sell" then
         action = "Collect " .. amount .. " " .. (objective.item or "vendor-value item") .. (amount == 1 and "" or "s") .. " from " .. target .. " near " .. objective.location .. ", then sell them to a vendor."
     elseif category.id == "hunt" and branch.id == "rare" then
-        action = "Find and defeat " .. target .. ", a level " .. objective.level .. " " .. objective.rarity .. " target, " .. location .. "."
+        action = "Find and defeat " .. target .. (amount > 1 and (" " .. amount .. " times") or "") .. ", a level " .. objective.level .. " " .. objective.rarity .. " target, " .. location .. "."
     elseif category.id == "hunt" then
         action = "Travel to " .. objective.location .. " and defeat " .. amount .. " level " .. objective.level .. " " .. target .. " elites."
     elseif objective.id == "copper_vein_prospecting" then
@@ -369,6 +370,23 @@ local function BuildQuest(category, branch, objective, amount)
         minPlayerLevel = objective.minPlayerLevel,
         maxPlayerLevel = objective.maxPlayerLevel,
     }
+end
+
+local function UpdatedObjectiveText(quest)
+    for _, category in ipairs(CategoryOptions(true)) do
+        if category.branches then
+            for _, branch in ipairs(category.branches) do
+                for _, objective in ipairs(branch.objectives) do
+                    if objective.id == quest.objectiveId then return BuildQuest(category, branch, objective, quest.amount).objective end
+                end
+            end
+        else
+            for _, objective in ipairs(category.profession and category.profession.objectives or category.objectives) do
+                if objective.id == quest.objectiveId then return BuildQuest(category, nil, objective, quest.amount).objective end
+            end
+        end
+    end
+    return quest.objective
 end
 
 local function GenerateQuest(playerLevel, outleveled, excluded, forcedCategory)
@@ -518,6 +536,7 @@ local function CreateQuestBrowser()
     questBrowser:SetPoint("CENTER", UIParent, "CENTER", 100, 0)
     questBrowser:SetFrameStrata("FULLSCREEN_DIALOG")
     questBrowser:SetFrameLevel((board and board:GetFrameLevel() or 20) + 20)
+    Windows.Register(questBrowser, board)
     questBrowser:SetClampedToScreen(true)
     questBrowser:SetMovable(true)
     questBrowser:EnableMouse(true)
@@ -730,7 +749,7 @@ local function CreateDebugModeButton(parent)
     debugModeButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
-local optionsWindow, abandonDialog
+local optionsWindow, abandonDialog, helpWindow
 
 local function SecondaryWindow(name, title, width, height, strata)
     local frame = CreateFrame("Frame", name, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
@@ -738,6 +757,7 @@ local function SecondaryWindow(name, title, width, height, strata)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata(strata or "FULLSCREEN_DIALOG")
     frame:SetFrameLevel(60)
+    Windows.Register(frame, board)
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
     frame:SetMovable(true)
@@ -766,6 +786,7 @@ local function Checkbox(parent, label, y)
 end
 
 local function OpenOptions()
+    if optionsWindow and optionsWindow:IsShown() then optionsWindow:Hide(); return end
     if not optionsWindow then
         optionsWindow = SecondaryWindow("WoWForeverOptions", "Classic Questbook Options", 430, 180)
         optionsWindow.confirmation = Checkbox(optionsWindow, "Show abandon quest confirmation", -62)
@@ -778,7 +799,19 @@ local function OpenOptions()
         hint:SetText("Assign a toggle key in WoW's Key Bindings settings under Classic Questbook.")
     end
     optionsWindow.confirmation:SetChecked(db.settings.showAbandonConfirmation)
-    optionsWindow:Show()
+    Windows.Open(optionsWindow, Windows.Previous(board, optionsWindow))
+end
+
+local function ToggleHelp()
+    if helpWindow and helpWindow:IsShown() then helpWindow:Hide(); return end
+    if not helpWindow then
+        helpWindow = SecondaryWindow("WoWForeverHelp", "Classic Questbook Help", 440, 210)
+        local message = Text(helpWindow)
+        message:SetPoint("TOPLEFT", 28, -62)
+        message:SetSize(382, 110)
+        message:SetText("Help is on its way!\n\nUnfortunately, the author accepted a quest to collect 8 helpful tips and has only found 3.\n\nPlease check back after the next turn-in.")
+    end
+    Windows.Open(helpWindow, Windows.Previous(board, helpWindow))
 end
 
 local function AbandonActive(expected)
@@ -826,7 +859,7 @@ local function RequestAbandon()
     abandonDialog.quest = active
     abandonDialog.skip:SetChecked(false)
     abandonDialog.message:SetText('Abandon "' .. active.title .. '"?\nYour progress on this quest will be lost.')
-    abandonDialog:Show()
+    Windows.Open(abandonDialog, board)
 end
 
 local function TurnInSlot(index)
@@ -856,6 +889,7 @@ CreateBoard = function()
     board:SetPoint("CENTER")
     board:SetFrameStrata("DIALOG")
     board:SetFrameLevel(20)
+    Windows.Register(board)
     board:SetClampedToScreen(true)
     board:SetMovable(true)
     board:EnableMouse(true)
@@ -866,7 +900,7 @@ CreateBoard = function()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("Classic Questbook — Alpha V0.6.7 (0.6.7)")
+    title:SetText("Classic Questbook — Alpha V0.6.8 (0.6.8)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")
@@ -887,6 +921,17 @@ CreateBoard = function()
         GameTooltip:Show()
     end)
     board.options:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    board.help = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
+    board.help:SetSize(26, 26)
+    board.help:SetPoint("TOPRIGHT", -70, -9)
+    board.help:SetText("?")
+    board.help:SetScript("OnClick", ToggleHelp)
+    board.help:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Classic Questbook Help")
+        GameTooltip:Show()
+    end)
+    board.help:SetScript("OnLeave", function() GameTooltip:Hide() end)
     table.insert(UISpecialFrames, "WoWForeverQuestboard")
     CreateDebugModeButton(board)
 
@@ -978,10 +1023,10 @@ CreateBoard = function()
     board.debugButton:Hide()
     board.debugButton:SetScript("OnClick", function()
         if not debugMode then return end
+        if questBrowser and questBrowser:IsShown() then questBrowser:Hide(); return end
         CreateQuestBrowser()
         RefreshQuestBrowser()
-        questBrowser:SetFrameLevel(board:GetFrameLevel() + 20)
-        questBrowser:Show()
+        Windows.Open(questBrowser, Windows.Previous(board, questBrowser))
     end)
     board.reroll = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
     board.reroll:SetSize(120, 26)
@@ -1044,6 +1089,43 @@ CreateBoard = function()
     end)
     board.debugCategory:SetScript("OnLeave", function() GameTooltip:Hide() end)
     board.debugCategory:Hide()
+    board.debugAmountControls = CreateFrame("Frame", nil, board)
+    board.debugAmountControls:SetSize(790, 30)
+    board.debugAmountControls:SetPoint("TOPLEFT", 24, -570)
+    local amountLabel = Text(board.debugAmountControls)
+    amountLabel:SetPoint("LEFT")
+    amountLabel:SetText("Required amount:")
+    board.debugAmount = CreateFrame("EditBox", nil, board.debugAmountControls, "InputBoxTemplate")
+    board.debugAmount:SetSize(65, 24)
+    board.debugAmount:SetPoint("LEFT", amountLabel, "RIGHT", 14, 0)
+    board.debugAmount:SetAutoFocus(false)
+    board.debugAmount:SetNumeric(true)
+    board.debugAmount:SetMaxLetters(4)
+    board.debugAmount:SetScript("OnEscapePressed", function(self) self:ClearFocus(); self:SetText(db.activeQuest and tostring(db.activeQuest.amount) or "") end)
+    board.debugAmountApply = CreateFrame("Button", nil, board.debugAmountControls, "UIPanelButtonTemplate")
+    board.debugAmountApply:SetSize(70, 24)
+    board.debugAmountApply:SetPoint("LEFT", board.debugAmount, "RIGHT", 8, 0)
+    board.debugAmountApply:SetText("Apply")
+    local function ApplyAmount()
+        local active = db.activeQuest
+        if not Tracking.DebugSetAmount(debugMode, board.debugAmount:GetText(), board.debugAmount.quest) then
+            print("|cffffd27fClassic Questbook:|r Select an active tracked quest in Debug Mode and enter a whole amount from 1 to 1000.")
+            return
+        end
+        active.objective = UpdatedObjectiveText(active)
+        for _, offer in ipairs(db.displayedQuests) do
+            if offer.id == active.id then offer.amount, offer.objective = active.amount, active.objective end
+        end
+        board.debugAmount:ClearFocus()
+        board.debugAmount:SetText(tostring(active.amount))
+        Refresh()
+    end
+    board.debugAmountApply:SetScript("OnClick", ApplyAmount)
+    board.debugAmount:SetScript("OnEnterPressed", ApplyAmount)
+    local amountHint = Text(board.debugAmountControls, "GameFontHighlightSmall")
+    amountHint:SetPoint("LEFT", board.debugAmountApply, "RIGHT", 12, 0)
+    amountHint:SetText("1–1000 • Active quest only • Progress is preserved")
+    board.debugAmountControls:Hide()
     board:Hide()
 end
 
@@ -1058,8 +1140,7 @@ SetDebugMode = function(enabled, openBrowser)
         if openBrowser then
             CreateQuestBrowser()
             RefreshQuestBrowser()
-            questBrowser:SetFrameLevel(board:GetFrameLevel() + 20)
-            questBrowser:Show()
+            Windows.Open(questBrowser, Windows.Previous(board, questBrowser))
         end
     elseif questBrowser then
         questBrowser:Hide()
@@ -1097,6 +1178,16 @@ Refresh = function()
         card:SetBackdropBorderColor(accepted and 0.9 or 0.36, accepted and 0.3 or 0.3, accepted and 0.16 or 0.16, 1)
     end
     local active = db.activeQuest
+    local canEditAmount = debugMode and active ~= nil and Tracking.CanTrack(active)
+    board:SetHeight(debugMode and 610 or 570)
+    board.debugAmountControls:SetShown(debugMode)
+    board.debugAmount:SetEnabled(canEditAmount)
+    board.debugAmountApply:SetEnabled(canEditAmount)
+    if board.debugAmount.quest ~= active or not board.debugAmount:HasFocus() then
+        board.debugAmount:SetText(active and tostring(active.amount) or "")
+        board.debugAmount.quest = active
+    end
+    if not debugMode then board.debugAmount:ClearFocus() end
     board.subtitle:SetShown(not debugMode)
     board.debugCategory:SetShown(debugMode)
     board.debugProgress:SetShown(debugMode)

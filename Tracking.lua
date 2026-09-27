@@ -69,7 +69,8 @@ local function Normalize(q)
     q.state = q.state == READY and READY or ACTIVE
     q.progress = type(q.progress) == "table" and q.progress or {}
     for _, field in ipairs({"count", "collected", "sold"}) do
-        q.progress[field] = math.max(0, math.min(q.amount, tonumber(q.progress[field]) or 0))
+        -- Debug target reductions must not discard previously earned progress.
+        q.progress[field] = math.max(0, math.min(1000, tonumber(q.progress[field]) or 0))
     end
     q.progress.held = type(q.progress.held) == "table" and q.progress.held or {}
     q.progress.seen = type(q.progress.seen) == "table" and q.progress.seen or {}
@@ -139,6 +140,21 @@ function Tracking.DebugAddProgress(enabled)
     else
         return false
     end
+    UpdateState(q)
+    return true
+end
+
+function Tracking.DebugSetAmount(enabled, amount, expected)
+    local q = db and db.activeQuest
+    amount = tonumber(amount)
+    if not enabled or not q or q ~= expected or not q.tracking
+        or (q.state ~= ACTIVE and q.state ~= READY)
+        or not amount or amount ~= amount or amount < 1 or amount > 1000 or amount ~= math.floor(amount) then
+        return false
+    end
+    q.amount = amount
+    local count = q.tracking.kind == "collect_sell" and q.progress.sold or q.progress.count
+    if count < amount then q.state = ACTIVE end
     UpdateState(q)
     return true
 end
@@ -316,7 +332,7 @@ local function SettleLoot(session)
                     local received = math.min(available, source.quantity)
                     if received > 0 then
                         if q.tracking.kind == "collect_sell" then
-                            q.progress.collected = math.min(q.amount, q.progress.collected + received)
+                            q.progress.collected = math.max(q.progress.collected, math.min(q.amount, q.progress.collected + received))
                             q.progress.held[entry.id] = (q.progress.held[entry.id] or 0) + received
                             q.progress.inventory[entry.id] = Count(entry.id)
                         elseif q.tracking.kind == "nodes" then
