@@ -2,6 +2,12 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.2.1] - 2026-09-27
+
+### Fixed
+
+- Fixed questboard button callbacks calling Refresh as a missing global by forward-declaring the local function.
+
 ## [0.2.0] - 2026-09-27
 
 ### Added

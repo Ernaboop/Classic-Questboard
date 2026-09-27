@@ -1,5 +1,6 @@
 local addonName = ...
 local board, cards, db, debugPanel
+local Refresh
 
 -- Amounts are deliberately curated per objective. Mob levels and zone data use
 -- the WoW Forever Elwynn Forest tables; counts are quest-balance choices.
@@ -398,7 +399,7 @@ local function CreateBoard()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 24, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.2 (0.2.0)")
+    title:SetText("WoW Forever | Questboard — Alpha V0.2.1 (0.2.1)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Elwynn Forest commissions, assembled from category, objective, and amount.")
@@ -547,7 +548,7 @@ local function CreateBoard()
     board:Hide()
 end
 
-local function Refresh()
+Refresh = function()
     for index, card in ipairs(cards) do
         local quest = db.displayedQuests[index]
         local accepted = db.activeQuest and db.activeQuest.id == quest.id
