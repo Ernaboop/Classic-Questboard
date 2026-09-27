@@ -59,7 +59,7 @@ local function UpdateState(q)
     local amount = q.tracking.kind == "collect_sell" and q.progress.sold or q.progress.count
     if amount >= q.amount and q.state == ACTIVE then
         q.state = READY
-        print('|cffffd27fWoW Forever:|r "' .. q.title .. '" is Ready to Turn In. Visit a rested location and open /cq.')
+        print('|cffffd27fClassic Questbook:|r "' .. q.title .. '" is Ready to Turn In. Visit a rested location and open /cq.')
     end
     Refresh()
 end
@@ -117,7 +117,7 @@ function Tracking.TurnIn(bypassLocation)
     while #db.completedQuests > 20 do table.remove(db.completedQuests, 1) end
     db.activeQuest = nil
     ResetTransient()
-    print('|cffffd27fWoW Forever:|r Completed "' .. q.title .. '".')
+    print('|cffffd27fClassic Questbook:|r Completed "' .. q.title .. '".')
     return true
 end
 function Tracking.ProgressText(q)
@@ -152,7 +152,7 @@ function Tracking.TooltipText(unit)
     local p = q.progress
     local action = q.tracking.kind == "kill" and "Kill " or "Collect from "
     local count = q.tracking.kind == "collect_sell" and p.collected or p.count
-    return "Classic Questboard: " .. action .. name .. " " .. count .. "/" .. q.amount
+    return "Classic Questbook: " .. action .. name .. " " .. count .. "/" .. q.amount
         .. (q.state == READY and " (Ready to Turn In)" or "")
 end
 -- Adapted from Azeroth Fieldbook's BestiaryJournal living-observation,

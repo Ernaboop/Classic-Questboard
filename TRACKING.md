@@ -1,4 +1,4 @@
-# Alpha 0.6.4 tracking
+# Alpha 0.6.5 tracking
 
 ## Forever compatibility
 
@@ -12,7 +12,11 @@ See THIRD_PARTY_NOTICES.md for attribution and license.
 
 ## Player flow
 
-Open `/cq`, click the minimap button, or assign Toggle Classic Questboard in WoW's Key Bindings settings (no default key). The board offers three quests from the existing Elwynn Forest pool, including when opened in a city. Other zones do not yet have objective data.
+### Rename from WoWForever
+
+The addon folder and manifest are now `Classic Questbook/Classic Questbook.toc`. Fully restart WoW after renaming the folder. For other installations, while WoW is closed, copy each character's `WTF/Account/.../SavedVariables/WoWForever.lua` to `Classic Questbook.lua` in the same directory (and copy the `.lua.bak` backup similarly). Preserve the originals and do not overwrite existing Classic Questbook saves. The internal `WoWForeverDB` variable and keybinding IDs deliberately retain their old names to preserve data and assigned keys.
+
+Open `/cq`, click the minimap button, or assign Toggle Classic Questbook in WoW's Key Bindings settings (no default key). The board offers three quests from the existing Elwynn Forest pool, including when opened in a city. Other zones do not yet have objective data.
 
 Accept one quest in an inn, city, or other area where WoW reports `IsResting()`. Progress continues with the board closed and outside rest areas, but kills and collection/gathering must occur in Elwynn Forest, including child maps such as Northshire.
 

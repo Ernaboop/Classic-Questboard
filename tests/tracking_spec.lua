@@ -133,7 +133,7 @@ end
 LOOT_ITEM_SELF = "You receive loot: %s."
 LOOT_ITEM_SELF_MULTIPLE = "You receive loot: %sx%d."
 local ns = {}
-assert(loadstring(tracking_source))('WoWForever', ns)
+assert(loadstring(tracking_source))('Classic Questbook', ns)
 local T = ns.Tracking
 local saved
 local function fresh()
@@ -285,8 +285,8 @@ check(q.progress.held[2672] == 0, 'banking loses sale eligibility even with an e
 
 -- Exercise real generator/UI wiring with mocked WoW frame APIs.
 fresh(); local realNS = {}
-assert(loadstring(tracking_source))('WoWForever', realNS)
-assert(loadstring(board_source))('WoWForever', realNS)
+assert(loadstring(tracking_source))('Classic Questbook', realNS)
+assert(loadstring(board_source))('Classic Questbook', realNS)
 local outleveledSeen = {}
 for _ = 1, 1200 do
     local offer = realNS.GenerateQuestForLevel(12, true)
@@ -350,7 +350,7 @@ end
 professionSlots, professionLines = {}, {}
 WoWForeverDB = nil
 for _, frame in ipairs(frames) do
-    if frame.registered.ADDON_LOADED then frame.scripts.OnEvent(frame, 'ADDON_LOADED', 'WoWForever') end
+    if frame.registered.ADDON_LOADED then frame.scripts.OnEvent(frame, 'ADDON_LOADED', 'Classic Questbook') end
 end
 SlashCmdList.WOWFOREVERQUESTBOARD('')
 local board = WoWForeverQuestboard
@@ -484,10 +484,10 @@ end
 WoWForeverDB.settings.showAbandonConfirmation = false
 WoWForeverDB = clone(WoWForeverDB) -- SavedVariables reload recreates independent tables.
 local reloadNS = {}
-assert(loadstring(tracking_source))('WoWForever', reloadNS)
-assert(loadstring(board_source))('WoWForever', reloadNS)
+assert(loadstring(tracking_source))('Classic Questbook', reloadNS)
+assert(loadstring(board_source))('Classic Questbook', reloadNS)
 for _, frame in ipairs(frames) do
-    if frame.registered.ADDON_LOADED then frame.scripts.OnEvent(frame, 'ADDON_LOADED', 'WoWForever') end
+    if frame.registered.ADDON_LOADED then frame.scripts.OnEvent(frame, 'ADDON_LOADED', 'Classic Questbook') end
 end
 check(WoWForeverDB.activeQuest.id == persistent.id and WoWForeverDB.activeQuest.amount == persistent.amount
     and WoWForeverDB.activeQuest.progress.count == 1, 'real saved-state migration preserves identity, amount, and progress')
@@ -593,7 +593,7 @@ check(T.DebugAddProgress(true) and q.progress.sold == 2 and q.state == 'Ready to
     'debug sale completion is ready without auto turn-in')
 check(not T.DebugAddProgress(true) and q.progress.collected == 2 and q.progress.sold == 2, 'debug collection and sales stay capped')
 T.Abandon(); q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 2); q.categoryName = 'Kill'; T.Accept(q)
-assert(loadstring(tooltip_source))('WoWForever', ns)
+assert(loadstring(tooltip_source))('Classic Questbook', ns)
 tooltipUnit = 'mouseover'; GameTooltip:Show()
 GameTooltip.scripts.OnTooltipCleared(GameTooltip); tooltipLines = {}
 GameTooltip.scripts.OnTooltipSetUnit(GameTooltip)
@@ -610,7 +610,7 @@ for _, build in ipairs({16001, 120000, 11507}) do
     interfaceVersion = build
     restrictedCombat = build == 11507 -- Also honor the public restriction predicate.
     local restrictedNS = {}
-    assert(loadstring(tracking_source))('WoWForever', restrictedNS)
+    assert(loadstring(tracking_source))('Classic Questbook', restrictedNS)
     local t = restrictedNS.Tracking
     local kept = quest({kind = 'kill', targets = {'Kobold Miner'}}, 4)
     kept.state, kept.progress = 'Active', {count = 2}

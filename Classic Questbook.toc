@@ -1,8 +1,8 @@
 ## Interface: 16001
-## Title: WoW Forever: Questboard
+## Title: Classic Questbook
 ## Notes: A small roleplay adventure board. Open with /cq.
 ## Author: Spinkler
-## Version: 0.6.4
+## Version: 0.6.5
 ## SavedVariablesPerCharacter: WoWForeverDB
 
 Tracking.lua

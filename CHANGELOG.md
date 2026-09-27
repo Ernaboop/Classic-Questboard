@@ -2,6 +2,14 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.6.5] - 2026-09-28
+
+### Changed
+
+- Renamed the addon and installation folder to Classic Questbook, with a matching Classic Questbook.toc manifest.
+- Updated window, options, keybinding, minimap, chat, and mob-tooltip branding. Slash commands remain /cq and /cqdebug.
+- Retained the internal WoWForeverDB and binding identifiers for compatibility. Existing installations must copy their saved-variable files to the new addon filename; see TRACKING.md.
+
 ## [0.6.4] - 2026-09-28
 
 ### Changed

@@ -426,7 +426,7 @@ local function PickDisplayedQuests()
     elseif debugMode and forcedLeftCategory then
         local quest = GenerateQuest(generationLevel, outleveled, nil, forcedLeftCategory)
         if not quest then
-            print("|cffffd27fClassic Questboard:|r No eligible objectives for the selected left-card category. Change category, generation level, or learned professions. Offers were kept.")
+            print("|cffffd27fClassic Questbook:|r No eligible objectives for the selected left-card category. Change category, generation level, or learned professions. Offers were kept.")
             return db.displayedQuests or {}
         end
         chosen[1], seen[quest.selectionId] = quest, true
@@ -767,7 +767,7 @@ end
 
 local function OpenOptions()
     if not optionsWindow then
-        optionsWindow = SecondaryWindow("WoWForeverOptions", "Classic Questboard Options", 430, 180)
+        optionsWindow = SecondaryWindow("WoWForeverOptions", "Classic Questbook Options", 430, 180)
         optionsWindow.confirmation = Checkbox(optionsWindow, "Show abandon quest confirmation", -62)
         optionsWindow.confirmation:SetScript("OnClick", function(self)
             db.settings.showAbandonConfirmation = not not self:GetChecked()
@@ -775,7 +775,7 @@ local function OpenOptions()
         local hint = Text(optionsWindow, "GameFontHighlightSmall")
         hint:SetPoint("TOPLEFT", 28, -108)
         hint:SetSize(370, 42)
-        hint:SetText("Assign a toggle key in WoW's Key Bindings settings under Classic Questboard.")
+        hint:SetText("Assign a toggle key in WoW's Key Bindings settings under Classic Questbook.")
     end
     optionsWindow.confirmation:SetChecked(db.settings.showAbandonConfirmation)
     optionsWindow:Show()
@@ -843,7 +843,7 @@ local function TurnInSlot(index)
     if not replacement and forcedCategory then
         -- A debug preference must not block handing in an already-ready quest.
         replacement = GenerateQuest(generationLevel, outleveled, excluded)
-        if replacement then print("|cffffd27fClassic Questboard:|r No unique eligible replacement in the forced category; using a normal replacement.") end
+        if replacement then print("|cffffd27fClassic Questbook:|r No unique eligible replacement in the forced category; using a normal replacement.") end
     end
     if not replacement or not Tracking.TurnIn(debugMode) then return end
     db.displayedQuests[index] = replacement
@@ -866,7 +866,7 @@ CreateBoard = function()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.6.4 (0.6.4)")
+    title:SetText("Classic Questbook — Alpha V0.6.5 (0.6.5)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")
@@ -883,7 +883,7 @@ CreateBoard = function()
     board.options:SetScript("OnClick", OpenOptions)
     board.options:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:AddLine("Classic Questboard Options")
+        GameTooltip:AddLine("Classic Questbook Options")
         GameTooltip:Show()
     end)
     board.options:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -933,7 +933,7 @@ CreateBoard = function()
             end
             if not Tracking.Accept(quest, debugMode) then return end
             Refresh()
-            print("|cffffd27fWoW Forever:|r Accepted \"" .. quest.title .. "\". Open /cq to view your objective.")
+            print("|cffffd27fClassic Questbook:|r Accepted \"" .. quest.title .. "\". Open /cq to view your objective.")
         end)
         -- A ready quest keeps Turn In as its primary action; abandonment is
         -- still possible on the same card, including outside rested areas.
@@ -1167,8 +1167,8 @@ SlashCmdList.WOWFOREVERQUESTBOARD = function(message)
     ToggleBoard(type(message) == "string" and string.lower(message) == "debug")
 end
 
-BINDING_HEADER_CLASSICQUESTBOARD = "Classic Questboard"
-BINDING_NAME_CLASSICQUESTBOARD_TOGGLE = "Toggle Classic Questboard"
+BINDING_HEADER_CLASSICQUESTBOARD = "Classic Questbook"
+BINDING_NAME_CLASSICQUESTBOARD_TOGGLE = "Toggle Classic Questbook"
 function ClassicQuestboardToggle() ToggleBoard(false) end
 
 SLASH_WOWFOREVERQUESTBOARDDEBUG1 = "/cqdebug"
@@ -1245,7 +1245,7 @@ CreateMinimapButton = function()
     button:SetScript("OnEnter", function(self)
         if self.dragging then return end
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine("WoW Forever Questboard")
+        GameTooltip:AddLine("Classic Questbook")
         GameTooltip:AddLine("Click to open the questboard", 1, 1, 1)
         GameTooltip:AddLine("Drag to reposition this button", 0.7, 0.7, 0.7)
         GameTooltip:Show()
