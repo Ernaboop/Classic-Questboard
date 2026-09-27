@@ -2,6 +2,14 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.4.3] - 2026-09-27
+
+### Added
+
+- Added a top-left Debug Mode toggle and moved the shared quest-generation level override onto the main Questboard while Debug Mode is enabled.
+- Replaced the in-board debug tree with a separate Quest Browser window featuring icon category tabs, level-filtered objective lists, amount ranges, Hunt subtype sections, and all Gather profession pools.
+- Kept test quest generation and objective previews in the Quest Browser; closing it no longer changes Debug Mode.
+
 ## [0.4.2] - 2026-09-27
 
 ### Fixed
