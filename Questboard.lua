@@ -259,6 +259,30 @@ local function EligibleObjectives(objectives, playerLevel)
     return result
 end
 
+local function HighestObjectiveLevel(objectives)
+    local highest
+    for _, objective in ipairs(objectives or {}) do
+        if type(objective.maxPlayerLevel) == "number"
+            and (not highest or objective.maxPlayerLevel > highest) then
+            highest = objective.maxPlayerLevel
+        end
+    end
+    return highest
+end
+
+local function HighestCategoryLevel(category)
+    if not category then return nil end
+    if category.id == "hunt" then
+        local highest
+        for _, branch in ipairs(category.branches or {}) do
+            local branchHighest = HighestObjectiveLevel(branch.objectives)
+            if branchHighest and (not highest or branchHighest > highest) then highest = branchHighest end
+        end
+        return highest
+    end
+    return HighestObjectiveLevel(category.profession and category.profession.objectives or category.objectives)
+end
+
 -- The browser is an inspection tool, so keep showing a category's nearest
 -- supported band when the selected level falls outside its available ranges.
 local function BrowserObjectives(objectives, playerLevel)
@@ -288,11 +312,12 @@ local function BrowserObjectives(objectives, playerLevel)
     return EligibleObjectives(objectives, closestLevel), closestLevel
 end
 
-local function ObjectiveOptions(category, branch, playerLevel)
+local function ObjectiveOptions(category, branch, playerLevel, outleveled)
     if not category then return {} end
-    if category.id == "hunt" then return EligibleObjectives(branch and branch.objectives, playerLevel) end
-    if category.profession then return EligibleObjectives(category.profession.objectives, playerLevel) end
-    return EligibleObjectives(category.objectives, playerLevel)
+    local objectives = category.id == "hunt" and branch and branch.objectives
+        or category.profession and category.profession.objectives or category.objectives
+    local effectiveLevel = outleveled and HighestCategoryLevel(category) or playerLevel
+    return EligibleObjectives(objectives, effectiveLevel)
 end
 
 local function BuildQuest(category, branch, objective, amount)
@@ -341,17 +366,17 @@ local function BuildQuest(category, branch, objective, amount)
     }
 end
 
-local function GenerateQuest(playerLevel)
+local function GenerateQuest(playerLevel, outleveled)
     playerLevel = playerLevel or NormalGenerationLevel()
     local categories = {}
     for _, candidate in ipairs(CategoryOptions(false)) do
         if candidate.id == "hunt" then
             local hasEligible = false
             for _, branchOption in ipairs(candidate.branches) do
-                if #ObjectiveOptions(candidate, branchOption, playerLevel) > 0 then hasEligible = true; break end
+                if #ObjectiveOptions(candidate, branchOption, playerLevel, outleveled) > 0 then hasEligible = true; break end
             end
             if hasEligible then categories[#categories + 1] = candidate end
-        elseif #ObjectiveOptions(candidate, nil, playerLevel) > 0 then
+        elseif #ObjectiveOptions(candidate, nil, playerLevel, outleveled) > 0 then
             categories[#categories + 1] = candidate
         end
     end
@@ -361,11 +386,11 @@ local function GenerateQuest(playerLevel)
     if category.id == "hunt" then
         local branches = {}
         for _, option in ipairs(category.branches) do
-            if #ObjectiveOptions(category, option, playerLevel) > 0 then branches[#branches + 1] = option end
+            if #ObjectiveOptions(category, option, playerLevel, outleveled) > 0 then branches[#branches + 1] = option end
         end
         branch = RandomFrom(branches)
     end
-    local objective = RandomFrom(ObjectiveOptions(category, branch, playerLevel))
+    local objective = RandomFrom(ObjectiveOptions(category, branch, playerLevel, outleveled))
     if not objective then return nil end
     return BuildQuest(category, branch, objective, RollAmount(objective))
 end
@@ -373,7 +398,13 @@ end
 local function PickDisplayedQuests()
     local chosen = {}
     local seen = {}
-    local generationLevel = QuestGenerationLevel and QuestGenerationLevel() or NormalGenerationLevel()
+    local generationLevel, outleveled
+    if QuestGenerationLevel then
+        generationLevel, outleveled = QuestGenerationLevel()
+    else
+        generationLevel = NormalGenerationLevel()
+        outleveled = CurrentPlayerLevel() > ELWYNN_MAX_LEVEL
+    end
     if db.activeQuest then
         chosen[1] = db.activeQuest
         seen[db.activeQuest.selectionId or db.activeQuest.id] = true
@@ -381,7 +412,7 @@ local function PickDisplayedQuests()
     local attempts = 0
     while #chosen < 3 and attempts < 100 do
         attempts = attempts + 1
-        local quest = GenerateQuest(generationLevel)
+        local quest = GenerateQuest(generationLevel, outleveled)
         if quest and not seen[quest.selectionId] then
             chosen[#chosen + 1] = quest
             seen[quest.selectionId] = true
@@ -413,8 +444,12 @@ local debugState = {testLevel = math.min(CurrentPlayerLevel(), ELWYNN_MAX_LEVEL)
 local ChangeDebugLevel
 
 QuestGenerationLevel = function()
-    return debugMode and debugState.testLevel or NormalGenerationLevel()
+    if debugMode then return debugState.testLevel, false end
+    return NormalGenerationLevel(), CurrentPlayerLevel() > ELWYNN_MAX_LEVEL
 end
+
+-- Kept on the private addon namespace for deterministic generator diagnostics.
+ns.GenerateQuestForLevel = GenerateQuest
 
 local function Text(parent, size, color)
     local text = parent:CreateFontString(nil, "OVERLAY", size or "GameFontHighlight")
@@ -663,7 +698,9 @@ local function CreateDebugModeButton(parent)
     debugModeButton.active:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
     debugModeButton.active:SetBlendMode("ADD")
     debugModeButton.active:SetPoint("CENTER")
-    debugModeButton.active:SetSize(42, 42)
+    debugModeButton.active:SetSize(36, 36)
+    debugModeButton.active:SetVertexColor(0.3, 0.65, 1, 0.55)
+    debugModeButton.active:SetAlpha(0.45)
     debugModeButton.active:Hide()
     debugModeButton:SetScript("OnClick", function() SetDebugMode(not debugMode, false) end)
     debugModeButton:SetScript("OnEnter", function(self)
@@ -691,7 +728,7 @@ CreateBoard = function()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.5.2 (0.5.2)")
+    title:SetText("WoW Forever | Questboard — Alpha V0.5.3 (0.5.3)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")
@@ -735,7 +772,7 @@ CreateBoard = function()
             if db.activeQuest then
                 if db.activeQuest.id ~= quest.id then return end
                 if db.activeQuest.state == "Ready to Turn In" then
-                    if not Tracking.TurnIn() then return end
+                    if not Tracking.TurnIn(debugMode) then return end
                 else
                     Tracking.Abandon()
                 end
@@ -743,7 +780,7 @@ CreateBoard = function()
                 Refresh()
                 return
             end
-            if not Tracking.Accept(quest) then return end
+            if not Tracking.Accept(quest, debugMode) then return end
             Refresh()
             print("|cffffd27fWoW Forever:|r Accepted \"" .. quest.title .. "\". Open /cq to view your objective.")
         end)
@@ -846,6 +883,7 @@ end
 Refresh = function()
     if not board or not db then return end
     local resting = Tracking.IsResting()
+    local locationAllowed = debugMode or resting
     for index, card in ipairs(cards) do
         local quest = db.displayedQuests[index]
         local accepted = quest and db.activeQuest and db.activeQuest.id == quest.id
@@ -858,7 +896,7 @@ Refresh = function()
         card.objective:SetText(quest and ("Your objective\n|cffffffff" .. quest.objective .. "|r") or "")
         card.prompt:SetText(accepted and Tracking.ProgressText(quest) or (quest and not trackable and "Automatic tracking is unavailable for this objective on this client." or (quest and ("Roleplay prompt\n|cffffffff" .. quest.prompt .. "|r") or "")))
         card.button:SetText(not quest and "Unavailable" or (ready and "Turn In Quest" or (accepted and "Abandon Quest" or (db.activeQuest and "Unavailable" or (not trackable and "Tracking unavailable" or "Accept Quest")))))
-        card.button:SetEnabled(quest ~= nil and ((accepted and (not ready or resting)) or (not db.activeQuest and resting and trackable)))
+        card.button:SetEnabled(quest ~= nil and ((accepted and (not ready or locationAllowed)) or (not db.activeQuest and locationAllowed and trackable)))
         card.abandon:SetShown(not not ready)
         card.marker:SetText("")
         card:SetBackdropBorderColor(accepted and 0.9 or 0.36, accepted and 0.3 or 0.3, accepted and 0.16 or 0.16, 1)
@@ -866,7 +904,8 @@ Refresh = function()
     local active = db.activeQuest
     board.status:SetText(active and (active.state .. ": " .. active.title) or (#db.displayedQuests == 0 and "No Elwynn objectives match your current level and known professions." or "Choose one notice to begin your adventure."))
     board.reroll:SetEnabled(active == nil)
-    local notice = resting and "Rest area: you can accept quests and turn in finished objectives here."
+    local notice = debugMode and "Debug Mode: accept and turn-in location requirements are bypassed."
+        or resting and "Rest area: you can accept quests and turn in finished objectives here."
         or "Visit an inn, city, or other rest area to accept or turn in quests. Progress still tracks outside rest areas."
     local last = db.completedQuests and db.completedQuests[#db.completedQuests]
     board.note:SetText(notice .. (last and ("\nLast completed: " .. last.title) or ""))

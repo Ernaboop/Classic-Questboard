@@ -89,8 +89,8 @@ function Tracking.CanTrack(q)
     local spec = resolve and resolve(q) or q.tracking
     return spec ~= nil
 end
-function Tracking.Accept(q)
-    if not db or db.activeQuest or not Tracking.IsResting() then return false end
+function Tracking.Accept(q, bypassLocation)
+    if not db or db.activeQuest or (not bypassLocation and not Tracking.IsResting()) then return false end
     if not Tracking.CanTrack(q) then return false end
     q.state, q.progress, q.acceptedAt = ACTIVE, {}, time()
     Normalize(q)
@@ -104,9 +104,9 @@ function Tracking.Abandon()
     ResetTransient()
     return true
 end
-function Tracking.TurnIn()
+function Tracking.TurnIn(bypassLocation)
     local q = db and db.activeQuest
-    if not q or q.state ~= READY or not Tracking.IsResting() then return false end
+    if not q or q.state ~= READY or (not bypassLocation and not Tracking.IsResting()) then return false end
     q.state, q.completedAt = COMPLETED, time()
     db.completedQuests[#db.completedQuests + 1] = {
         id = q.id, title = q.title, zone = q.zone, amount = q.amount,

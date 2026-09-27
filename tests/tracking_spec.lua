@@ -7,6 +7,7 @@ local function check(value, message)
     passed = passed + 1
 end
 local clock, timers, resting, zone, bags, money, buybacks, lootItems, combat, level
+local professionSlots, professionLines = {}, {}
 local units, hooks, frames = {}, {}, {}
 local function object(name, parent)
     local o = {scripts = {}, registered = {}, shown = true, parent = parent, name = name, width = 32, height = 32}
@@ -31,6 +32,8 @@ local function object(name, parent)
     function o:Hide() self.shown = false end
     function o:IsShown() return self.shown end
     function o:SetFrameLevel(v) self.frameLevel = v end
+    function o:SetAlpha(v) self.alpha = v end
+    function o:SetVertexColor(...) self.vertexColor = {...} end
     function o:GetFrameLevel() return rawget(self, 'frameLevel') or 1 end
     function o:CreateTexture() return object(nil, self) end
     function o:CreateMaskTexture() return object(nil, self) end
@@ -67,8 +70,8 @@ function UnitPlayerControlled(unit) return units[unit] and units[unit].controlle
 function UnitIsTapDenied(unit) return units[unit] and units[unit].denied end
 function UnitAffectingCombat(unit) return units[unit] and units[unit].inCombat end
 function UnitIsUnit(a, b) return units[a] ~= nil and units[b] ~= nil and units[a].guid == units[b].guid end
-function GetProfessions() return nil end
-function GetProfessionInfo() return nil end
+function GetProfessions() return unpack(professionSlots) end
+function GetProfessionInfo(index) return nil, nil, nil, nil, nil, nil, professionLines[index] end
 function GetMoney() return money end
 function CombatLogGetCurrentEventInfo() return unpack(combat, 1, 11) end
 function GetNumLootItems() return #lootItems end
@@ -100,6 +103,7 @@ local saved
 local function fresh()
     clock, timers, resting, zone, bags, money, buybacks, lootItems, level = 0, {}, true, 'Elwynn Forest', {}, 100, {}, {}, 6
     units = {player = {guid = 'Player-1', name = 'Tester'}, pet = {guid = 'Pet-1', name = 'Pet'}}
+    professionSlots, professionLines = {}, {}
     saved = {}
     T.Initialize(saved, function(q) return q.tracking end, function() end)
     T.OnEvent('PLAYER_ENTERING_WORLD')
@@ -152,6 +156,13 @@ check(q.state == 'Ready to Turn In' and q.progress.count == 2, 'ready/progress s
 resting = true; check(T.TurnIn(), 'manual rested turn-in')
 check(not saved.activeQuest and saved.completedQuests[1].state == 'Completed', 'completion retained and active cleared')
 check(not T.TurnIn(), 'turn-in cannot be repeated')
+
+fresh(); resting = false
+q = quest({kind = 'kill', targets = {'Kobold Miner'}})
+check(T.Accept(q, true), 'debug location override permits acceptance outside rest')
+q.state = 'Ready to Turn In'; q.progress.count = q.amount
+check(T.TurnIn(true), 'debug location override permits turn-in outside rest')
+check(not saved.activeQuest and saved.completedQuests[1].state == 'Completed', 'debug location override preserves normal completion state')
 
 fresh(); q = quest({kind = 'collect_sell', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
 bags[2672] = 10; T.OnEvent('BAG_UPDATE_DELAYED')
@@ -240,6 +251,31 @@ check(q.progress.held[2672] == 0, 'banking loses sale eligibility even with an e
 fresh(); local realNS = {}
 assert(loadstring(tracking_source))('WoWForever', realNS)
 assert(loadstring(board_source))('WoWForever', realNS)
+local outleveledSeen = {}
+for _ = 1, 1200 do
+    local offer = realNS.GenerateQuestForLevel(12, true)
+    outleveledSeen[offer.categoryName] = true
+    if offer.categoryName == 'Kill' or offer.categoryName == 'Collect & Sell' then
+        check(offer.maxPlayerLevel == 10, offer.categoryName .. ' uses its own highest level band')
+    elseif offer.categoryName == 'Hunt' then
+        check(offer.maxPlayerLevel == 12, 'Hunt uses its own highest level band')
+    end
+end
+check(outleveledSeen.Kill and outleveledSeen['Collect & Sell'] and outleveledSeen.Hunt,
+    'outleveled generation retains every non-profession category')
+check(not outleveledSeen.Gather, 'unlearned gathering professions remain excluded when outleveled')
+professionSlots, professionLines = {1}, {[1] = 182}
+local sawHerbalism = false
+for _ = 1, 1200 do
+    local offer = realNS.GenerateQuestForLevel(12, true)
+    if offer.professionId then
+        check(offer.professionId == 'herbalism' and offer.maxPlayerLevel == 12,
+            'learned gathering profession uses its own highest level band')
+        sawHerbalism = true
+    end
+end
+check(sawHerbalism, 'learned gathering profession contributes to outleveled generation')
+professionSlots, professionLines = {}, {}
 WoWForeverDB = nil
 for _, frame in ipairs(frames) do
     if frame.registered.ADDON_LOADED then frame.scripts.OnEvent(frame, 'ADDON_LOADED', 'WoWForever') end
@@ -275,14 +311,19 @@ check(WoWForeverDB.activeQuest == active, 'ready card cannot turn in outside res
 resting = true; realNS.Tracking.OnEvent('PLAYER_UPDATE_RESTING'); cs[1].button.scripts.OnClick()
 check(not WoWForeverDB.activeQuest and board.reroll.enabled and #WoWForeverDB.completedQuests == 1, 'manual turn-in returns to three selectable cards')
 WoWForeverDebugModeButton.scripts.OnClick(); board.debugLevelDown.scripts.OnClick()
+check(WoWForeverDebugModeButton.active.shown and WoWForeverDebugModeButton.active.alpha <= 0.5,
+    'debug icon shows a restrained active highlight')
 for _, offer in ipairs(WoWForeverDB.displayedQuests) do
     check(offer.minPlayerLevel <= 5 and offer.maxPlayerLevel >= 5, 'debug level feeds actual generator')
 end
+resting = false; realNS.Tracking.OnEvent('PLAYER_UPDATE_RESTING')
+check(cs[1].button.enabled and board.note.text:find('Debug Mode'), 'debug UI bypasses acceptance location only')
 cs[1].button.scripts.OnClick()
 local persistent = WoWForeverDB.activeQuest
 persistent.progress.count = 1
 local persistentOffers = WoWForeverDB.displayedQuests
 WoWForeverDebugModeButton.scripts.OnClick()
+check(not WoWForeverDebugModeButton.active.shown, 'debug highlight clears immediately when disabled')
 check(WoWForeverDB.activeQuest == persistent and persistent.progress.count == 1 and WoWForeverDB.displayedQuests == persistentOffers,
     'toggling debug preserves active progress and offers')
 local function clone(t)

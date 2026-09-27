@@ -1,8 +1,8 @@
-# Alpha 0.5.2 tracking
+# Alpha 0.5.3 tracking
 
 ## Forever compatibility
 
-Version 0.5.2 restores automatic Kill/Hunt tracking using the public watched-creature approach adapted from Azeroth Fieldbook. No combat-log event is registered or read, on any client. Kill/Hunt offers can be accepted again; existing active progress is preserved.
+Alpha 0.5.3 keeps the automatic Kill/Hunt tracking restored in 0.5.2 using the public watched-creature approach adapted from Azeroth Fieldbook. No combat-log event is registered or read, on any client. Kill/Hunt offers can be accepted again; existing active progress is preserved.
 
 Watch the quest target while it is alive by targeting or mousing over it. A death requires a recent living observation of that same creature GUID and readable eligibility (`UnitExists == true`, `UnitPlayerControlled == false`, `UnitIsTapDenied == false`) at death/kill notification time. A standalone `UNIT_DIED` event or a watched corpse can confirm death. `PARTY_KILL` only starts pending evidence and samples eligibility; it is not enough by itself. Polling every 0.2 seconds handles pet kills and clients without standalone GUID events.
 
@@ -27,7 +27,7 @@ Abandon is available on the active card anywhere. A ready quest has a smaller Ab
 - **Herbalism / Mining / Skinning / Fishing:** a gathering action (or fishing channel) must precede the loot, with the correct item ID and creature/object source. The player's own loot message, a cleared loot slot, and an inventory gain confirm receipt. Boar and eastern-beast leather objectives also check the corpse's name.
 - **Copper Vein Prospecting:** loot ore from the required number of different vein sources. Several ore from one vein count as one vein.
 
-The accepted quest and progress are saved in `WoWForeverDB`. Existing accepted quests acquire tracking without changing their objective or amount. Pre-0.5.0 quests start at zero because those versions did not record progress. Unknown legacy objective IDs remain visible and can be abandoned. Debug levels never reset active progress or bypass rest requirements.
+The accepted quest and progress are saved in `WoWForeverDB`. Existing accepted quests acquire tracking without changing their objective or amount. Pre-0.5.0 quests start at zero because those versions did not record progress. Unknown legacy objective IDs remain visible and can be abandoned. Debug levels never reset active progress. While Debug Mode is enabled, only the accept and turn-in location checks are bypassed; progress, state, tracking, and completion checks remain unchanged.
 
 ## Limits and client verification
 
@@ -44,6 +44,6 @@ In-game smoke test:
 3. Finish outdoors. Confirm Ready to Turn In persists without completion, then return to rest and manually hand in once.
 4. Test normal loot/autoloot for each learned gathering profession, a full-bag failure, and unrelated purchased items. Multiple ore from one vein should count once for prospecting.
 5. Collect qualifying spoils and sell individual stacks. Verify destruction, banking, and purchased replacements do not count as sales. Test an identical-stack sale when buyback is full.
-6. Change the debug generation level without an active quest, accept a generated quest, then toggle Debug Mode. Verify the active quest stays stable and rest restrictions still apply.
+6. Change the debug generation level without an active quest. Outside a rest area, accept and turn in a completed quest while Debug Mode is active. Disable Debug Mode and verify those actions require a rest area again. Confirm the active quest remains stable while toggling the mode.
 
 API events were checked against Blizzard's extracted [Classic loot documentation](https://github.com/Gethe/wow-ui-source/blob/classic/Interface/AddOns/Blizzard_APIDocumentationGenerated/LootDocumentation.lua) and [merchant documentation](https://github.com/Gethe/wow-ui-source/blob/classic/Interface/AddOns/Blizzard_APIDocumentationGenerated/MerchantFrameDocumentation.lua).

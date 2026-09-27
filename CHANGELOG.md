@@ -2,6 +2,14 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.5.3] - 2026-09-27
+
+### Changed
+
+- Outleveled players now receive objectives from each eligible category's own highest available level band. Kill, Collect & Sell, Hunt, and each learned gathering profession fall back independently instead of requiring objectives at Elwynn's absolute level cap.
+- Debug Mode now bypasses rest-area requirements for quest acceptance and manual turn-in while preserving all other quest-state and completion checks.
+- Added a restrained blue glow around the Debug Mode icon while the mode is enabled; it disappears immediately when disabled.
+
 ## [0.5.2] - 2026-09-27
 
 ### Fixed
