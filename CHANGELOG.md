@@ -2,6 +2,13 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.4.1] - 2026-09-27
+
+### Fixed
+
+- Centered the minimap button icon and border on the button frame.
+- Moved the default minimap-button position to the upper-right to avoid the built-in tracking control.
+
 ## [0.4.0] - 2026-09-27
 
 ### Added
