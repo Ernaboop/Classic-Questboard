@@ -1,4 +1,5 @@
-local addonName = ...
+local addonName, ns = ...
+local Tracking = ns.Tracking
 local board, cards, db, minimapButton, questBrowser, debugModeButton
 local Refresh
 local ToggleBoard
@@ -117,6 +118,62 @@ local database = {
         },
     },
 }
+
+-- Explicit source groups avoid treating a plural display label as a mob name.
+local collectSources = {
+    northshire_kobold_loot = {"Kobold Vermin", "Kobold Laborer"},
+    young_wolf_meat = {"Young Wolf", "Timber Wolf"},
+    defias_thug_loot = {"Defias Thug"},
+    fargodeep_kobold_loot = {"Kobold Tunneler", "Kobold Miner"},
+    stonetusk_boar_meat = {"Stonetusk Boar"},
+    crystal_lake_murloc_loot = {"Murloc", "Murloc Streamrunner"},
+    eastern_wolf_loot = {"Gray Forest Wolf", "Young Forest Bear"},
+    riverpaw_runt_loot = {"Riverpaw Runt"},
+    murloc_forager_loot = {"Murloc Forager", "Murloc Lurker"},
+    brackwell_defias_loot = {"Defias Bandit"},
+    riverpaw_outrunner_loot = {"Riverpaw Outrunner"},
+}
+local trackedItems = {
+    young_wolf_meat = 2672, stonetusk_boar_meat = 769,
+    peacebloom = 2447, silverleaf = 765, earthroot = 2449, mageroyal = 785,
+    copper_ore = 2770, rough_stone = 2835, copper_vein_prospecting = 2770,
+    ruined_leather_scraps = 2934, stonefield_light_leather = 2318, eastern_light_leather = 2318,
+    brilliant_smallfish = 6291, longjaw_mud_snapper = 6289, bristle_whisker_catfish = 6308,
+}
+local skinSources = {
+    stonefield_light_leather = {"Stonetusk Boar"},
+    eastern_light_leather = {"Gray Forest Wolf", "Young Forest Bear", "Prowler"},
+}
+local function TrackingSpec(categoryId, objective, profession)
+    if categoryId == "kill" or categoryId == "hunt" then
+        return {kind = "kill", targets = {objective.name}}
+    elseif categoryId == "collect_sell" then
+        return {kind = "collect_sell", targets = collectSources[objective.id], itemID = trackedItems[objective.id]}
+    elseif profession then
+        return {kind = objective.id == "copper_vein_prospecting" and "nodes" or "gather",
+            profession = profession, itemID = trackedItems[objective.id], targets = skinSources[objective.id]}
+    end
+end
+local function ResolveTracking(quest)
+    for _, category in ipairs(database.categories) do
+        if category.branches then
+            for _, branch in ipairs(category.branches) do
+                for _, objective in ipairs(branch.objectives) do
+                    if objective.id == quest.objectiveId then return TrackingSpec(category.id, objective) end
+                end
+            end
+        else
+            for _, objective in ipairs(category.objectives) do
+                if objective.id == quest.objectiveId then return TrackingSpec(category.id, objective) end
+            end
+        end
+    end
+    for _, profession in ipairs(database.gather) do
+        for _, objective in ipairs(profession.objectives) do
+            if objective.id == quest.objectiveId then return TrackingSpec("gather", objective, profession.id) end
+        end
+    end
+end
 
 local function RandomFrom(list)
     if not list or #list == 0 then return nil end
@@ -253,6 +310,8 @@ local function BuildQuest(category, branch, objective, amount)
         action = "Find and defeat " .. target .. ", a level " .. objective.level .. " " .. objective.rarity .. " target, " .. location .. "."
     elseif category.id == "hunt" then
         action = "Travel to " .. objective.location .. " and defeat " .. amount .. " level " .. objective.level .. " " .. target .. " elites."
+    elseif objective.id == "copper_vein_prospecting" then
+        action = "Mine " .. amount .. " different Copper Veins in Elwynn Forest and loot their ore."
     elseif category.profession then
         action = "Gather " .. amount .. " " .. target .. " " .. location .. "."
     end
@@ -272,6 +331,7 @@ local function BuildQuest(category, branch, objective, amount)
         objective = action,
         prompt = category.id == "hunt" and "Gather what is known about the target before you set out; bring back one detail for the story." or
             "Ask the quest giver what makes this request important to them before you leave.",
+        tracking = TrackingSpec(category.id, objective, category.profession and category.profession.id),
         objectiveId = objective.id,
         branchId = branch and branch.id,
         professionId = category.profession and category.profession.id,
@@ -336,15 +396,15 @@ local function ValidQuest(quest)
         and type(quest.title) == "string"
         and type(quest.kind) == "string"
         and type(quest.objective) == "string"
-        and type(quest.amount) == "number"
+        and type(quest.amount) == "number" and quest.amount >= 1 and quest.amount <= 1000 and quest.amount == math.floor(quest.amount)
 end
 
 local function ValidDisplayedQuests(displayed)
     if type(displayed) ~= "table" or #displayed > 3 then return false end
     local seen = {}
     for _, quest in ipairs(displayed) do
-        if not ValidQuest(quest) or seen[quest.id] then return false end
-        seen[quest.id] = true
+        if not ValidQuest(quest) or seen[quest.selectionId or quest.id] then return false end
+        seen[quest.selectionId or quest.id] = true
     end
     return true
 end
@@ -631,7 +691,7 @@ CreateBoard = function()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.4.6 (0.4.6)")
+    title:SetText("WoW Forever | Questboard — Alpha V0.5.0 (0.5.0)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")
@@ -663,7 +723,7 @@ CreateBoard = function()
         card.objective:SetSize(228, 72)
         card.prompt = Text(card, "GameFontNormalSmall")
         card.prompt:SetPoint("TOPLEFT", 14, -282)
-        card.prompt:SetSize(228, 60)
+        card.prompt:SetSize(228, 48)
         card.marker = Text(card, "GameFontNormalSmall", {0.5, 0.9, 0.5})
         card.marker:SetPoint("BOTTOM", 0, 43)
         card.button = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
@@ -674,16 +734,33 @@ CreateBoard = function()
             if not quest then return end
             if db.activeQuest then
                 if db.activeQuest.id ~= quest.id then return end
-                db.activeQuest = nil
+                if db.activeQuest.state == "Ready to Turn In" then
+                    if not Tracking.TurnIn() then return end
+                else
+                    Tracking.Abandon()
+                end
                 db.displayedQuests = PickDisplayedQuests()
                 Refresh()
                 return
             end
-            db.activeQuest = quest
-            db.displayedQuests = PickDisplayedQuests()
+            if not Tracking.Accept(quest) then return end
             Refresh()
             print("|cffffd27fWoW Forever:|r Accepted \"" .. quest.title .. "\". Open /cq to view your objective.")
         end)
+        -- A ready quest keeps Turn In as its primary action; abandonment is
+        -- still possible on the same card, including outside rested areas.
+        card.abandon = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
+        card.abandon:SetSize(120, 20)
+        card.abandon:SetPoint("BOTTOM", 0, 44)
+        card.abandon:SetText("Abandon Quest")
+        card.abandon:SetScript("OnClick", function()
+            local quest = db.displayedQuests[offerIndex]
+            if not quest or not db.activeQuest or quest.id ~= db.activeQuest.id then return end
+            Tracking.Abandon()
+            db.displayedQuests = PickDisplayedQuests()
+            Refresh()
+        end)
+        card.abandon:Hide()
     end
 
     board.status = Text(board, "GameFontNormal")
@@ -691,7 +768,7 @@ CreateBoard = function()
     board.status:SetSize(350, 22)
     board.note = Text(board, "GameFontHighlightSmall", {0.65, 0.65, 0.65})
     board.note:SetPoint("TOPLEFT", 24, -523)
-    board.note:SetText("Objectives are shown for roleplay; kills, loot, sales, and gathering are not tracked yet.")
+    board.note:SetSize(790, 38)
     board.debugLevelControls = CreateFrame("Frame", nil, board)
     board.debugLevelControls:SetSize(300, 28)
     board.debugLevelControls:SetPoint("TOPRIGHT", -64, -46)
@@ -738,7 +815,7 @@ SetDebugMode = function(enabled, openBrowser)
     local wasDebugMode = debugMode
     debugMode = not not enabled
     if not board then CreateBoard() end
-    if wasDebugMode ~= debugMode then
+    if wasDebugMode ~= debugMode and not db.activeQuest then
         db.displayedQuests = PickDisplayedQuests()
     end
     if debugMode then
@@ -762,26 +839,36 @@ SetDebugMode = function(enabled, openBrowser)
         board.debugLevelUp:SetEnabled(debugState.testLevel < ELWYNN_MAX_LEVEL)
         board.debugLevelControls:SetShown(debugMode)
         board.debugButton:SetShown(debugMode)
+        Refresh()
     end
 end
 
 Refresh = function()
+    if not board or not db then return end
+    local resting = Tracking.IsResting()
     for index, card in ipairs(cards) do
         local quest = db.displayedQuests[index]
         local accepted = quest and db.activeQuest and db.activeQuest.id == quest.id
+        if accepted then quest = db.activeQuest end
+        local ready = accepted and quest.state == "Ready to Turn In"
         card.heading:SetText(quest and quest.title or "No suitable quest")
         card.meta:SetText(quest and (quest.kind .. "  |  " .. quest.zone .. "\nLevel or skill: " .. quest.level .. "  |  " .. quest.source) or "Elwynn Forest")
         card.story:SetText(quest and quest.description or "No objectives match your current level and known professions.")
         card.objective:SetText(quest and ("Your objective\n|cffffffff" .. quest.objective .. "|r") or "")
-        card.prompt:SetText(quest and ("Roleplay prompt\n|cffffffff" .. quest.prompt .. "|r") or "")
-        card.button:SetText(not quest and "Unavailable" or (accepted and "Abandon Quest" or (db.activeQuest and "Unavailable" or "Accept Quest")))
-        card.button:SetEnabled(quest ~= nil and (not db.activeQuest or accepted))
-        card.marker:SetText(accepted and "YOUR ACTIVE OBJECTIVE" or "")
+        card.prompt:SetText(accepted and Tracking.ProgressText(quest) or (quest and ("Roleplay prompt\n|cffffffff" .. quest.prompt .. "|r") or ""))
+        card.button:SetText(not quest and "Unavailable" or (ready and "Turn In Quest" or (accepted and "Abandon Quest" or (db.activeQuest and "Unavailable" or "Accept Quest"))))
+        card.button:SetEnabled(quest ~= nil and ((accepted and (not ready or resting)) or (not db.activeQuest and resting and ResolveTracking(quest) ~= nil)))
+        card.abandon:SetShown(not not ready)
+        card.marker:SetText("")
         card:SetBackdropBorderColor(accepted and 0.9 or 0.36, accepted and 0.3 or 0.3, accepted and 0.16 or 0.16, 1)
     end
     local active = db.activeQuest
-    board.status:SetText(active and ("Active: " .. active.title) or (#db.displayedQuests == 0 and "No Elwynn objectives match your current level and known professions." or "Choose one notice to begin your adventure."))
+    board.status:SetText(active and (active.state .. ": " .. active.title) or (#db.displayedQuests == 0 and "No Elwynn objectives match your current level and known professions." or "Choose one notice to begin your adventure."))
     board.reroll:SetEnabled(active == nil)
+    local notice = resting and "Rest area: you can accept quests and turn in finished objectives here."
+        or "Visit an inn, city, or other rest area to accept or turn in quests. Progress still tracks outside rest areas."
+    local last = db.completedQuests and db.completedQuests[#db.completedQuests]
+    board.note:SetText(notice .. (last and ("\nLast completed: " .. last.title) or ""))
 end
 
 local events = CreateFrame("Frame")
@@ -795,12 +882,20 @@ events:SetScript("OnEvent", function(self, event, loaded)
         db.minimapAngle = 45
         db.minimapPositionVersion = 2
     end
-    if db.generatorDataVersion ~= "0.4.0" then
+    if db.generatorDataVersion ~= "0.5.0" then
         db.displayedQuests = nil
-        db.generatorDataVersion = "0.4.0"
+        db.generatorDataVersion = "0.5.0"
     end
     if not ValidQuest(db.activeQuest) then db.activeQuest = nil end
     if db.activeQuest then db.activeQuestId = nil end
+    Tracking.Initialize(db, ResolveTracking, Refresh)
+    if db.activeQuest then
+        local found = false
+        for _, quest in ipairs(type(db.displayedQuests) == "table" and db.displayedQuests or {}) do
+            if type(quest) == "table" and quest.id == db.activeQuest.id then found = true end
+        end
+        if not found then db.displayedQuests = nil end
+    end
     if not ValidDisplayedQuests(db.displayedQuests) then db.displayedQuests = PickDisplayedQuests() end
     CreateMinimapButton()
     self:UnregisterEvent("ADDON_LOADED")

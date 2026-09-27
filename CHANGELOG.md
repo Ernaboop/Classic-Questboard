@@ -2,6 +2,24 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.5.0] - 2026-09-27
+
+### Added
+
+- Accepted quests persist their progress through Active, Ready to Turn In, and Completed states. Hand-in is manual from the active quest card.
+- Accepting and handing in quests requires WoW's rest-area state. Controls and the rest-area explanation update when that state changes.
+- Added matching player/pet-assisted kill and Hunt tracking, corpse-loot collection and vendor-sale tracking, and profession-specific gathering for the existing Elwynn objectives.
+- Copper Vein Prospecting counts different looted vein sources; other gathering objectives count received item quantities.
+- Retained the latest 20 completed quests per character and added a last-completed notice.
+- Added Lua 5.1 event and UI regression tests.
+
+### Changed
+
+- Existing accepted quests retain their target and amount during migration; pre-tracking quests begin with zero progress. Unaccepted offers refresh once for the new schema.
+- Active cards display progress. Ready cards offer Turn In Quest and an on-card Abandon Quest action.
+- Switching Debug Mode preserves active offers and recorded progress. Rest restrictions also apply in Debug Mode.
+- Kept the existing Elwynn objective pools and amount ranges; no new zone data or reward systems were introduced.
+
 ## [0.4.6] - 2026-09-27
 
 ### Fixed

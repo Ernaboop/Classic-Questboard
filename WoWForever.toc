@@ -2,7 +2,8 @@
 ## Title: WoW Forever: Questboard
 ## Notes: A small roleplay adventure board. Open with /cq.
 ## Author: Spinkler
-## Version: 0.4.6
+## Version: 0.5.0
 ## SavedVariablesPerCharacter: WoWForeverDB
 
+Tracking.lua
 Questboard.lua
