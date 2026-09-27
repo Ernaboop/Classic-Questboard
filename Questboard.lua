@@ -366,17 +366,25 @@ local function BuildQuest(category, branch, objective, amount)
     }
 end
 
-local function GenerateQuest(playerLevel, outleveled)
+local function GenerateQuest(playerLevel, outleveled, excluded)
     playerLevel = playerLevel or NormalGenerationLevel()
+    local function Options(category, branch)
+        local result = {}
+        for _, objective in ipairs(ObjectiveOptions(category, branch, playerLevel, outleveled)) do
+            local key = table.concat({category.id, branch and branch.id or "", objective.id}, ":")
+            if not excluded or not excluded[key] then result[#result + 1] = objective end
+        end
+        return result
+    end
     local categories = {}
     for _, candidate in ipairs(CategoryOptions(false)) do
         if candidate.id == "hunt" then
             local hasEligible = false
             for _, branchOption in ipairs(candidate.branches) do
-                if #ObjectiveOptions(candidate, branchOption, playerLevel, outleveled) > 0 then hasEligible = true; break end
+                if #Options(candidate, branchOption) > 0 then hasEligible = true; break end
             end
             if hasEligible then categories[#categories + 1] = candidate end
-        elseif #ObjectiveOptions(candidate, nil, playerLevel, outleveled) > 0 then
+        elseif #Options(candidate, nil) > 0 then
             categories[#categories + 1] = candidate
         end
     end
@@ -386,11 +394,11 @@ local function GenerateQuest(playerLevel, outleveled)
     if category.id == "hunt" then
         local branches = {}
         for _, option in ipairs(category.branches) do
-            if #ObjectiveOptions(category, option, playerLevel, outleveled) > 0 then branches[#branches + 1] = option end
+            if #Options(category, option) > 0 then branches[#branches + 1] = option end
         end
         branch = RandomFrom(branches)
     end
-    local objective = RandomFrom(ObjectiveOptions(category, branch, playerLevel, outleveled))
+    local objective = RandomFrom(Options(category, branch))
     if not objective then return nil end
     return BuildQuest(category, branch, objective, RollAmount(objective))
 end
@@ -465,10 +473,6 @@ ChangeDebugLevel = function(delta)
         board.debugLevelText:SetText("Generation level: " .. debugState.testLevel .. " (" .. ProgressionBand(debugState.testLevel) .. ")")
         board.debugLevelDown:SetEnabled(debugState.testLevel > 1)
         board.debugLevelUp:SetEnabled(debugState.testLevel < ELWYNN_MAX_LEVEL)
-    end
-    if db and not db.activeQuest then
-        db.displayedQuests = PickDisplayedQuests()
-        if board and board:IsShown() then Refresh() end
     end
     if questBrowser and questBrowser:IsShown() then RefreshQuestBrowser() end
 end
@@ -712,6 +716,120 @@ local function CreateDebugModeButton(parent)
     debugModeButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
+local optionsWindow, abandonDialog
+
+local function SecondaryWindow(name, title, width, height, strata)
+    local frame = CreateFrame("Frame", name, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    frame:SetSize(width, height)
+    frame:SetPoint("CENTER")
+    frame:SetFrameStrata(strata or "FULLSCREEN_DIALOG")
+    frame:SetFrameLevel(60)
+    frame:SetClampedToScreen(true)
+    frame:EnableMouse(true)
+    frame:SetMovable(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", frame.StartMoving)
+    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+    frame:SetBackdrop({bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", tile = true, tileSize = 32, edgeSize = 16, insets = {left = 4, right = 4, top = 4, bottom = 4}})
+    frame:SetBackdropColor(0.12, 0.1, 0.08, 1)
+    frame.title = Text(frame, "GameFontNormalLarge")
+    frame.title:SetPoint("TOPLEFT", 22, -20)
+    frame.title:SetText(title)
+    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+    close:SetPoint("TOPRIGHT", -4, -4)
+    table.insert(UISpecialFrames, name)
+    return frame
+end
+
+local function Checkbox(parent, label, y)
+    local check = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+    check:SetSize(26, 26)
+    check:SetPoint("TOPLEFT", 24, y)
+    check.label = Text(check)
+    check.label:SetPoint("LEFT", check, "RIGHT", 4, 0)
+    check.label:SetText(label)
+    return check
+end
+
+local function OpenOptions()
+    if not optionsWindow then
+        optionsWindow = SecondaryWindow("WoWForeverOptions", "Classic Questboard Options", 430, 180)
+        optionsWindow.confirmation = Checkbox(optionsWindow, "Show abandon quest confirmation", -62)
+        optionsWindow.confirmation:SetScript("OnClick", function(self)
+            db.settings.showAbandonConfirmation = not not self:GetChecked()
+        end)
+        local hint = Text(optionsWindow, "GameFontHighlightSmall")
+        hint:SetPoint("TOPLEFT", 28, -108)
+        hint:SetSize(370, 42)
+        hint:SetText("Assign a toggle key in WoW's Key Bindings settings under Classic Questboard.")
+    end
+    optionsWindow.confirmation:SetChecked(db.settings.showAbandonConfirmation)
+    optionsWindow:Show()
+end
+
+local function AbandonActive(expected)
+    if db.activeQuest ~= expected then return false end
+    if not Tracking.Abandon() then return false end
+    -- After a reload the offer and active quest can be separate saved tables.
+    for _, offer in ipairs(db.displayedQuests) do
+        if offer.id == expected.id then
+            offer.state, offer.progress, offer.acceptedAt, offer.completedAt = nil, nil, nil, nil
+        end
+    end
+    Refresh()
+    return true
+end
+
+local function RequestAbandon()
+    local active = db.activeQuest
+    if not active then return end
+    if not db.settings.showAbandonConfirmation then AbandonActive(active); return end
+    if not abandonDialog then
+        abandonDialog = SecondaryWindow("WoWForeverAbandonDialog", "Abandon Quest", 430, 220, "TOOLTIP")
+        abandonDialog.message = Text(abandonDialog)
+        abandonDialog.message:SetPoint("TOPLEFT", 26, -58)
+        abandonDialog.message:SetSize(375, 54)
+        abandonDialog.skip = Checkbox(abandonDialog, "Don't show this again", -120)
+        abandonDialog.confirm = CreateFrame("Button", nil, abandonDialog, "UIPanelButtonTemplate")
+        abandonDialog.confirm:SetSize(150, 26)
+        abandonDialog.confirm:SetPoint("BOTTOMLEFT", 40, 24)
+        abandonDialog.confirm:SetText("Abandon")
+        abandonDialog.confirm:SetScript("OnClick", function()
+            local expected, skip = abandonDialog.quest, abandonDialog.skip:GetChecked()
+            if expected and AbandonActive(expected) and skip then
+                db.settings.showAbandonConfirmation = false
+                if optionsWindow then optionsWindow.confirmation:SetChecked(false) end
+            end
+            abandonDialog:Hide()
+        end)
+        abandonDialog.cancel = CreateFrame("Button", nil, abandonDialog, "UIPanelButtonTemplate")
+        abandonDialog.cancel:SetSize(150, 26)
+        abandonDialog.cancel:SetPoint("BOTTOMRIGHT", -40, 24)
+        abandonDialog.cancel:SetText("Cancel")
+        abandonDialog.cancel:SetScript("OnClick", function() abandonDialog:Hide() end)
+        abandonDialog:SetScript("OnHide", function(self) self.quest = nil end)
+    end
+    abandonDialog.quest = active
+    abandonDialog.skip:SetChecked(false)
+    abandonDialog.message:SetText('Abandon "' .. active.title .. '"?\nYour progress on this quest will be lost.')
+    abandonDialog:Show()
+end
+
+local function TurnInSlot(index)
+    local excluded = {}
+    for _, offer in ipairs(db.displayedQuests) do excluded[offer.selectionId or offer.id] = true end
+    local generationLevel, outleveled = QuestGenerationLevel()
+    local replacement = GenerateQuest(generationLevel, outleveled, excluded)
+    if not replacement then
+        local current = db.displayedQuests[index]
+        excluded[current.selectionId or current.id] = nil
+        replacement = GenerateQuest(generationLevel, outleveled, excluded)
+    end
+    if not replacement or not Tracking.TurnIn(debugMode) then return end
+    db.displayedQuests[index] = replacement
+    Refresh()
+end
+
 CreateBoard = function()
     board = CreateFrame("Frame", "WoWForeverQuestboard", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     board:SetSize(840, 570)
@@ -728,12 +846,26 @@ CreateBoard = function()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.5.3 (0.5.3)")
+    title:SetText("WoW Forever | Questboard — Alpha V0.6.0 (0.6.0)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")
     local close = CreateFrame("Button", nil, board, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -4, -4)
+    board.options = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
+    board.options:SetSize(26, 26)
+    board.options:SetPoint("TOPRIGHT", -38, -9)
+    local settingsIcon = board.options:CreateTexture(nil, "OVERLAY")
+    settingsIcon:SetTexture("Interface\\Icons\\INV_Misc_Gear_01")
+    settingsIcon:SetSize(20, 20)
+    settingsIcon:SetPoint("CENTER")
+    board.options:SetScript("OnClick", OpenOptions)
+    board.options:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Classic Questboard Options")
+        GameTooltip:Show()
+    end)
+    board.options:SetScript("OnLeave", function() GameTooltip:Hide() end)
     table.insert(UISpecialFrames, "WoWForeverQuestboard")
     CreateDebugModeButton(board)
 
@@ -772,12 +904,10 @@ CreateBoard = function()
             if db.activeQuest then
                 if db.activeQuest.id ~= quest.id then return end
                 if db.activeQuest.state == "Ready to Turn In" then
-                    if not Tracking.TurnIn(debugMode) then return end
+                    TurnInSlot(offerIndex)
                 else
-                    Tracking.Abandon()
+                    RequestAbandon()
                 end
-                db.displayedQuests = PickDisplayedQuests()
-                Refresh()
                 return
             end
             if not Tracking.Accept(quest, debugMode) then return end
@@ -793,9 +923,7 @@ CreateBoard = function()
         card.abandon:SetScript("OnClick", function()
             local quest = db.displayedQuests[offerIndex]
             if not quest or not db.activeQuest or quest.id ~= db.activeQuest.id then return end
-            Tracking.Abandon()
-            db.displayedQuests = PickDisplayedQuests()
-            Refresh()
+            RequestAbandon()
         end)
         card.abandon:Hide()
     end
@@ -845,16 +973,18 @@ CreateBoard = function()
     end)
 
     board.debugLevelControls:Hide()
+    board.debugProgress = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
+    board.debugProgress:SetSize(115, 24)
+    board.debugProgress:SetPoint("TOPLEFT", 280, -47)
+    board.debugProgress:SetText("+1 Progress")
+    board.debugProgress:SetScript("OnClick", function() Tracking.DebugAddKillProgress(debugMode) end)
+    board.debugProgress:Hide()
     board:Hide()
 end
 
 SetDebugMode = function(enabled, openBrowser)
-    local wasDebugMode = debugMode
     debugMode = not not enabled
     if not board then CreateBoard() end
-    if wasDebugMode ~= debugMode and not db.activeQuest then
-        db.displayedQuests = PickDisplayedQuests()
-    end
     if debugMode then
         if not ValidDisplayedQuests(db.displayedQuests) then db.displayedQuests = PickDisplayedQuests() end
         board:SetScale(math.min(1, UIParent:GetWidth() / 880, UIParent:GetHeight() / 610))
@@ -902,6 +1032,9 @@ Refresh = function()
         card:SetBackdropBorderColor(accepted and 0.9 or 0.36, accepted and 0.3 or 0.3, accepted and 0.16 or 0.16, 1)
     end
     local active = db.activeQuest
+    board.debugProgress:SetShown(debugMode)
+    board.debugProgress:SetEnabled(debugMode and active ~= nil and active.categoryName == "Kill" and active.state == "Active")
+    if abandonDialog and abandonDialog:IsShown() and abandonDialog.quest ~= active then abandonDialog:Hide() end
     board.status:SetText(active and (active.state .. ": " .. active.title) or (#db.displayedQuests == 0 and "No Elwynn objectives match your current level and known professions." or "Choose one notice to begin your adventure."))
     board.reroll:SetEnabled(active == nil)
     local notice = debugMode and "Debug Mode: accept and turn-in location requirements are bypassed."
@@ -917,6 +1050,8 @@ events:SetScript("OnEvent", function(self, event, loaded)
     if loaded ~= addonName then return end
     WoWForeverDB = type(WoWForeverDB) == "table" and WoWForeverDB or {}
     db = WoWForeverDB
+    db.settings = type(db.settings) == "table" and db.settings or {}
+    if type(db.settings.showAbandonConfirmation) ~= "boolean" then db.settings.showAbandonConfirmation = true end
     if db.minimapPositionVersion ~= 2 then
         -- Older releases saved the button at the lower-right tracking control.
         db.minimapAngle = 45
@@ -964,6 +1099,10 @@ end
 SlashCmdList.WOWFOREVERQUESTBOARD = function(message)
     ToggleBoard(type(message) == "string" and string.lower(message) == "debug")
 end
+
+BINDING_HEADER_CLASSICQUESTBOARD = "Classic Questboard"
+BINDING_NAME_CLASSICQUESTBOARD_TOGGLE = "Toggle Classic Questboard"
+function ClassicQuestboardToggle() ToggleBoard(false) end
 
 SLASH_WOWFOREVERQUESTBOARDDEBUG1 = "/cqdebug"
 SlashCmdList.WOWFOREVERQUESTBOARDDEBUG = function()

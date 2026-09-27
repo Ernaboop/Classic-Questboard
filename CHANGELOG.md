@@ -2,6 +2,22 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.6.0] - 2026-09-27
+
+### Added
+
+- Configurable Classic Questboard toggle in WoW Key Bindings, with no default key.
+- Options cog beside Close with a persistent, enabled-by-default abandon confirmation setting.
+- Abandon confirmation with Cancel and a "Don't show this again" checkbox, saved only after confirmation.
+- Debug-only +1 Progress for active Kill quests, using normal Ready to Turn In logic and capped at the required amount.
+- Matching mob tooltips show active objective progress and Ready to Turn In state, refreshing while hovered.
+
+### Changed
+
+- Abandoning resets only the accepted quest's progress; all three generated offers stay in place.
+- Successful turn-in replaces only the completed slot, preserving the other two offers and excluding duplicate objectives.
+- Debug toggles and generation-level changes no longer regenerate offers. Use Reroll Quests to apply the new generation settings to all three cards.
+
 ## [0.5.3] - 2026-09-27
 
 ### Changed

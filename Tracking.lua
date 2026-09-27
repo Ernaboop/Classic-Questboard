@@ -100,6 +100,8 @@ function Tracking.Accept(q, bypassLocation)
 end
 function Tracking.Abandon()
     if not db or not db.activeQuest then return false end
+    local q = db.activeQuest
+    q.state, q.progress, q.acceptedAt, q.completedAt = nil, nil, nil, nil
     db.activeQuest = nil
     ResetTransient()
     return true
@@ -125,6 +127,26 @@ function Tracking.ProgressText(q)
         return q.state .. "\nCollected: " .. p.collected .. "/" .. q.amount .. "   Sold: " .. p.sold .. "/" .. q.amount
     end
     return q.state .. "\nProgress: " .. p.count .. "/" .. q.amount
+end
+function Tracking.DebugAddKillProgress(enabled)
+    local q = Working()
+    if not enabled or not q or q.categoryName ~= "Kill" or q.tracking.kind ~= "kill" then return false end
+    q.progress.count = math.min(q.amount, q.progress.count + 1)
+    UpdateState(q)
+    return true
+end
+
+function Tracking.TooltipText(unit)
+    local q = db and db.activeQuest
+    if not q or not q.tracking or not Public(unit) or type(unit) ~= "string" then return nil end
+    local name = Read(UnitName, unit)
+    if type(name) ~= "string" or Read(UnitPlayerControlled, unit) ~= false then return nil end
+    if not Matches(q.tracking.targets, name) then return nil end
+    local p = q.progress
+    local action = q.tracking.kind == "kill" and "Kill " or "Collect from "
+    local count = q.tracking.kind == "collect_sell" and p.collected or p.count
+    return "Classic Questboard: " .. action .. name .. " " .. count .. "/" .. q.amount
+        .. (q.state == READY and " (Ready to Turn In)" or "")
 end
 -- Adapted from Azeroth Fieldbook's BestiaryJournal living-observation,
 -- terminal eligibility, expiry and GUID-deduplication approach. No combat log.

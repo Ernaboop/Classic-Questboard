@@ -1,4 +1,4 @@
-# Alpha 0.5.3 tracking
+# Alpha 0.6.0 tracking
 
 ## Forever compatibility
 
@@ -12,13 +12,17 @@ See THIRD_PARTY_NOTICES.md for attribution and license.
 
 ## Player flow
 
-Open `/cq` or click the minimap button. The board offers three quests from the existing Elwynn Forest pool, including when opened in a city. Other zones do not yet have objective data.
+Open `/cq`, click the minimap button, or assign Toggle Classic Questboard in WoW's Key Bindings settings (no default key). The board offers three quests from the existing Elwynn Forest pool, including when opened in a city. Other zones do not yet have objective data.
 
 Accept one quest in an inn, city, or other area where WoW reports `IsResting()`. Progress continues with the board closed and outside rest areas, but kills and collection/gathering must occur in Elwynn Forest, including child maps such as Northshire.
 
 Reaching the required count changes the quest to **Ready to Turn In** and prints a chat notice. Return to any rested location, open the board, and click **Turn In Quest**. Nothing automatically hands in a quest. The latest 20 completions are saved per character. This release awards no rewards.
 
-Abandon is available on the active card anywhere. A ready quest has a smaller Abandon Quest button on that same card. Reroll is disabled while a quest is active or ready.
+Abandon is available on the active card anywhere. A ready quest has a smaller Abandon Quest button on that same card. Abandoning asks for confirmation and clears progress while preserving all three offers. The popup's opt-out is saved only when confirmed. The cog beside Close opens Options, where confirmation can be re-enabled. Settings are saved per character.
+
+Turning in replaces only the completed slot using current generation settings and excludes objectives already on the other two cards. The completed objective is also excluded when alternatives exist. Only Reroll Quests regenerates the entire board; it is disabled while a quest is active or ready. Debug level/mode changes apply to the next reroll or replacement.
+
+Debug Mode's +1 Progress control is enabled only for an active Kill-category quest. It caps the count and uses normal Ready to Turn In logic, requiring a manual turn-in. Matching creature tooltips display progress, updating while hovered and showing Ready to Turn In when finished.
 
 ## What earns progress
 
@@ -35,7 +39,7 @@ The current creature definitions use English names from the existing generator. 
 
 Tracking requires positive loot/sale evidence. Deferred group-roll awards, loot systems without normal loot-window/source events, or sales combined with a repair/purchase that hides the net money gain may be missed rather than credited speculatively. Individual vendor sales and normal loot/autoloot are the intended first client test paths. World data remains subject to Forever beta changes.
 
-Run tests with Python and `lupa` installed: `python tests/run.py`. The runner compiles both Lua files and executes event/UI regressions under Lua 5.1 with mocked WoW APIs. It does not verify live event ordering or visual layout.
+Run tests with Python and `lupa` installed: `python tests/run.py`. The runner compiles all Lua files, parses the keybinding XML, and executes event/UI regressions under Lua 5.1 with mocked WoW APIs. It does not verify live event ordering or visual layout.
 
 In-game smoke test:
 
@@ -45,5 +49,7 @@ In-game smoke test:
 4. Test normal loot/autoloot for each learned gathering profession, a full-bag failure, and unrelated purchased items. Multiple ore from one vein should count once for prospecting.
 5. Collect qualifying spoils and sell individual stacks. Verify destruction, banking, and purchased replacements do not count as sales. Test an identical-stack sale when buyback is full.
 6. Change the debug generation level without an active quest. Outside a rest area, accept and turn in a completed quest while Debug Mode is active. Disable Debug Mode and verify those actions require a rest area again. Confirm the active quest remains stable while toggling the mode.
+7. Bind a toggle key, test open/close, and open the Options cog. Cancel abandonment, then confirm with the opt-out checked; reload and verify the preference persists. Re-enable confirmation in Options.
+8. Accept each card in turn. Abandon and verify all offers stay put; complete and hand in to verify only that slot changes. In Debug Mode, use +1 Progress on a Kill quest and hover a matching mob to check the updated tooltip and ready state.
 
 API events were checked against Blizzard's extracted [Classic loot documentation](https://github.com/Gethe/wow-ui-source/blob/classic/Interface/AddOns/Blizzard_APIDocumentationGenerated/LootDocumentation.lua) and [merchant documentation](https://github.com/Gethe/wow-ui-source/blob/classic/Interface/AddOns/Blizzard_APIDocumentationGenerated/MerchantFrameDocumentation.lua).

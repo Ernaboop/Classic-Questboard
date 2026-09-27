@@ -13,6 +13,14 @@ local function object(name, parent)
     local o = {scripts = {}, registered = {}, shown = true, parent = parent, name = name, width = 32, height = 32}
     setmetatable(o, {__index = function(_, key) return function() end end})
     function o:SetScript(k, fn) self.scripts[k] = fn end
+    function o:HookScript(k, fn)
+        local before = self.scripts[k]
+        self.scripts[k] = function(...) if before then before(...) end; fn(...) end
+    end
+    function o:HasScript() return true end
+    function o:GetName() return self.name end
+    function o:SetChecked(v) self.checked = not not v end
+    function o:GetChecked() return self.checked end
     function o:RegisterEvent(e)
         if e == 'COMBAT_LOG_EVENT_UNFILTERED' and (restrictedCombat or interfaceVersion == 16001 or interfaceVersion >= 120000) then
             error('ADDON_ACTION_FORBIDDEN: forbidden combat-log registration')
@@ -29,7 +37,7 @@ local function object(name, parent)
     function o:SetEnabled(v) self.enabled = not not v end
     function o:SetShown(v) self.shown = not not v end
     function o:Show() self.shown = true end
-    function o:Hide() self.shown = false end
+    function o:Hide() self.shown = false; if self.scripts.OnHide then self.scripts.OnHide(self) end end
     function o:IsShown() return self.shown end
     function o:SetFrameLevel(v) self.frameLevel = v end
     function o:SetAlpha(v) self.alpha = v end
@@ -48,7 +56,15 @@ function CreateFrame(_, name, parent)
 end
 UIParent = object(); UIParent:SetSize(1920, 1080)
 Minimap = object(); Minimap:SetSize(140, 140)
-UISpecialFrames, SlashCmdList, GameTooltip = {}, {}, object()
+UISpecialFrames, SlashCmdList, GameTooltip = {}, {}, object('GameTooltip')
+local tooltipLines, tooltipUnit = {}, nil
+function GameTooltip:GetUnit() return nil, tooltipUnit end
+function GameTooltip:NumLines() return #tooltipLines end
+function GameTooltip:AddLine(value)
+    local line = object(); line:SetText(value)
+    tooltipLines[#tooltipLines + 1] = line
+    _G['GameTooltipTextLeft' .. #tooltipLines] = line
+end
 C_Timer = {After = function(delay, fn) timers[#timers + 1] = {at = clock + delay, fn = fn} end}
 local function advance(seconds)
     clock = clock + seconds
@@ -288,6 +304,10 @@ local function cards()
     return result
 end
 local cs = cards()
+assert(loadstring(binding_source))()
+check(not board:IsShown(), 'configured binding closes an open board')
+assert(loadstring(binding_source))()
+check(board:IsShown(), 'configured binding opens a closed board')
 check(#WoWForeverDB.displayedQuests == 3 and #cs == 3, 'three offers and three cards')
 local seen = {}
 for _, offer in ipairs(WoWForeverDB.displayedQuests) do
@@ -297,6 +317,26 @@ resting = false; realNS.Tracking.OnEvent('PLAYER_UPDATE_RESTING')
 check(not cs[1].button.enabled and board.note.text:find('Visit an inn'), 'outside-rest UI explains and disables acceptance')
 cs[1].button.scripts.OnClick(); check(not WoWForeverDB.activeQuest, 'callback also guards rest restriction')
 resting = true; realNS.Tracking.OnEvent('PLAYER_UPDATE_RESTING')
+-- Accept the middle card, cancel first, then confirm with a saved opt-out.
+local beforeAbandon = {unpack(WoWForeverDB.displayedQuests)}
+cs[2].button.scripts.OnClick()
+local pending = WoWForeverDB.activeQuest
+cs[2].button.scripts.OnClick()
+local dialog = WoWForeverAbandonDialog
+check(dialog:IsShown() and WoWForeverDB.activeQuest == pending, 'abandon waits for confirmation')
+dialog.skip:SetChecked(true); dialog.cancel.scripts.OnClick()
+check(WoWForeverDB.activeQuest == pending and WoWForeverDB.settings.showAbandonConfirmation,
+    'cancel preserves active quest and does not save opt-out')
+cs[2].button.scripts.OnClick(); dialog.skip:SetChecked(true); dialog.confirm.scripts.OnClick()
+check(not WoWForeverDB.activeQuest and not WoWForeverDB.settings.showAbandonConfirmation,
+    'confirmed opt-out is saved')
+for i = 1, 3 do check(WoWForeverDB.displayedQuests[i] == beforeAbandon[i], 'abandon preserves every offer identity and slot') end
+cs[2].button.scripts.OnClick(); cs[2].button.scripts.OnClick()
+check(not WoWForeverDB.activeQuest and not dialog:IsShown(), 'saved preference skips confirmation')
+board.options.scripts.OnClick()
+WoWForeverOptions.confirmation:SetChecked(true)
+WoWForeverOptions.confirmation.scripts.OnClick(WoWForeverOptions.confirmation)
+check(WoWForeverDB.settings.showAbandonConfirmation, 'options re-enables abandon confirmation')
 cs[1].button.scripts.OnClick()
 local active = WoWForeverDB.activeQuest
 check(active and cs[1].button.text == 'Abandon Quest' and not board.reroll.enabled, 'acceptance starts tracking and locks reroll')
@@ -310,7 +350,14 @@ resting = false; realNS.Tracking.OnEvent('PLAYER_UPDATE_RESTING'); cs[1].button.
 check(WoWForeverDB.activeQuest == active, 'ready card cannot turn in outside rest')
 resting = true; realNS.Tracking.OnEvent('PLAYER_UPDATE_RESTING'); cs[1].button.scripts.OnClick()
 check(not WoWForeverDB.activeQuest and board.reroll.enabled and #WoWForeverDB.completedQuests == 1, 'manual turn-in returns to three selectable cards')
+check(WoWForeverDB.displayedQuests == originalOffers and originalOffers[1] ~= active
+    and originalOffers[2] == beforeAbandon[2] and originalOffers[3] == beforeAbandon[3],
+    'turn-in replaces only completed slot and preserves other offer objects')
+check(originalOffers[1].selectionId ~= originalOffers[2].selectionId
+    and originalOffers[1].selectionId ~= originalOffers[3].selectionId, 'replacement excludes other displayed objectives')
 WoWForeverDebugModeButton.scripts.OnClick(); board.debugLevelDown.scripts.OnClick()
+check(WoWForeverDB.displayedQuests == originalOffers, 'debug mode and level changes never reroll existing offers')
+board.reroll.scripts.OnClick()
 check(WoWForeverDebugModeButton.active.shown and WoWForeverDebugModeButton.active.alpha <= 0.5,
     'debug icon shows a restrained active highlight')
 for _, offer in ipairs(WoWForeverDB.displayedQuests) do
@@ -330,6 +377,7 @@ local function clone(t)
     if type(t) ~= 'table' then return t end
     local out = {}; for key, value in pairs(t) do out[key] = clone(value) end; return out
 end
+WoWForeverDB.settings.showAbandonConfirmation = false
 WoWForeverDB = clone(WoWForeverDB) -- SavedVariables reload recreates independent tables.
 local reloadNS = {}
 assert(loadstring(tracking_source))('WoWForever', reloadNS)
@@ -345,6 +393,74 @@ for _, frame in ipairs(frames) do
     if frame.parent == WoWForeverQuestboard and rawget(frame, 'heading') and frame.heading.text == persistent.title then reloadedCard = frame end
 end
 check(reloadedCard and reloadedCard.prompt.text:find('Active'), 'reloaded active card renders authoritative saved state')
+check(not WoWForeverDB.settings.showAbandonConfirmation, 'disabled confirmation survives saved-variable reload')
+-- All card positions, including separate active/offer tables after reload.
+local reloadedCards = {}
+for _, frame in ipairs(frames) do
+    if frame.parent == WoWForeverQuestboard and rawget(frame, 'heading') then reloadedCards[#reloadedCards + 1] = frame end
+end
+reloadedCard.button.scripts.OnClick()
+check(not WoWForeverDB.activeQuest and not WoWForeverDB.displayedQuests[1].progress,
+    'abandon after reload clears saved offer progress without replacing it')
+resting = true; level = 6
+for slot = 2, 3 do
+    local keptOffers = {unpack(WoWForeverDB.displayedQuests)}
+    reloadedCards[slot].button.scripts.OnClick()
+    local selected = WoWForeverDB.activeQuest
+    selected.state = 'Ready to Turn In'; selected.progress.count = selected.amount; selected.progress.sold = selected.amount
+    reloadedCards[slot].button.scripts.OnClick()
+    check(not WoWForeverDB.activeQuest and WoWForeverDB.displayedQuests[slot] ~= keptOffers[slot], 'turn-in replaces the selected non-first slot')
+    for other = 1, 3 do
+        if other ~= slot then check(WoWForeverDB.displayedQuests[other] == keptOffers[other], 'non-completed slot stays untouched') end
+    end
+end
+WoWForeverDebugModeButton.scripts.OnClick()
+local debugKill
+for _ = 1, 100 do
+    local candidate = reloadNS.GenerateQuestForLevel(1, false)
+    if candidate.categoryName == 'Kill' then debugKill = candidate; break end
+end
+assert(debugKill)
+WoWForeverDB.displayedQuests[2] = debugKill
+reloadedCards[2].button.scripts.OnClick()
+check(WoWForeverQuestboard.debugProgress.enabled and WoWForeverQuestboard.debugProgress.shown, 'debug Kill progress control is available')
+WoWForeverQuestboard.debugProgress.scripts.OnClick()
+check(debugKill.progress.count == 1, 'debug button reaches tracking increment logic')
+WoWForeverDebugModeButton.scripts.OnClick()
+WoWForeverQuestboard.debugProgress.scripts.OnClick()
+check(not WoWForeverQuestboard.debugProgress.shown and debugKill.progress.count == 1, 'hidden debug control cannot increment')
+-- Debug increment is limited to Kill category and uses the normal ready state.
+fresh(); q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 2); q.categoryName = 'Kill'; T.Accept(q)
+check(not T.DebugAddKillProgress(false) and q.progress.count == 0, 'debug increment denied with mode off')
+check(T.DebugAddKillProgress(true) and q.progress.count == 1, 'debug increment adds one kill')
+check(T.DebugAddKillProgress(true) and q.state == 'Ready to Turn In' and saved.activeQuest == q,
+    'debug completion becomes ready without auto turn-in')
+check(not T.DebugAddKillProgress(true) and q.progress.count == 2, 'debug count cannot exceed objective amount')
+units.mouseover = {name = 'Kobold Miner', guid = killGUID('tooltip'), controlled = false}
+check(T.TooltipText('mouseover'):find('2/2 %(Ready to Turn In%)'), 'matching tooltip shows ready progress')
+units.mouseover.name = 'Wolf'; check(not T.TooltipText('mouseover'), 'unrelated tooltip has no quest line')
+units.mouseover.name = 'Kobold Miner'; units.mouseover.controlled = true
+check(not T.TooltipText('mouseover'), 'player-controlled unit does not receive mob progress')
+units.mouseover.controlled = false
+local hiddenName = {}; issecretvalue = function(v) return v == hiddenName end
+units.mouseover.name = hiddenName; check(not T.TooltipText('mouseover'), 'secret tooltip name is ignored')
+issecretvalue = nil; units.mouseover.name = 'Kobold Miner'
+T.Abandon(); q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 2); q.categoryName = 'Hunt'; T.Accept(q)
+check(not T.DebugAddKillProgress(true) and q.progress.count == 0, 'debug increment excludes Hunt')
+T.Abandon(); q = quest({kind = 'gather', profession = 'mining', itemID = 2770}); q.categoryName = 'Gather'; T.Accept(q)
+check(not T.DebugAddKillProgress(true), 'debug increment excludes gathering')
+T.Abandon(); q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 2); q.categoryName = 'Kill'; T.Accept(q)
+assert(loadstring(tooltip_source))('WoWForever', ns)
+tooltipUnit = 'mouseover'; GameTooltip:Show()
+GameTooltip.scripts.OnTooltipCleared(GameTooltip); tooltipLines = {}
+GameTooltip.scripts.OnTooltipSetUnit(GameTooltip)
+check(#tooltipLines == 1 and tooltipLines[1].text:find('0/2'), 'tooltip hook adds current quest progress')
+T.DebugAddKillProgress(true); GameTooltip.scripts.OnUpdate(GameTooltip, 0.2)
+check(#tooltipLines == 1 and tooltipLines[1].text:find('1/2'), 'hovered tooltip updates without duplicate lines')
+T.DebugAddKillProgress(true); GameTooltip.scripts.OnUpdate(GameTooltip, 0.2)
+check(tooltipLines[1].text:find('Ready to Turn In'), 'hovered tooltip reflects completion')
+T.Abandon(); GameTooltip.scripts.OnUpdate(GameTooltip, 0.2)
+check(tooltipLines[1].text == '', 'abandon removes tooltip progress')
 -- Client restrictions must be modeled: a protected registration is not a Lua
 -- exception that an addon should try to catch after triggering the popup.
 for _, build in ipairs({16001, 120000, 11507}) do

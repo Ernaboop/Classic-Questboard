@@ -1,0 +1,5 @@
+<Bindings>
+    <Binding name="CLASSICQUESTBOARD_TOGGLE" header="CLASSICQUESTBOARD" category="ADDONS">
+        ClassicQuestboardToggle();
+    </Binding>
+</Bindings>
