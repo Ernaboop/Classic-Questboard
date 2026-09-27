@@ -2,6 +2,15 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.2.2] - 2026-09-27
+
+### Changed
+
+- Replaced fixed amount choices with per-objective minimum and maximum values.
+- Randomly generate an integer amount inside each objective's inclusive range.
+- Updated the debug browser to browse valid amounts in the selected range.
+- Kept rare hunt targets fixed at exactly one.
+
 ## [0.2.1] - 2026-09-27
 
 ### Fixed

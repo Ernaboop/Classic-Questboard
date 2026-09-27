@@ -2,24 +2,24 @@ local addonName = ...
 local board, cards, db, debugPanel
 local Refresh
 
--- Amounts are deliberately curated per objective. Mob levels and zone data use
--- the WoW Forever Elwynn Forest tables; counts are quest-balance choices.
+-- Amount ranges are deliberately curated per objective. Mob levels and zone
+-- data use the WoW Forever Elwynn Forest tables; counts are balance choices.
 local database = {
     categories = {
         {
             id = "kill", name = "Kill", source = "A local guard",
             objectives = {
-                {id = "kobold_tunneler", name = "Kobold Tunneler", level = "5-6", amounts = {8, 10, 12}, location = "Fargodeep Mine"},
-                {id = "murloc_streamrunner", name = "Murloc Streamrunner", level = "6-7", amounts = {7, 9, 11}, location = "Crystal Lake"},
-                {id = "riverpaw_outrunner", name = "Riverpaw Outrunner", level = "9-10", amounts = {5, 6, 8}, location = "south of Eastvale"},
+                {id = "kobold_tunneler", name = "Kobold Tunneler", level = "5-6", minAmount = 8, maxAmount = 12, location = "Fargodeep Mine"},
+                {id = "murloc_streamrunner", name = "Murloc Streamrunner", level = "6-7", minAmount = 7, maxAmount = 11, location = "Crystal Lake"},
+                {id = "riverpaw_outrunner", name = "Riverpaw Outrunner", level = "9-10", minAmount = 5, maxAmount = 8, location = "south of Eastvale"},
             },
         },
         {
             id = "collect_sell", name = "Collect & Sell", source = "A local trader",
             objectives = {
-                {id = "kobold_spoils", name = "Kobold Spoils", target = "Kobold Workers, Tunnelers, and Miners", level = "5-7", amounts = {4, 5, 6}, location = "Fargodeep Mine"},
-                {id = "murloc_spoils", name = "Murloc Spoils", target = "Murlocs", level = "6-10", amounts = {3, 4, 5}, location = "Crystal Lake"},
-                {id = "riverpaw_spoils", name = "Riverpaw Spoils", target = "Riverpaw Gnolls", level = "8-10", amounts = {3, 4, 5}, location = "the eastern roads"},
+                {id = "kobold_spoils", name = "Kobold Spoils", target = "Kobold Workers, Tunnelers, and Miners", level = "5-7", minAmount = 4, maxAmount = 6, location = "Fargodeep Mine"},
+                {id = "murloc_spoils", name = "Murloc Spoils", target = "Murlocs", level = "6-10", minAmount = 3, maxAmount = 5, location = "Crystal Lake"},
+                {id = "riverpaw_spoils", name = "Riverpaw Spoils", target = "Riverpaw Gnolls", level = "8-10", minAmount = 3, maxAmount = 5, location = "the eastern roads"},
             },
         },
         {
@@ -28,15 +28,15 @@ local database = {
                 {
                     id = "rare", name = "Rare target",
                     objectives = {
-                        {id = "narg", name = "Narg the Taskmaster", level = "10", amounts = {1}, location = "outside Fargodeep Mine", rarity = "Rare"},
-                        {id = "morgaine", name = "Morgaine the Sly", level = "10", amounts = {1}, location = "near the river to Westfall", rarity = "Rare"},
-                        {id = "fedfennel", name = "Fedfennel", level = "12", amounts = {1}, location = "northeast Elwynn Forest", rarity = "Rare"},
+                        {id = "narg", name = "Narg the Taskmaster", level = "10", minAmount = 1, maxAmount = 1, location = "outside Fargodeep Mine", rarity = "Rare"},
+                        {id = "morgaine", name = "Morgaine the Sly", level = "10", minAmount = 1, maxAmount = 1, location = "near the river to Westfall", rarity = "Rare"},
+                        {id = "fedfennel", name = "Fedfennel", level = "12", minAmount = 1, maxAmount = 1, location = "northeast Elwynn Forest", rarity = "Rare"},
                     },
                 },
                 {
                     id = "elite", name = "Elite targets",
                     objectives = {
-                        {id = "mine_spider", name = "Mine Spider", level = "7-9", amounts = {3, 4, 5}, location = "Jasperlode Mine", rarity = "Elite"},
+                        {id = "mine_spider", name = "Mine Spider", level = "7-9", minAmount = 3, maxAmount = 5, location = "Jasperlode Mine", rarity = "Elite"},
                     },
                 },
             },
@@ -47,34 +47,34 @@ local database = {
             id = "herbalism", name = "Herbalism",
             skillLine = 182,
             objectives = {
-                {id = "peacebloom", name = "Peacebloom", level = "Gathering skill 1", amounts = {4, 6, 8}, location = "throughout Elwynn Forest"},
-                {id = "silverleaf", name = "Silverleaf", level = "Gathering skill 1", amounts = {4, 6, 8}, location = "near trees and shaded areas"},
-                {id = "earthroot", name = "Earthroot", level = "Gathering skill 15", amounts = {3, 4, 5}, location = "hillsides and rocky ground"},
+                {id = "peacebloom", name = "Peacebloom", level = "Gathering skill 1", minAmount = 4, maxAmount = 8, location = "throughout Elwynn Forest"},
+                {id = "silverleaf", name = "Silverleaf", level = "Gathering skill 1", minAmount = 4, maxAmount = 8, location = "near trees and shaded areas"},
+                {id = "earthroot", name = "Earthroot", level = "Gathering skill 15", minAmount = 3, maxAmount = 5, location = "hillsides and rocky ground"},
             },
         },
         {
             id = "mining", name = "Mining",
             skillLine = 186,
             objectives = {
-                {id = "copper_ore", name = "Copper Ore", level = "Mining skill 1", amounts = {5, 7, 9}, location = "hillsides and rocky ground"},
-                {id = "rough_stone", name = "Rough Stone", level = "Mining skill 1", amounts = {5, 7, 9}, location = "from Copper Veins"},
+                {id = "copper_ore", name = "Copper Ore", level = "Mining skill 1", minAmount = 5, maxAmount = 9, location = "hillsides and rocky ground"},
+                {id = "rough_stone", name = "Rough Stone", level = "Mining skill 1", minAmount = 5, maxAmount = 9, location = "from Copper Veins"},
             },
         },
         {
             id = "skinning", name = "Skinning",
             skillLine = 393,
             objectives = {
-                {id = "ruined_leather_scraps", name = "Ruined Leather Scraps", level = "Skinning skill 1", amounts = {4, 6, 8}, location = "skinnable beasts throughout Elwynn"},
-                {id = "light_leather", name = "Light Leather", level = "Skinning skill 1", amounts = {3, 4, 5}, location = "skinnable beasts throughout Elwynn"},
+                {id = "ruined_leather_scraps", name = "Ruined Leather Scraps", level = "Skinning skill 1", minAmount = 4, maxAmount = 8, location = "skinnable beasts throughout Elwynn"},
+                {id = "light_leather", name = "Light Leather", level = "Skinning skill 1", minAmount = 3, maxAmount = 5, location = "skinnable beasts throughout Elwynn"},
             },
         },
         {
             id = "fishing", name = "Fishing",
             skillLine = 356,
             objectives = {
-                {id = "brilliant_smallfish", name = "Raw Brilliant Smallfish", level = "Fishing skill 1", amounts = {5, 7, 9}, location = "lakes and rivers"},
-                {id = "longjaw_mud_snapper", name = "Raw Longjaw Mud Snapper", level = "Fishing skill 50", amounts = {4, 6, 8}, location = "lakes and rivers"},
-                {id = "bristle_whisker_catfish", name = "Raw Bristle Whisker Catfish", level = "Fishing skill 100", amounts = {2, 3, 4}, location = "Wildbend River"},
+                {id = "brilliant_smallfish", name = "Raw Brilliant Smallfish", level = "Fishing skill 1", minAmount = 5, maxAmount = 9, location = "lakes and rivers"},
+                {id = "longjaw_mud_snapper", name = "Raw Longjaw Mud Snapper", level = "Fishing skill 50", minAmount = 4, maxAmount = 8, location = "lakes and rivers"},
+                {id = "bristle_whisker_catfish", name = "Raw Bristle Whisker Catfish", level = "Fishing skill 100", minAmount = 2, maxAmount = 4, location = "Wildbend River"},
             },
         },
     },
@@ -83,6 +83,19 @@ local database = {
 local function RandomFrom(list)
     if not list or #list == 0 then return nil end
     return list[math.random(#list)]
+end
+
+local function AmountOptions(objective)
+    local options = {}
+    if not objective then return options end
+    for amount = objective.minAmount, objective.maxAmount do
+        options[#options + 1] = amount
+    end
+    return options
+end
+
+local function RollAmount(objective)
+    return math.random(objective.minAmount, objective.maxAmount)
 end
 
 local function LearnedGatherProfessions()
@@ -133,7 +146,7 @@ end
 
 local function BuildQuest(category, branch, objective, amount)
     if not category or not objective then return nil end
-    amount = amount or objective.amounts[1]
+    amount = amount or RollAmount(objective)
     local kind = category.baseName or category.name
     local target = objective.target or objective.name
     local location = objective.location and (" at " .. objective.location) or " in Elwynn Forest"
@@ -180,7 +193,7 @@ local function GenerateQuest()
     if category.id == "hunt" then branch = RandomFrom(category.branches) end
     local objective = RandomFrom(ObjectiveOptions(category, branch))
     if not objective then return nil end
-    return BuildQuest(category, branch, objective, RandomFrom(objective.amounts))
+    return BuildQuest(category, branch, objective, RollAmount(objective))
 end
 
 local function PickDisplayedQuests()
@@ -260,7 +273,7 @@ local function DebugLayerOptions(layer)
     elseif (layer == 3 and category and category.id ~= "hunt") or (layer == 4 and category and category.id == "hunt") then
         local options = {}
         if objective then
-            for _, amount in ipairs(objective.amounts) do options[#options + 1] = tostring(amount) end
+            for _, amount in ipairs(AmountOptions(objective)) do options[#options + 1] = tostring(amount) end
         end
         return "Amount", options
     end
@@ -284,7 +297,7 @@ local function ClampDebugState()
     end
     debugState.objectiveIndex = math.min(math.max(debugState.objectiveIndex, 1), math.max(1, #objectives))
     local objective = objectives[debugState.objectiveIndex]
-    debugState.amountIndex = math.min(math.max(debugState.amountIndex, 1), objective and #objective.amounts or 1)
+    debugState.amountIndex = math.min(math.max(debugState.amountIndex, 1), math.max(1, #AmountOptions(objective)))
     local count = DebugLayerCount(category)
     debugState.layer = math.min(math.max(debugState.layer, 1), count)
 end
@@ -324,14 +337,14 @@ local function RenderDebug()
         for _, item in ipairs(available) do availableNames[#availableNames + 1] = item.name end
         detail = category.id == "hunt"
             and "Hunt randomly branches to a Rare target or Elite targets; the next layer chooses the target."
-            or "Generator order: choose a category, then an objective, then one of that objective's allowed amounts."
+            or "Generator order: choose a category, then an objective, then roll an amount inside that objective's range."
         detail = detail .. "\n\nAvailable to this character: " .. table.concat(availableNames, ", ")
         if category.locked then detail = detail .. "\n\nThis gathering profession is not learned, so normal generation skips it." end
     elseif objective then
         detail = "Objective: " .. objective.name ..
             "\nLevel or skill: " .. objective.level ..
             "\nElwynn location: " .. objective.location ..
-            "\nAllowed amounts: " .. table.concat(objective.amounts, " / ")
+            "\nAllowed amount range: " .. objective.minAmount .. "-" .. objective.maxAmount
         if category.id == "collect_sell" then
             detail = detail .. "\nAmount counts vendor-value drops collected and then sold."
         elseif category.id == "hunt" and branch.id == "rare" then
@@ -399,7 +412,7 @@ local function CreateBoard()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 24, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.2.1 (0.2.1)")
+    title:SetText("WoW Forever | Questboard — Alpha V0.2.2 (0.2.2)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Elwynn Forest commissions, assembled from category, objective, and amount.")
@@ -520,7 +533,7 @@ local function CreateBoard()
     debugPanel.previewButton:SetScript("OnClick", function()
         local _, category, branch, _, objective = DebugSelection()
         if not objective then return end
-        local amount = objective.amounts[debugState.amountIndex]
+        local amount = AmountOptions(objective)[debugState.amountIndex]
         local preview = BuildQuest(category, branch, objective, amount)
         debugPanel.preview:SetText(preview.title .. "  |  " .. preview.kind .. "  |  " .. preview.amount .. "\n" .. preview.objective)
     end)
