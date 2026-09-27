@@ -338,9 +338,9 @@ local function BuildQuest(category, branch, objective, amount)
     elseif category.id == "collect_sell" then
         action = "Collect " .. amount .. " " .. (objective.item or "vendor-value item") .. (amount == 1 and "" or "s") .. " from " .. target .. " near " .. objective.location .. ", then sell them to a vendor."
     elseif category.id == "hunt" and branch.id == "rare" then
-        action = "Find and defeat " .. target .. (amount > 1 and (" " .. amount .. " times") or "") .. ", a level " .. objective.level .. " " .. objective.rarity .. " target, " .. location .. "."
+        action = "Find and defeat " .. target .. (amount > 1 and (" " .. amount .. " times") or "") .. ", a " .. objective.rarity .. " target, " .. location .. "."
     elseif category.id == "hunt" then
-        action = "Travel to " .. objective.location .. " and defeat " .. amount .. " level " .. objective.level .. " " .. target .. " elites."
+        action = "Travel to " .. objective.location .. " and defeat " .. amount .. " " .. target .. " elites."
     elseif objective.id == "copper_vein_prospecting" then
         action = "Mine " .. amount .. " different Copper Veins in Elwynn Forest and loot their ore."
     elseif category.profession then
@@ -923,7 +923,7 @@ CreateBoard = function()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("Classic Questbook — Alpha V0.6.9 (0.6.9)")
+    title:SetText("Classic Questbook — Alpha V0.6.10 (0.6.10)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")
@@ -1189,10 +1189,13 @@ Refresh = function()
         if accepted then quest = db.activeQuest end
         local ready = accepted and quest.state == "Ready to Turn In"
         local trackable = quest and Tracking.CanTrack(quest)
+        -- Refresh saved Hunt wording too, without changing its generation data.
+        local hunt = quest and quest.categoryName == "Hunt"
+        local objectiveText = hunt and UpdatedObjectiveText(quest) or (quest and quest.objective)
         card.heading:SetText(quest and quest.title or "No suitable quest")
-        card.meta:SetText(quest and (quest.kind .. "  |  " .. quest.zone .. "\nLevel or skill: " .. quest.level .. "  |  " .. quest.source) or "Elwynn Forest")
+        card.meta:SetText(quest and (quest.kind .. "  |  " .. quest.zone .. "\n" .. (hunt and "" or ("Level or skill: " .. quest.level .. "  |  ")) .. quest.source) or "Elwynn Forest")
         card.story:SetText(quest and quest.description or "No objectives match your current level and known professions.")
-        card.objective:SetText(quest and ("Your objective\n|cffffffff" .. quest.objective .. "|r") or "")
+        card.objective:SetText(quest and ("Your objective\n|cffffffff" .. objectiveText .. "|r") or "")
         card.prompt:SetText(accepted and Tracking.ProgressText(quest) or (quest and not trackable and "Automatic tracking is unavailable for this objective on this client." or (quest and ("Roleplay prompt\n|cffffffff" .. quest.prompt .. "|r") or "")))
         card.button:SetText(not quest and "Unavailable" or (ready and "Turn In Quest" or (accepted and "Abandon Quest" or (db.activeQuest and "Unavailable" or (not trackable and "Tracking unavailable" or "Accept Quest")))))
         card.button:SetEnabled(quest ~= nil and ((accepted and (not ready or locationAllowed)) or (not db.activeQuest and locationAllowed and trackable)))

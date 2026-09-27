@@ -2,6 +2,13 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.6.10] - 2026-09-28
+
+### Changed
+
+- Removed target levels from Hunt objective descriptions and the level/skill line on Hunt quest cards, including existing saved offers. Debug browser eligibility details remain available.
+- Hunt level data, eligibility filtering, category weights, tracking, and rare/elite amounts are unchanged.
+
 ## [0.6.9] - 2026-09-28
 
 ### Changed
