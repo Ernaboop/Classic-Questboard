@@ -389,6 +389,29 @@ local function UpdatedObjectiveText(quest)
     return quest.objective
 end
 
+-- Relative odds among eligible categories; Gather gets one shared weight,
+-- regardless of how many gathering professions the character knows.
+local categoryWeights = {kill = 40, collect_sell = 30, gather = 25, hunt = 5}
+local function WeightedCategory(categories)
+    local groups, byId, total = {}, {}, 0
+    for _, category in ipairs(categories) do
+        local id = category.profession and "gather" or category.id
+        local group = byId[id]
+        if not group then
+            group = {weight = categoryWeights[id], options = {}}
+            byId[id], groups[#groups + 1] = group, group
+            total = total + group.weight
+        end
+        group.options[#group.options + 1] = category
+    end
+    if total == 0 then return nil end
+    local roll = math.random(total)
+    for _, group in ipairs(groups) do
+        roll = roll - group.weight
+        if roll <= 0 then return RandomFrom(group.options) end
+    end
+end
+
 local function GenerateQuest(playerLevel, outleveled, excluded, forcedCategory)
     playerLevel = playerLevel or NormalGenerationLevel()
     local function Options(category, branch)
@@ -413,7 +436,7 @@ local function GenerateQuest(playerLevel, outleveled, excluded, forcedCategory)
             categories[#categories + 1] = candidate
         end
     end
-    local category = RandomFrom(categories)
+    local category = WeightedCategory(categories)
     if not category then return nil end
     local branch
     if category.id == "hunt" then
@@ -452,7 +475,7 @@ local function PickDisplayedQuests()
     local attempts = 0
     while #chosen < 3 and attempts < 100 do
         attempts = attempts + 1
-        local quest = GenerateQuest(generationLevel, outleveled)
+        local quest = GenerateQuest(generationLevel, outleveled, seen)
         if quest and not seen[quest.selectionId] then
             chosen[#chosen + 1] = quest
             seen[quest.selectionId] = true
@@ -900,7 +923,7 @@ CreateBoard = function()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("Classic Questbook — Alpha V0.6.8 (0.6.8)")
+    title:SetText("Classic Questbook — Alpha V0.6.9 (0.6.9)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")

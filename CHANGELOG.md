@@ -2,6 +2,14 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.6.9] - 2026-09-28
+
+### Changed
+
+- Weighted category generation: Kill 40, Collect & Sell 30, Gather 25, Hunt 5. These are percentages when all categories are eligible; otherwise weights are redistributed among eligible categories. Hunt is the rarest category.
+- Gather uses a single shared category weight before choosing a learned eligible profession, so additional professions do not increase Gather's overall odds.
+- Rerolls and replacements retain eligibility and objective uniqueness. Debug forced categories override the weighted choice for the left card; existing offers are not automatically replaced.
+
 ## [0.6.8] - 2026-09-28
 
 ### Added

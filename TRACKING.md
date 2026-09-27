@@ -1,4 +1,4 @@
-# Alpha 0.6.8 tracking
+# Alpha 0.6.9 tracking
 
 ## Forever compatibility
 
@@ -17,6 +17,8 @@ See THIRD_PARTY_NOTICES.md for attribution and license.
 The addon folder and manifest are now `Classic Questbook/Classic Questbook.toc`. Fully restart WoW after renaming the folder. For other installations, while WoW is closed, copy each character's `WTF/Account/.../SavedVariables/WoWForever.lua` to `Classic Questbook.lua` in the same directory (and copy the `.lua.bak` backup similarly). Preserve the originals and do not overwrite existing Classic Questbook saves. The internal `WoWForeverDB` variable and keybinding IDs deliberately retain their old names to preserve data and assigned keys.
 
 Open `/cq`, click the minimap button, or assign Toggle Classic Questbook in WoW's Key Bindings settings (no default key). The board offers three quests from the existing Elwynn Forest pool, including when opened in a city. Other zones do not yet have objective data.
+
+Eligible categories use relative weights: Kill 40, Collect & Sell 30, Gather 25, Hunt 5. Gather has one shared weight regardless of learned profession count. Unavailable categories are excluded and remaining weights are normalized. These are per-roll odds, not guaranteed proportions on a three-card board. Debug's forced left-card category overrides that card's random category choice.
 
 Accept one quest in an inn, city, or other area where WoW reports `IsResting()`. Progress continues with the board closed and outside rest areas, but kills and collection/gathering must occur in Elwynn Forest, including child maps such as Northshire.
 

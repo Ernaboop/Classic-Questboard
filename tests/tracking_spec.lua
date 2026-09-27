@@ -308,6 +308,30 @@ fresh(); local realNS = {}
 assert(loadstring(tracking_source))('Classic Questbook', realNS)
 assert(loadstring(windows_source))('Classic Questbook', realNS)
 assert(loadstring(board_source))('Classic Questbook', realNS)
+-- Fixed-seed distribution checks cover both category weighting and the shared
+-- Gather weight, independently of the number of learned professions.
+local function categorySample(slots, lines)
+    professionSlots, professionLines = slots, lines
+    math.randomseed(609)
+    local counts = {Kill = 0, ['Collect & Sell'] = 0, Gather = 0, Hunt = 0}
+    for _ = 1, 8000 do
+        local offer = realNS.GenerateQuestForLevel(12, false)
+        counts[offer.categoryName] = counts[offer.categoryName] + 1
+    end
+    return counts
+end
+local oneProfession = categorySample({1}, {[1] = 182})
+local allProfessions = categorySample({1, 2, 3, 4}, {[1] = 182, [2] = 186, [3] = 393, [4] = 356})
+for name, weight in pairs({Kill = 0.40, ['Collect & Sell'] = 0.30, Gather = 0.25, Hunt = 0.05}) do
+    check(math.abs(oneProfession[name] / 8000 - weight) < 0.025, 'weighted category frequency: ' .. name)
+    check(math.abs(allProfessions[name] / 8000 - weight) < 0.025, 'additional professions preserve category weight: ' .. name)
+end
+local noProfessions = categorySample({}, {})
+check(noProfessions.Gather == 0, 'weighted generation excludes unlearned gathering')
+check(math.abs(noProfessions.Hunt / 8000 - 5 / 75) < 0.025, 'Hunt remains rare after eligibility renormalization')
+check(noProfessions.Kill > noProfessions['Collect & Sell'] and noProfessions['Collect & Sell'] > noProfessions.Hunt,
+    'weighted category ordering favors ordinary quests')
+math.randomseed(1)
 local outleveledSeen = {}
 for _ = 1, 1200 do
     local offer = realNS.GenerateQuestForLevel(12, true)
