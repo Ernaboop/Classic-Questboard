@@ -2,6 +2,14 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.4.0] - 2026-09-27
+
+### Added
+
+- Reorganized the debug browser into a scrollable, collapsible folder tree for generation level, category, gathering profession, objective, hunt subtype, amount range, and quest preview/test generation.
+- Added selectable options within each expanded generator folder while preserving debug selections when folders are collapsed and reopened.
+- Added a draggable minimap button that opens the Questboard; existing slash commands remain available.
+
 ## [0.3.1] - 2026-09-27
 
 ### Changed

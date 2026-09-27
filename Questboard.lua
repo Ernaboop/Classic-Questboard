@@ -1,6 +1,8 @@
 local addonName = ...
-local board, cards, db, debugPanel
+local board, cards, db, debugPanel, minimapButton
 local Refresh
+local ToggleBoard
+local CreateMinimapButton
 local ELWYNN_MAX_LEVEL = 12
 
 -- Amount ranges are deliberately curated per objective. Mob levels and zone
@@ -313,7 +315,11 @@ local function ValidDisplayedQuests(displayed)
     return true
 end
 
-local debugState = {layer = 1, categoryIndex = 1, branchIndex = 1, objectiveIndex = 1, amountIndex = 1, testLevel = math.min(CurrentPlayerLevel(), ELWYNN_MAX_LEVEL)}
+local debugState = {
+    layer = 1, categoryIndex = 1, branchIndex = 1, objectiveIndex = 1, amountIndex = 1,
+    testLevel = math.min(CurrentPlayerLevel(), ELWYNN_MAX_LEVEL),
+    expanded = {level = true, category = true, profession = true, objective = true, hunt = true, amount = true, preview = true},
+}
 
 local function DebugSelection()
     local categories = CategoryOptions(true)
@@ -389,78 +395,214 @@ local function Text(parent, size, color)
     return text
 end
 
-local function RenderDebug()
-    ClampDebugState()
-    local _, category, branch, objectives, objective = DebugSelection()
-    local count = DebugLayerCount(category)
-    local layerName, options = DebugLayerOptions(debugState.layer)
-    local selectionIndex
-    if debugState.layer == 1 then
-        selectionIndex = debugState.categoryIndex
-    elseif debugState.layer == 2 and category.id == "hunt" then
-        selectionIndex = debugState.branchIndex
-    elseif (debugState.layer == 2) or (debugState.layer == 3 and category.id == "hunt") then
-        selectionIndex = debugState.objectiveIndex
-    else
-        selectionIndex = debugState.amountIndex
-    end
-    local selected = options[selectionIndex] or "(no options)"
-    debugPanel.layer:SetText("Layer " .. debugState.layer .. " of " .. count .. "  |  " .. (layerName or ""))
-    debugPanel.selection:SetText(selected)
-    debugPanel.position:SetText("Option " .. selectionIndex .. " of " .. #options)
-    debugPanel.testLevel:SetText("Test level " .. debugState.testLevel .. " (" .. ProgressionBand(debugState.testLevel) .. ")")
+local RenderDebug, ChangeDebugLevel
 
-    local detail
-    if debugState.layer == 1 then
+local function CreateTreeFolder(key, title)
+    local folder = {key = key, buttons = {}}
+    folder.header = CreateFrame("Button", nil, debugPanel.treeContent, "UIPanelButtonTemplate")
+    folder.header:SetHeight(24)
+    folder.header:SetScript("OnClick", function()
+        debugState.expanded[key] = not debugState.expanded[key]
+        RenderDebug()
+    end)
+    folder.title = folder.header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    folder.title:SetPoint("LEFT", 8, 0)
+    folder.summary = Text(debugPanel.treeContent, "GameFontHighlightSmall")
+    folder.controls = {}
+    folder.label = title
+    debugPanel.folders[key] = folder
+    return folder
+end
+
+local function TreeButton(folder, index, label, selected, callback, width)
+    local button = folder.buttons[index]
+    if not button then
+        button = CreateFrame("Button", nil, debugPanel.treeContent, "UIPanelButtonTemplate")
+        folder.buttons[index] = button
+    end
+    button:ClearAllPoints()
+    button:SetSize(width or 210, 22)
+    button:SetText((selected and "• " or "  ") .. label)
+    button:SetScript("OnClick", callback)
+    button:SetShown(true)
+    return button
+end
+
+local function HideUnusedTreeButtons(folder, used)
+    for index = used + 1, #folder.buttons do folder.buttons[index]:Hide() end
+end
+
+RenderDebug = function()
+    ClampDebugState()
+    local categories, category, branch, objectives, objective = DebugSelection()
+    local content, y = debugPanel.treeContent, -4
+    local function BeginFolder(key, title, summary)
+        local folder = debugPanel.folders[key] or CreateTreeFolder(key, title)
+        folder.header:ClearAllPoints()
+        folder.header:SetPoint("TOPLEFT", content, "TOPLEFT", 4, y)
+        folder.header:SetWidth(748)
+        folder.header:SetText("")
+        folder.title:SetText((debugState.expanded[key] and "▼  " or "▶  ") .. title)
+        folder.summary:ClearAllPoints()
+        folder.summary:SetPoint("RIGHT", folder.header, "RIGHT", -10, 0)
+        folder.summary:SetWidth(390)
+        folder.summary:SetJustifyH("RIGHT")
+        folder.summary:SetText(summary or "")
+        folder.header:Show()
+        folder.summary:Show()
+        y = y - 27
+        if debugState.expanded[key] then return folder end
+        if folder.valueText then folder.valueText:Hide() end
+        if folder.info then folder.info:Hide() end
+        HideUnusedTreeButtons(folder, 0)
+        return nil
+    end
+    local function AddOptionButtons(folder, options, selectedIndex, setter)
+        local used = 0
+        for index, option in ipairs(options) do
+            used = used + 1
+            local optionIndex = index
+            TreeButton(folder, used, option, selectedIndex == optionIndex, function() setter(optionIndex) end, 235)
+            local button = folder.buttons[used]
+            button:ClearAllPoints()
+            button:SetPoint("TOPLEFT", content, "TOPLEFT", 28, y)
+            y = y - 23
+        end
+        HideUnusedTreeButtons(folder, used)
+    end
+    local function AddInfo(folder, text, height)
+        if not folder.info then folder.info = Text(content, "GameFontHighlightSmall") end
+        folder.info:ClearAllPoints()
+        folder.info:SetPoint("TOPLEFT", content, "TOPLEFT", 30, y)
+        folder.info:SetSize(690, height or 42)
+        folder.info:SetText(text)
+        folder.info:Show()
+        y = y - (height or 42)
+    end
+    local function AddStepButtons(folder, value, onMinus, onPlus, suffix)
+        local minus = TreeButton(folder, 1, "−", false, onMinus, 40)
+        minus:ClearAllPoints(); minus:SetPoint("TOPLEFT", content, "TOPLEFT", 28, y)
+        local valueText = folder.valueText
+        if not valueText then valueText = Text(content, "GameFontHighlight"); folder.valueText = valueText end
+        valueText:Show()
+        valueText:ClearAllPoints(); valueText:SetPoint("LEFT", minus, "RIGHT", 8, 0)
+        valueText:SetText(value .. (suffix or ""))
+        local plus = TreeButton(folder, 2, "+", false, onPlus, 40)
+        plus:ClearAllPoints(); plus:SetPoint("LEFT", valueText, "RIGHT", 8, 0)
+        HideUnusedTreeButtons(folder, 2)
+        y = y - 27
+    end
+
+    local folder = BeginFolder("level", "Generation Level / Level Override", debugState.testLevel .. " (" .. ProgressionBand(debugState.testLevel) .. ")")
+    if folder then AddStepButtons(folder, debugState.testLevel, function() ChangeDebugLevel(-1) end, function() ChangeDebugLevel(1) end, "  |  Character " .. CurrentPlayerLevel()) end
+
+    local categoryNames = {}
+    local categorySelected = category.profession and "Gather" or category.name
+    for _, option in ipairs(categories) do categoryNames[#categoryNames + 1] = option.profession and ("Gather — " .. option.profession.name .. (option.locked and " (not learned)" or "")) or option.name end
+    folder = BeginFolder("category", "Category", categorySelected)
+    if folder then
+        AddOptionButtons(folder, categoryNames, debugState.categoryIndex, function(index)
+            debugState.categoryIndex = index; debugState.branchIndex, debugState.objectiveIndex, debugState.amountIndex = 1, 1, 1; RenderDebug()
+        end)
         local available = CategoryOptions(false)
         local availableNames = {}
         for _, item in ipairs(available) do availableNames[#availableNames + 1] = item.name end
-        local levelAvailable = {}
-        for _, item in ipairs(CategoryOptions(true)) do
-            if item.id == "hunt" then
-                for _, huntBranch in ipairs(item.branches) do
-                    if #ObjectiveOptions(item, huntBranch, debugState.testLevel) > 0 then
-                        levelAvailable[#levelAvailable + 1] = item.name .. " — " .. huntBranch.name
-                    end
-                end
-            elseif #ObjectiveOptions(item, nil, debugState.testLevel) > 0 then
-                levelAvailable[#levelAvailable + 1] = item.name
+        AddInfo(folder, "Available to this character: " .. table.concat(availableNames, ", "), 36)
+    elseif debugPanel.folders.category and debugPanel.folders.category.info then
+        debugPanel.folders.category.info:Hide()
+    end
+
+    if category.profession then
+        local professionOptions, professionIndex = {}, 0
+        for index, option in ipairs(categories) do
+            if option.profession then
+                professionOptions[#professionOptions + 1] = option.name .. (option.locked and " (not learned)" or "")
+                if index == debugState.categoryIndex then professionIndex = #professionOptions end
             end
         end
-        detail = category.id == "hunt"
-            and "Hunt randomly branches to a Rare target or Elite targets; the next layer chooses the target."
-            or "Generator order: choose a category, then an objective, then roll an amount inside that objective's range."
-        detail = detail .. "\n\nAvailable to this character: " .. table.concat(availableNames, ", ") ..
-            "\nEligible at test level: " .. table.concat(levelAvailable, ", ")
-        if category.locked then detail = detail .. "\n\nThis gathering profession is not learned, so normal generation skips it." end
-    elseif objective then
-        detail = "Objective: " .. objective.name ..
-            "\nLevel or skill: " .. objective.level ..
-            "\nEligible player level: " .. objective.minPlayerLevel .. "-" .. objective.maxPlayerLevel .. " (" .. ProgressionBand(objective.minPlayerLevel) .. " to " .. ProgressionBand(objective.maxPlayerLevel) .. ")" ..
-            "\nElwynn location: " .. objective.location ..
-            "\nAllowed amount range: " .. objective.minAmount .. "-" .. objective.maxAmount
-        if category.id == "collect_sell" then
-            detail = detail .. "\nAmount counts vendor-value drops collected and then sold."
-        elseif category.id == "hunt" and branch.id == "rare" then
-            detail = detail .. "\nRare targets are always exactly one."
-        elseif category.id == "hunt" then
-            detail = detail .. "\nElite hunt amounts are kept to a small group."
+        folder = BeginFolder("profession", "Gathering Profession", category.profession.name .. (category.locked and " (not learned)" or ""))
+        if folder then AddOptionButtons(folder, professionOptions, professionIndex, function(index)
+                local found = 0
+                for categoryIndex, option in ipairs(categories) do
+                    if option.profession then found = found + 1; if found == index then debugState.categoryIndex = categoryIndex; break end end
+                end
+                debugState.objectiveIndex, debugState.amountIndex = 1, 1; RenderDebug()
+            end)
         end
-    elseif category then
-        detail = category.name .. " has " .. #objectives .. " objectives in this selection."
     else
-        detail = "No objectives are available for this layer."
+        local hidden = debugPanel.folders.profession
+        if hidden then hidden.header:Hide(); hidden.summary:Hide(); HideUnusedTreeButtons(hidden, 0) end
     end
-    detail = "Test level " .. debugState.testLevel .. " (" .. ProgressionBand(debugState.testLevel) .. "); character level " .. CurrentPlayerLevel() .. "\n\n" .. detail
-    debugPanel.details:SetText(detail)
 
-    debugPanel.previousOption:SetEnabled(#options > 1)
-    debugPanel.nextOption:SetEnabled(#options > 1)
-    debugPanel.previousLayer:SetEnabled(debugState.layer > 1)
-    debugPanel.nextLayer:SetEnabled(debugState.layer < count)
-    debugPanel.levelDown:SetEnabled(debugState.testLevel > 1)
-    debugPanel.levelUp:SetEnabled(debugState.testLevel < ELWYNN_MAX_LEVEL)
-    debugPanel.previewButton:SetEnabled(objective ~= nil)
+    if category.id == "hunt" then
+        folder = BeginFolder("hunt", "Hunt Subtype", branch and branch.name or "")
+        if folder then
+            local huntTypes = {}; for _, option in ipairs(category.branches) do huntTypes[#huntTypes + 1] = option.name end
+            AddOptionButtons(folder, huntTypes, debugState.branchIndex, function(index)
+                debugState.branchIndex, debugState.objectiveIndex, debugState.amountIndex = index, 1, 1; RenderDebug()
+            end)
+        end
+    else
+        local hidden = debugPanel.folders.hunt
+        if hidden then hidden.header:Hide(); hidden.summary:Hide(); HideUnusedTreeButtons(hidden, 0) end
+    end
+
+    local objectiveOptions = {}
+    for _, item in ipairs(objectives) do objectiveOptions[#objectiveOptions + 1] = item.name end
+    local objectiveLayer = category.id == "hunt" and "Hunt Target" or "Objective"
+    folder = BeginFolder("objective", objectiveLayer, objective and objective.name or "No eligible objectives")
+    if folder then
+        AddOptionButtons(folder, objectiveOptions, debugState.objectiveIndex, function(index)
+            debugState.objectiveIndex, debugState.amountIndex = index, 1; RenderDebug()
+        end)
+        if objective then
+            local details = "Level or skill: " .. objective.level .. "  |  Eligible character levels: " .. objective.minPlayerLevel .. "-" .. objective.maxPlayerLevel ..
+                " (" .. ProgressionBand(objective.minPlayerLevel) .. " to " .. ProgressionBand(objective.maxPlayerLevel) .. ")\nLocation: " .. objective.location ..
+                "  |  Amount range: " .. objective.minAmount .. "-" .. objective.maxAmount
+            if category.id == "hunt" and branch.id == "rare" then details = details .. "  |  Rare targets are always exactly one." end
+            if category.id == "hunt" and branch.id == "elite" then details = details .. "  |  Elite hunts use small group counts." end
+            if category.id == "collect_sell" then details = details .. "\nCollect the requested vendor-value drops and sell them to a vendor." end
+            AddInfo(folder, details, 50)
+        elseif folder.info then
+            folder.info:Hide()
+        end
+    elseif debugPanel.folders.objective and debugPanel.folders.objective.info then
+        debugPanel.folders.objective.info:Hide()
+    end
+
+    local amountOptions = {}
+    for _, amount in ipairs(AmountOptions(objective)) do amountOptions[#amountOptions + 1] = tostring(amount) end
+    folder = BeginFolder("amount", "Amount Range", objective and (objective.minAmount .. "–" .. objective.maxAmount) or "")
+    if folder then AddOptionButtons(folder, amountOptions, debugState.amountIndex, function(index)
+        debugState.amountIndex = index; RenderDebug()
+    end) end
+
+    folder = BeginFolder("preview", "Quest Preview / Test Generation", "Preview selection or generate at override level")
+    if folder then
+        local previewButton = TreeButton(folder, 1, "Preview selection", false, function()
+            local _, selectedCategory, selectedBranch, _, selectedObjective = DebugSelection()
+            if not selectedObjective then return end
+            local amount = AmountOptions(selectedObjective)[debugState.amountIndex]
+            local preview = BuildQuest(selectedCategory, selectedBranch, selectedObjective, amount)
+            debugPanel.preview:SetText(preview.title .. "  |  " .. preview.kind .. "  |  " .. preview.amount .. "\n" .. preview.objective)
+        end, 190)
+        previewButton:ClearAllPoints(); previewButton:SetPoint("TOPLEFT", content, "TOPLEFT", 28, y)
+        local generateButton = TreeButton(folder, 2, "Generate test quest", false, function()
+            local generated = GenerateQuest(debugState.testLevel)
+            debugPanel.preview:SetText(generated and ("Generated at level " .. debugState.testLevel .. ": " .. generated.title .. "  |  " .. generated.kind .. "  |  " .. generated.amount .. "\n" .. generated.objective) or "No eligible objective at test level " .. debugState.testLevel .. ".")
+        end, 190)
+        generateButton:ClearAllPoints(); generateButton:SetPoint("LEFT", previewButton, "RIGHT", 8, 0)
+        HideUnusedTreeButtons(folder, 2)
+        y = y - 28
+        debugPanel.preview:ClearAllPoints(); debugPanel.preview:SetPoint("TOPLEFT", content, "TOPLEFT", 28, y)
+        debugPanel.preview:SetSize(720, 38); debugPanel.preview:Show()
+        y = y - 44
+    else
+        debugPanel.preview:Hide()
+    end
+
+    content:SetHeight(math.max(1, -y + 8))
+    debugPanel.treeScroll:UpdateScrollChildRect()
 end
 
 local function ChangeDebugOption(delta)
@@ -494,7 +636,7 @@ local function ChangeDebugLayer(delta)
     RenderDebug()
 end
 
-local function ChangeDebugLevel(delta)
+ChangeDebugLevel = function(delta)
     debugState.testLevel = math.min(ELWYNN_MAX_LEVEL, math.max(1, debugState.testLevel + delta))
     debugState.branchIndex, debugState.objectiveIndex, debugState.amountIndex = 1, 1, 1
     RenderDebug()
@@ -515,7 +657,7 @@ local function CreateBoard()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 24, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.3.1 (0.3.1)")
+    title:SetText("WoW Forever | Questboard — Alpha V0.4.0 (0.4.0)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Elwynn Forest commissions, assembled from category, objective, and amount.")
@@ -597,77 +739,18 @@ local function CreateBoard()
     debugPanel:SetBackdrop({bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12, insets = {left = 3, right = 3, top = 3, bottom = 3}})
     debugPanel:SetBackdropColor(0.16, 0.135, 0.09, 0.96)
     debugPanel.header = Text(debugPanel, "GameFontNormalLarge")
-    debugPanel.header:SetPoint("TOPLEFT", 22, -22)
-    debugPanel.header:SetText("Generator Debug Browser")
-    debugPanel.layer = Text(debugPanel, "GameFontNormal")
-    debugPanel.layer:SetPoint("TOPLEFT", 22, -70)
-    debugPanel.layer:SetSize(700, 24)
-    debugPanel.selection = Text(debugPanel, "GameFontNormalLarge", {1, 0.82, 0.25})
-    debugPanel.selection:SetPoint("TOPLEFT", 22, -106)
-    debugPanel.selection:SetSize(740, 30)
-    debugPanel.position = Text(debugPanel, "GameFontHighlightSmall")
-    debugPanel.position:SetPoint("TOPLEFT", 22, -140)
-    debugPanel.testLevel = Text(debugPanel, "GameFontHighlight")
-    debugPanel.testLevel:SetPoint("TOPRIGHT", -146, -137)
-    debugPanel.levelDown = CreateFrame("Button", nil, debugPanel, "UIPanelButtonTemplate")
-    debugPanel.levelDown:SetSize(36, 24)
-    debugPanel.levelDown:SetPoint("TOPRIGHT", -102, -133)
-    debugPanel.levelDown:SetText("-")
-    debugPanel.levelDown:SetScript("OnClick", function() ChangeDebugLevel(-1) end)
-    debugPanel.levelUp = CreateFrame("Button", nil, debugPanel, "UIPanelButtonTemplate")
-    debugPanel.levelUp:SetSize(36, 24)
-    debugPanel.levelUp:SetPoint("TOPRIGHT", -58, -133)
-    debugPanel.levelUp:SetText("+")
-    debugPanel.levelUp:SetScript("OnClick", function() ChangeDebugLevel(1) end)
-    debugPanel.details = Text(debugPanel, "GameFontHighlight")
-    debugPanel.details:SetPoint("TOPLEFT", 22, -174)
-    debugPanel.details:SetSize(744, 108)
-    debugPanel.previousOption = CreateFrame("Button", nil, debugPanel, "UIPanelButtonTemplate")
-    debugPanel.previousOption:SetSize(126, 26)
-    debugPanel.previousOption:SetPoint("BOTTOMLEFT", 22, 54)
-    debugPanel.previousOption:SetText("Previous option")
-    debugPanel.previousOption:SetScript("OnClick", function() ChangeDebugOption(-1) end)
-    debugPanel.nextOption = CreateFrame("Button", nil, debugPanel, "UIPanelButtonTemplate")
-    debugPanel.nextOption:SetSize(126, 26)
-    debugPanel.nextOption:SetPoint("LEFT", debugPanel.previousOption, "RIGHT", 8, 0)
-    debugPanel.nextOption:SetText("Next option")
-    debugPanel.nextOption:SetScript("OnClick", function() ChangeDebugOption(1) end)
-    debugPanel.previousLayer = CreateFrame("Button", nil, debugPanel, "UIPanelButtonTemplate")
-    debugPanel.previousLayer:SetSize(112, 26)
-    debugPanel.previousLayer:SetPoint("LEFT", debugPanel.nextOption, "RIGHT", 28, 0)
-    debugPanel.previousLayer:SetText("Previous layer")
-    debugPanel.previousLayer:SetScript("OnClick", function() ChangeDebugLayer(-1) end)
-    debugPanel.nextLayer = CreateFrame("Button", nil, debugPanel, "UIPanelButtonTemplate")
-    debugPanel.nextLayer:SetSize(112, 26)
-    debugPanel.nextLayer:SetPoint("LEFT", debugPanel.previousLayer, "RIGHT", 8, 0)
-    debugPanel.nextLayer:SetText("Next layer")
-    debugPanel.nextLayer:SetScript("OnClick", function() ChangeDebugLayer(1) end)
-    debugPanel.previewButton = CreateFrame("Button", nil, debugPanel, "UIPanelButtonTemplate")
-    debugPanel.previewButton:SetSize(142, 26)
-    debugPanel.previewButton:SetPoint("BOTTOMRIGHT", -22, 54)
-    debugPanel.previewButton:SetText("Preview selection")
-    debugPanel.previewButton:SetScript("OnClick", function()
-        local _, category, branch, _, objective = DebugSelection()
-        if not objective then return end
-        local amount = AmountOptions(objective)[debugState.amountIndex]
-        local preview = BuildQuest(category, branch, objective, amount)
-        debugPanel.preview:SetText(preview.title .. "  |  " .. preview.kind .. "  |  " .. preview.amount .. "\n" .. preview.objective)
-    end)
-    debugPanel.generateButton = CreateFrame("Button", nil, debugPanel, "UIPanelButtonTemplate")
-    debugPanel.generateButton:SetSize(160, 26)
-    debugPanel.generateButton:SetPoint("RIGHT", debugPanel.previewButton, "LEFT", -8, 0)
-    debugPanel.generateButton:SetText("Generate test quest")
-    debugPanel.generateButton:SetScript("OnClick", function()
-        local quest = GenerateQuest(debugState.testLevel)
-        if not quest then
-            debugPanel.preview:SetText("No eligible objective at test level " .. debugState.testLevel .. ".")
-            return
-        end
-        debugPanel.preview:SetText("Generated at level " .. debugState.testLevel .. ": " .. quest.title .. "  |  " .. quest.kind .. "  |  " .. quest.amount .. "\n" .. quest.objective)
-    end)
-    debugPanel.preview = Text(debugPanel, "GameFontHighlightSmall", {0.6, 1, 0.6})
-    debugPanel.preview:SetPoint("BOTTOMLEFT", 22, 14)
-    debugPanel.preview:SetSize(748, 34)
+    debugPanel.header:SetPoint("TOPLEFT", 18, -12)
+    debugPanel.header:SetText("Quest Generator Structure")
+    debugPanel.treeScroll = CreateFrame("ScrollFrame", nil, debugPanel, "UIPanelScrollFrameTemplate")
+    debugPanel.treeScroll:SetPoint("TOPLEFT", 12, -38)
+    debugPanel.treeScroll:SetPoint("BOTTOMRIGHT", -30, 8)
+    debugPanel.treeContent = CreateFrame("Frame", nil, debugPanel.treeScroll)
+    debugPanel.treeContent:SetWidth(748)
+    debugPanel.treeContent:SetHeight(1)
+    debugPanel.treeScroll:SetScrollChild(debugPanel.treeContent)
+    debugPanel.folders = {}
+    debugPanel.preview = Text(debugPanel.treeContent, "GameFontHighlightSmall", {0.6, 1, 0.6})
+    debugPanel.preview:Hide()
     debugPanel:Hide()
     board.debugMode = false
     board.debugButton:SetScript("OnClick", function()
@@ -714,18 +797,19 @@ events:SetScript("OnEvent", function(self, event, loaded)
     if loaded ~= addonName then return end
     WoWForeverDB = type(WoWForeverDB) == "table" and WoWForeverDB or {}
     db = WoWForeverDB
-    if db.generatorDataVersion ~= "0.3.1" then
+    if db.generatorDataVersion ~= "0.4.0" then
         db.displayedQuests = nil
-        db.generatorDataVersion = "0.3.1"
+        db.generatorDataVersion = "0.4.0"
     end
     if not ValidQuest(db.activeQuest) then db.activeQuest = nil end
     if db.activeQuest then db.activeQuestId = nil end
     if not ValidDisplayedQuests(db.displayedQuests) then db.displayedQuests = PickDisplayedQuests() end
+    CreateMinimapButton()
     self:UnregisterEvent("ADDON_LOADED")
 end)
 
 SLASH_WOWFOREVERQUESTBOARD1 = "/cq"
-local function ToggleBoard(wantsDebug)
+ToggleBoard = function(wantsDebug)
     if not db then return end
     if not board then CreateBoard() end
     if board:IsShown() then
@@ -753,4 +837,57 @@ end
 SLASH_WOWFOREVERQUESTBOARDDEBUG1 = "/cqdebug"
 SlashCmdList.WOWFOREVERQUESTBOARDDEBUG = function()
     ToggleBoard(true)
+end
+
+CreateMinimapButton = function()
+    if minimapButton or not Minimap then return end
+    minimapButton = CreateFrame("Button", "WoWForeverMinimapButton", Minimap)
+    minimapButton:SetSize(32, 32)
+    minimapButton:SetFrameStrata("MEDIUM")
+    minimapButton:SetFrameLevel(Minimap:GetFrameLevel() + 5)
+    minimapButton:EnableMouse(true)
+    minimapButton:RegisterForClicks("LeftButtonUp")
+    minimapButton:RegisterForDrag("LeftButton")
+    minimapButton.icon = minimapButton:CreateTexture(nil, "ARTWORK")
+    minimapButton.icon:SetTexture("Interface\\Icons\\INV_Misc_Map_01")
+    minimapButton.icon:SetSize(20, 20)
+    minimapButton.icon:SetPoint("CENTER")
+    minimapButton.border = minimapButton:CreateTexture(nil, "OVERLAY")
+    minimapButton.border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    minimapButton.border:SetSize(54, 54)
+    minimapButton.border:SetPoint("TOPLEFT", -11, 11)
+    local function PositionButton()
+        local angle = math.rad(tonumber(db.minimapAngle) or -45)
+        local radius = (Minimap:GetWidth() / 2) + 6
+        minimapButton:ClearAllPoints()
+        minimapButton:SetPoint("CENTER", Minimap, "CENTER", math.cos(angle) * radius, math.sin(angle) * radius)
+    end
+    PositionButton()
+    minimapButton:SetScript("OnClick", function(self, button)
+        if self.dragStoppedAt and GetTime() - self.dragStoppedAt < 0.25 then return end
+        self.dragStoppedAt = nil
+        if button == "LeftButton" then ToggleBoard(false) end
+    end)
+    minimapButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:AddLine("WoW Forever Questboard")
+        GameTooltip:AddLine("Click to open the questboard", 1, 1, 1)
+        GameTooltip:AddLine("Drag to reposition this button", 0.7, 0.7, 0.7)
+        GameTooltip:Show()
+    end)
+    minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    minimapButton:SetScript("OnDragStart", function(self)
+        self.dragStoppedAt = nil
+        self:SetScript("OnUpdate", function()
+            local x, y = GetCursorPosition()
+            local scale = UIParent:GetScale()
+            local centerX, centerY = Minimap:GetCenter()
+            x, y = x / scale - centerX, y / scale - centerY
+            if x ~= 0 or y ~= 0 then db.minimapAngle = math.deg(math.atan2(y, x)); PositionButton() end
+        end)
+    end)
+    minimapButton:SetScript("OnDragStop", function(self)
+        self:SetScript("OnUpdate", nil)
+        self.dragStoppedAt = GetTime()
+    end)
 end
