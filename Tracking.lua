@@ -2,21 +2,14 @@ local _, ns = ...
 local Tracking = {}
 ns.Tracking = Tracking
 local db, changed, resolve
-local combatLogEnabled = false
 local function Public(value) return not (issecretvalue and issecretvalue(value)) end
-local function SupportsCombatLog()
-    -- Forever (1.60+) and Midnight expose restricted combat-log events.
-    -- Event existence and pcall do not make registration safe. Never probe it.
-    local interface = GetBuildInfo and select(4, GetBuildInfo())
-    if not Public(interface) or type(interface) ~= "number" then return false end
-    if (interface >= 16000 and interface < 17000) or interface >= 120000 then return false end
-    if C_CombatLog and C_CombatLog.IsCombatLogRestricted then
-        local restricted = C_CombatLog.IsCombatLogRestricted()
-        if not Public(restricted) or restricted ~= false then return false end
-    end
-    return type(CombatLogGetCurrentEventInfo) == "function"
+local function Read(fn, ...)
+    if type(fn) ~= "function" then return nil end
+    local ok, value = pcall(fn, ...)
+    if ok and Public(value) then return value end
 end
-local names, tagged, loot, gathering, merchant = {}, {}, nil, nil, nil
+local names, loot, gathering, merchant = {}, nil, nil, nil
+local killEvidence = {}
 local pendingLoot = {}
 local ACTIVE, READY, COMPLETED = "Active", "Ready to Turn In", "Completed"
 local function Refresh() if changed then changed() end end
@@ -58,7 +51,8 @@ local function Observe(unit)
     end
 end
 local function ResetTransient()
-    names, tagged, loot, gathering, merchant = {}, {}, nil, nil, nil
+    names, loot, gathering, merchant = {}, nil, nil, nil
+    killEvidence = {}
     pendingLoot = {}
 end
 local function UpdateState(q)
@@ -93,7 +87,7 @@ local function Normalize(q)
 end
 function Tracking.CanTrack(q)
     local spec = resolve and resolve(q) or q.tracking
-    return spec ~= nil and (spec.kind ~= "kill" or combatLogEnabled)
+    return spec ~= nil
 end
 function Tracking.Accept(q)
     if not db or db.activeQuest or not Tracking.IsResting() then return false end
@@ -127,33 +121,95 @@ end
 function Tracking.ProgressText(q)
     if not q.tracking then return "Tracking unavailable for this legacy objective. You may abandon it." end
     local p = q.progress
-    if q.tracking.kind == "kill" and not combatLogEnabled and q.state == ACTIVE then
-        return "Progress: " .. p.count .. "/" .. q.amount .. "\nKill tracking unavailable on this client."
-    end
     if q.tracking.kind == "collect_sell" then
         return q.state .. "\nCollected: " .. p.collected .. "/" .. q.amount .. "   Sold: " .. p.sold .. "/" .. q.amount
     end
     return q.state .. "\nProgress: " .. p.count .. "/" .. q.amount
 end
-local function Combat()
-    if not combatLogEnabled then return end
-    local q = Working()
-    if not q then return end
-    local _, event, _, source, sourceName, _, _, dest, destName = CombatLogGetCurrentEventInfo()
-    if source and sourceName then names[source] = sourceName end
-    if dest and destName then names[dest] = destName end
-    if q.tracking.kind ~= "kill" or not dest or not InZone() then return end
-    if (source == UnitGUID("player") or source == UnitGUID("pet"))
-        and (event:find("_DAMAGE$") or event == "SPELL_INSTAKILL")
-        and Matches(q.tracking.targets, destName) then
-        tagged[dest] = GetTime()
+-- Adapted from Azeroth Fieldbook's BestiaryJournal living-observation,
+-- terminal eligibility, expiry and GUID-deduplication approach. No combat log.
+local function CreatureGUID(guid)
+    return Public(guid) and type(guid) == "string" and #guid <= 128
+        and guid:match("^Creature%-%d+%-%d+%-%d+%-%d+%-%d+%-%w+$") ~= nil
+end
+local function PruneKills(at)
+    for guid, entry in pairs(killEvidence) do
+        if at < entry.seenAt or at > (entry.deadline or entry.seenAt + 120) then killEvidence[guid] = nil end
     end
-    if (event == "UNIT_DIED" or event == "PARTY_KILL" or event == "SPELL_INSTAKILL")
-        and tagged[dest] and GetTime() - tagged[dest] < 300 and not q.progress.seen[dest]
-        and Matches(q.tracking.targets, destName) then
-        q.progress.seen[dest], tagged[dest] = true, nil
-        q.progress.count = math.min(q.amount, q.progress.count + 1)
-        UpdateState(q)
+end
+local function ClearTerminal(entry)
+    entry.dead, entry.eligible, entry.rejected, entry.deadline = nil, nil, nil, nil
+end
+local function SampleEligibility(entry, unit, guid)
+    if Read(UnitGUID, unit) ~= guid then return end
+    local exists, controlled, denied = Read(UnitExists, unit), Read(UnitPlayerControlled, unit), Read(UnitIsTapDenied, unit)
+    if Read(UnitGUID, unit) ~= guid then return end
+    if controlled == true or denied == true then
+        entry.rejected, entry.eligible = true, nil
+    elseif exists == true and controlled == false and denied == false then
+        entry.eligible = true
+    end
+end
+local function CompleteKill(q, guid, entry)
+    if not entry.dead or entry.eligible ~= true or entry.rejected or q.progress.seen[guid] then return end
+    if not InZone() then return end
+    -- Consume evidence before callbacks and persist the GUID across reloads.
+    killEvidence[guid], q.progress.seen[guid] = nil, true
+    q.progress.count = math.min(q.amount, q.progress.count + 1)
+    UpdateState(q)
+end
+local function ObserveKill(unit)
+    local q = Working()
+    if not q or q.tracking.kind ~= "kill" or not InZone() then return end
+    local guid, at = Read(UnitGUID, unit), Read(GetTime)
+    if not CreatureGUID(guid) or type(at) ~= "number" or q.progress.seen[guid] then return end
+    PruneKills(at)
+    local dead = Read(UnitIsDead, unit)
+    if Read(UnitGUID, unit) ~= guid then return end
+    local entry = killEvidence[guid]
+    if dead == false then
+        local name = Read(UnitName, unit)
+        if not Matches(q.tracking.targets, name) or Read(UnitGUID, unit) ~= guid then return end
+        if not entry then
+            local count, oldestGUID, oldestAt = 0, nil, math.huge
+            for key, value in pairs(killEvidence) do
+                count = count + 1
+                if value.seenAt < oldestAt then oldestGUID, oldestAt = key, value.seenAt end
+            end
+            if count >= 64 then killEvidence[oldestGUID] = nil end
+            entry = {}; killEvidence[guid] = entry
+        end
+        entry.seenAt = at
+        if Read(UnitAffectingCombat, unit) ~= true then ClearTerminal(entry) end
+        return -- A living mob's unclaimed tag never grants kill eligibility.
+    end
+    if dead ~= true or not entry then return end
+    entry.dead, entry.deadline = true, entry.deadline or at + 10
+    SampleEligibility(entry, unit, guid)
+    CompleteKill(q, guid, entry)
+end
+local function DeathEvent(event, guid)
+    local q = Working()
+    if not q or q.tracking.kind ~= "kill" or not CreatureGUID(guid) or not InZone() then return end
+    local at = Read(GetTime)
+    if type(at) ~= "number" then return end
+    PruneKills(at)
+    local entry = killEvidence[guid]
+    if not entry or q.progress.seen[guid] then return end
+    entry.deadline = entry.deadline or at + 10
+    -- PARTY_KILL can precede a readable death: it samples eligibility only.
+    if event == "UNIT_DIED" then entry.dead = true end
+    for _, unit in ipairs({"target", "mouseover"}) do SampleEligibility(entry, unit, guid) end
+    CompleteKill(q, guid, entry)
+end
+function Tracking.PollKills()
+    ObserveKill("target")
+    ObserveKill("mouseover")
+end
+local function HealthEvent(unit)
+    if not Public(unit) or type(unit) ~= "string" then return end
+    for _, watched in ipairs({"target", "mouseover"}) do
+        if unit == watched or Read(UnitIsUnit, unit, watched) == true then ObserveKill(watched) end
     end
 end
 local professionSpells = {herbalism = 2366, mining = 2575, skinning = 8613, fishing = 7620}
@@ -377,13 +433,18 @@ function Tracking.Initialize(saved, resolver, callback)
     db, resolve, changed = saved, resolver, callback
     db.completedQuests = type(db.completedQuests) == "table" and db.completedQuests or {}
     if db.activeQuest then Normalize(db.activeQuest) end
-    combatLogEnabled = SupportsCombatLog()
-    if combatLogEnabled then events:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED") end
     for _, event in ipairs({"PLAYER_UPDATE_RESTING", "PLAYER_ENTERING_WORLD",
         "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "LOOT_READY", "LOOT_OPENED", "LOOT_SLOT_CLEARED", "LOOT_CLOSED",
         "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "BAG_UPDATE_DELAYED", "MERCHANT_SHOW", "MERCHANT_CLOSED",
-        "MERCHANT_UPDATE", "PLAYER_MONEY", "GET_ITEM_INFO_RECEIVED", "CHAT_MSG_LOOT"}) do
+        "MERCHANT_UPDATE", "PLAYER_MONEY", "GET_ITEM_INFO_RECEIVED", "CHAT_MSG_LOOT", "UNIT_HEALTH", "PLAYER_REGEN_ENABLED"}) do
         events:RegisterEvent(event)
+    end
+    -- These are standalone GUID events in Forever, not combat-log subevents.
+    -- Older clients may lack them; watched-unit death polling remains usable.
+    for _, event in ipairs({"PARTY_KILL", "UNIT_DIED"}) do
+        if not C_EventUtils or not C_EventUtils.IsEventValid or C_EventUtils.IsEventValid(event) then
+            pcall(events.RegisterEvent, events, event)
+        end
     end
     if not Tracking.hooked and hooksecurefunc then
         if C_Container and C_Container.UseContainerItem then hooksecurefunc(C_Container, "UseContainerItem", SaleIntent) end
@@ -395,11 +456,14 @@ end
 function Tracking.OnEvent(event, ...)
     if not db then return end
     if event == "CHAT_MSG_LOOT" then LootReceipt(...)
-    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then Combat()
+    elseif event == "UNIT_DIED" then DeathEvent(event, ...)
+    elseif event == "PARTY_KILL" then local _, victim = ...; DeathEvent(event, victim)
+    elseif event == "UNIT_HEALTH" then HealthEvent(...)
+    elseif event == "PLAYER_REGEN_ENABLED" then Tracking.PollKills()
     elseif event == "PLAYER_UPDATE_RESTING" then Refresh()
     elseif event == "PLAYER_ENTERING_WORLD" then ResetTransient(); ReconcileHeld(); Refresh()
-    elseif event == "PLAYER_TARGET_CHANGED" then Observe("target")
-    elseif event == "UPDATE_MOUSEOVER_UNIT" then Observe("mouseover")
+    elseif event == "PLAYER_TARGET_CHANGED" then Observe("target"); ObserveKill("target")
+    elseif event == "UPDATE_MOUSEOVER_UNIT" then Observe("mouseover"); ObserveKill("mouseover")
     elseif event == "UNIT_SPELLCAST_SUCCEEDED" or event == "UNIT_SPELLCAST_CHANNEL_START" then Cast(event, ...)
     elseif event == "LOOT_READY" or event == "LOOT_OPENED" then CaptureLoot()
     elseif event == "LOOT_SLOT_CLEARED" then
@@ -435,3 +499,13 @@ function Tracking.OnEvent(event, ...)
     end
 end
 events:SetScript("OnEvent", function(_, event, ...) Tracking.OnEvent(event, ...) end)
+
+local scanElapsed = 0
+events:SetScript("OnUpdate", function(_, elapsed)
+    local q = Working()
+    if not q or q.tracking.kind ~= "kill" then scanElapsed = 0; return end
+    scanElapsed = scanElapsed + elapsed
+    if scanElapsed < 0.2 then return end
+    scanElapsed = 0
+    Tracking.PollKills()
+end)

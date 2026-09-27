@@ -2,6 +2,16 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.5.2] - 2026-09-27
+
+### Fixed
+
+- Restored Kill/Hunt acceptance and automatic progress using Azeroth Fieldbook's watched-creature evidence approach. The tracker never registers or reads the combat log.
+- Require a recent living target/mouseover observation, a readable death signal, and explicit tag eligibility for the same creature GUID. Player-controlled or tap-denied creatures are rejected; secret/unknown evidence waits briefly without guessing.
+- Support standalone Forever UNIT_DIED/PARTY_KILL notifications and a 0.2-second watched-unit death poll, including pet kills without PARTY_KILL.
+- Preserve saved progress and GUID deduplication. Transient evidence is bounded, expires, and clears on reset, abandonment, and world transitions.
+- Expanded regression coverage for early party-kill events, delayed/secret eligibility, expired evidence, pet kills, aliases, corpse-only observations, and reloads. Added Fieldbook's MIT attribution.
+
 ## [0.5.1] - 2026-09-27
 
 ### Fixed

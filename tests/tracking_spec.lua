@@ -61,6 +61,12 @@ function GetRealZoneText() return zone end
 function UnitGUID(unit) return units[unit] and units[unit].guid end
 function UnitName(unit) return units[unit] and units[unit].name end
 function UnitLevel() return level end
+function UnitExists(unit) return units[unit] ~= nil end
+function UnitIsDead(unit) return units[unit] and units[unit].dead end
+function UnitPlayerControlled(unit) return units[unit] and units[unit].controlled end
+function UnitIsTapDenied(unit) return units[unit] and units[unit].denied end
+function UnitAffectingCombat(unit) return units[unit] and units[unit].inCombat end
+function UnitIsUnit(a, b) return units[a] ~= nil and units[b] ~= nil and units[a].guid == units[b].guid end
 function GetProfessions() return nil end
 function GetProfessionInfo() return nil end
 function GetMoney() return money end
@@ -101,11 +107,17 @@ end
 local function quest(spec, amount)
     return {id = 'test', title = 'Test', zone = 'Elwynn Forest', amount = amount or 2, tracking = spec}
 end
-local function hit(guid, name, source, event)
-    combat = {clock, event or 'SWING_DAMAGE', false, source or 'Player-1', 'Tester', 0, 0, guid, name, 0, 0}
-    T.OnEvent('COMBAT_LOG_EVENT_UNFILTERED')
+local function killGUID(guid) return 'Creature-0-1-0-0-40-' .. guid:gsub('%W', '') end
+local function hit(guid, name, source)
+    units.target = {guid = killGUID(guid), name = name, dead = false, controlled = false,
+        denied = source == 'Stranger', inCombat = true}
+    T.OnEvent('PLAYER_TARGET_CHANGED')
 end
-local function die(guid, name) hit(guid, name, 'Other', 'UNIT_DIED') end
+local function die(guid, name)
+    local id = killGUID(guid)
+    if units.target and units.target.guid == id then units.target.dead = true end
+    T.OnEvent('UNIT_DIED', id)
+end
 local function lootStart(id, quantity, guid, name)
     units.target = {guid = guid, name = name}
     lootItems = {{id = id, quantity = quantity, guid = guid}}
@@ -306,11 +318,11 @@ for _, build in ipairs({16001, 120000, 11507}) do
     t.Initialize(record, function(v) return v.tracking end, function() end)
     check(not frames[#frames].registered.COMBAT_LOG_EVENT_UNFILTERED, 'restricted client never registers combat-log event')
     check(frames[#frames].registered.CHAT_MSG_LOOT and frames[#frames].registered.MERCHANT_SHOW, 'safe tracking events still register')
-    check(kept.progress.count == 2 and kept.amount == 4 and t.ProgressText(kept):find('unavailable'), 'restricted active kills retain progress and explain pause')
+    check(kept.progress.count == 2 and kept.amount == 4 and t.CanTrack(kept), 'restricted active kills retain progress and are trackable')
     t.OnEvent('COMBAT_LOG_EVENT_UNFILTERED')
     check(kept.progress.count == 2, 'restricted combat payload never read')
     resting = true; t.Abandon()
-    check(not t.Accept(kept), 'untrackable new kill quests cannot be accepted')
+    check(t.Accept(kept), 'kill quests can be accepted without combat-log access'); t.Abandon()
     check(t.Accept(quest({kind = 'collect_sell', targets = {'Young Wolf'}, itemID = 2672}, 2)), 'collection quests remain available')
     local secret = {}
     issecretvalue = function(value) return value == secret end
@@ -321,4 +333,48 @@ for _, build in ipairs({16001, 120000, 11507}) do
     check(record.activeQuest.progress.collected == 0, 'secret unit/spell/chat values are ignored')
     issecretvalue = nil
 end
+-- Fieldbook-style evidence: live observation + death + public tag eligibility.
+fresh(); q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 20); T.Accept(q)
+units.target = {guid = killGUID('corpse'), name = 'Kobold Miner', dead = true, controlled = false, denied = false}
+T.PollKills(); die('corpse', 'Kobold Miner')
+check(q.progress.count == 0, 'already-dead corpse never counts without a living observation')
+hit('party', 'Kobold Miner')
+T.OnEvent('PARTY_KILL', 'Party-attacker', killGUID('party'))
+check(q.progress.count == 0, 'party kill alone is not proof of death')
+units.target = nil; T.OnEvent('UNIT_DIED', killGUID('party'))
+check(q.progress.count == 1, 'terminal eligibility survives target clearing before death event')
+T.OnEvent('UNIT_DIED', killGUID('party')); check(q.progress.count == 1, 'duplicate standalone death is ignored')
+hit('pet', 'Kobold Miner', 'Pet-1'); units.target.dead = true; T.PollKills()
+check(q.progress.count == 2, 'pet-assisted death can count through polling without PARTY_KILL or UNIT_DIED')
+hit('hidden', 'Kobold Miner'); units.target.dead = true
+local secret = {}; issecretvalue = function(v) return v == secret end
+units.target.denied = secret; T.PollKills(); T.OnEvent('UNIT_DIED', killGUID('hidden'))
+check(q.progress.count == 2, 'hidden tap eligibility never grants credit')
+units.target.denied = false; advance(1); T.PollKills()
+check(q.progress.count == 3, 'readable eligibility arriving within pending window grants credit')
+units.target.guid = secret; T.PollKills(); T.OnEvent('UNIT_DIED', secret)
+check(q.progress.count == 3, 'hidden GUID is never inspected or credited')
+issecretvalue = nil
+hit('expired', 'Kobold Miner'); units.target.dead = true; units.target.denied = nil; T.PollKills()
+advance(11); units.target.denied = false; T.PollKills()
+check(q.progress.count == 3, 'pending evidence expires after ten seconds')
+hit('stale', 'Kobold Miner'); units.target = nil; advance(121); T.OnEvent('UNIT_DIED', killGUID('stale'))
+check(q.progress.count == 3, 'old living observation expires')
+hit('controlled', 'Kobold Miner'); units.target.dead = true; units.target.controlled = true; T.PollKills()
+units.target.controlled = false; T.PollKills()
+check(q.progress.count == 3, 'player-controlled rejection is sticky for a death')
+hit('reset', 'Kobold Miner'); T.OnEvent('PARTY_KILL', 'Attacker', killGUID('reset'))
+units.target.inCombat = false; T.PollKills()
+units.target = nil; T.OnEvent('UNIT_DIED', killGUID('reset'))
+check(q.progress.count == 3, 'living reset clears earlier terminal eligibility')
+hit('alias', 'Kobold Miner'); units.nameplate1 = units.target; units.target.dead = true
+T.OnEvent('UNIT_HEALTH', 'nameplate1')
+check(q.progress.count == 4, 'health event alias can confirm a watched target death')
+hit('reload', 'Kobold Miner'); T.OnEvent('PLAYER_ENTERING_WORLD'); die('reload', 'Kobold Miner')
+check(q.progress.count == 4, 'world transition clears transient living evidence')
+hit('saved', 'Kobold Miner'); units.target.dead = true; T.PollKills()
+T.Initialize(saved, function(v) return v.tracking end, function() end); T.OnEvent('PLAYER_ENTERING_WORLD')
+hit('saved', 'Kobold Miner'); units.target.dead = true; T.PollKills()
+check(q.progress.count == 5, 'saved GUID prevents duplicate kill credit after reload')
+check(not frames[1].registered.COMBAT_LOG_EVENT_UNFILTERED, 'no kill tracker uses restricted combat-log registration')
 print('PASS: ' .. passed .. ' tracking and UI assertions (Lua 5.1)')
