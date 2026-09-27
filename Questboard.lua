@@ -6,6 +6,7 @@ local CreateMinimapButton
 local RefreshQuestBrowser, SetDebugMode
 local CreateBoard
 local debugMode = false
+local QuestGenerationLevel
 local ELWYNN_MAX_LEVEL = 12
 
 -- Amount ranges are deliberately curated per objective. Mob levels and zone
@@ -312,6 +313,7 @@ end
 local function PickDisplayedQuests()
     local chosen = {}
     local seen = {}
+    local generationLevel = QuestGenerationLevel and QuestGenerationLevel() or NormalGenerationLevel()
     if db.activeQuest then
         chosen[1] = db.activeQuest
         seen[db.activeQuest.selectionId or db.activeQuest.id] = true
@@ -319,7 +321,7 @@ local function PickDisplayedQuests()
     local attempts = 0
     while #chosen < 3 and attempts < 100 do
         attempts = attempts + 1
-        local quest = GenerateQuest()
+        local quest = GenerateQuest(generationLevel)
         if quest and not seen[quest.selectionId] then
             chosen[#chosen + 1] = quest
             seen[quest.selectionId] = true
@@ -350,6 +352,10 @@ end
 local debugState = {testLevel = math.min(CurrentPlayerLevel(), ELWYNN_MAX_LEVEL)}
 local ChangeDebugLevel
 
+QuestGenerationLevel = function()
+    return debugMode and debugState.testLevel or NormalGenerationLevel()
+end
+
 local function Text(parent, size, color)
     local text = parent:CreateFontString(nil, "OVERLAY", size or "GameFontHighlight")
     text:SetJustifyH("LEFT")
@@ -364,6 +370,10 @@ ChangeDebugLevel = function(delta)
         board.debugLevelText:SetText("Generation level: " .. debugState.testLevel .. " (" .. ProgressionBand(debugState.testLevel) .. ")")
         board.debugLevelDown:SetEnabled(debugState.testLevel > 1)
         board.debugLevelUp:SetEnabled(debugState.testLevel < ELWYNN_MAX_LEVEL)
+    end
+    if db and not db.activeQuest then
+        db.displayedQuests = PickDisplayedQuests()
+        if board and board:IsShown() then Refresh() end
     end
     if questBrowser and questBrowser:IsShown() then RefreshQuestBrowser() end
 end
@@ -580,12 +590,13 @@ end
 
 local function CreateDebugModeButton(parent)
     if debugModeButton then return end
-    debugModeButton = CreateFrame("Button", "WoWForeverDebugModeButton", parent)
-    debugModeButton:SetSize(28, 28)
+    debugModeButton = CreateFrame("Button", "WoWForeverDebugModeButton", parent, "UIPanelButtonTemplate")
+    debugModeButton:SetSize(30, 30)
     debugModeButton:SetPoint("TOPLEFT", parent, "TOPLEFT", 16, -16)
     debugModeButton:EnableMouse(true)
     debugModeButton.icon = debugModeButton:CreateTexture(nil, "ARTWORK")
-    debugModeButton.icon:SetTexture("Interface\\Icons\\INV_Misc_Bug_01")
+    debugModeButton.icon:SetTexture("Interface\\Icons\\INV_Misc_Gear_01")
+    debugModeButton.icon:SetDrawLayer("OVERLAY")
     debugModeButton.icon:SetPoint("CENTER", debugModeButton, "CENTER", 0, 0)
     debugModeButton.icon:SetSize(20, 20)
     debugModeButton.active = debugModeButton:CreateTexture(nil, "OVERLAY")
@@ -620,7 +631,7 @@ CreateBoard = function()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.4.4 (0.4.4)")
+    title:SetText("WoW Forever | Questboard — Alpha V0.4.5 (0.4.5)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")
@@ -659,9 +670,15 @@ CreateBoard = function()
         card.button:SetSize(218, 26)
         card.button:SetPoint("BOTTOM", 0, 12)
         card.button:SetScript("OnClick", function()
-            if db.activeQuest then return end
             local quest = db.displayedQuests[offerIndex]
             if not quest then return end
+            if db.activeQuest then
+                if db.activeQuest.id ~= quest.id then return end
+                db.activeQuest = nil
+                db.displayedQuests = PickDisplayedQuests()
+                Refresh()
+                return
+            end
             db.activeQuest = quest
             db.displayedQuests = PickDisplayedQuests()
             Refresh()
@@ -703,19 +720,9 @@ CreateBoard = function()
         questBrowser:SetFrameLevel(board:GetFrameLevel() + 20)
         questBrowser:Show()
     end)
-    board.abandon = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
-    board.abandon:SetSize(142, 26)
-    board.abandon:SetPoint("RIGHT", board.debugButton, "LEFT", -8, 0)
-    board.abandon:SetText("Abandon Quest")
-    board.abandon:SetScript("OnClick", function()
-        if not db.activeQuest then return end
-        db.activeQuest = nil
-        db.displayedQuests = PickDisplayedQuests()
-        Refresh()
-    end)
     board.reroll = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
     board.reroll:SetSize(120, 26)
-    board.reroll:SetPoint("RIGHT", board.abandon, "LEFT", -8, 0)
+    board.reroll:SetPoint("RIGHT", board.debugButton, "LEFT", -8, 0)
     board.reroll:SetText("Reroll quests")
     board.reroll:SetScript("OnClick", function()
         if db.activeQuest then return end
@@ -728,8 +735,12 @@ CreateBoard = function()
 end
 
 SetDebugMode = function(enabled, openBrowser)
+    local wasDebugMode = debugMode
     debugMode = not not enabled
     if not board then CreateBoard() end
+    if wasDebugMode ~= debugMode then
+        db.displayedQuests = PickDisplayedQuests()
+    end
     if debugMode then
         if not ValidDisplayedQuests(db.displayedQuests) then db.displayedQuests = PickDisplayedQuests() end
         board:SetScale(math.min(1, UIParent:GetWidth() / 880, UIParent:GetHeight() / 610))
@@ -751,7 +762,6 @@ SetDebugMode = function(enabled, openBrowser)
         board.debugLevelUp:SetEnabled(debugState.testLevel < ELWYNN_MAX_LEVEL)
         board.debugLevelControls:SetShown(debugMode)
         board.debugButton:SetShown(debugMode)
-        board.abandon:SetShown(db.activeQuest ~= nil)
     end
 end
 
@@ -764,15 +774,13 @@ Refresh = function()
         card.story:SetText(quest and quest.description or "No objectives match your current level and known professions.")
         card.objective:SetText(quest and ("Your objective\n|cffffffff" .. quest.objective .. "|r") or "")
         card.prompt:SetText(quest and ("Roleplay prompt\n|cffffffff" .. quest.prompt .. "|r") or "")
-        card.button:SetText(not quest and "Unavailable" or (accepted and "Accepted" or (db.activeQuest and "Unavailable" or "Accept Quest")))
-        card.button:SetEnabled(quest ~= nil and not db.activeQuest)
+        card.button:SetText(not quest and "Unavailable" or (accepted and "Abandon Quest" or (db.activeQuest and "Unavailable" or "Accept Quest")))
+        card.button:SetEnabled(quest ~= nil and (not db.activeQuest or accepted))
         card.marker:SetText(accepted and "YOUR ACTIVE OBJECTIVE" or "")
         card:SetBackdropBorderColor(accepted and 0.9 or 0.36, accepted and 0.3 or 0.3, accepted and 0.16 or 0.16, 1)
     end
     local active = db.activeQuest
     board.status:SetText(active and ("Active: " .. active.title) or (#db.displayedQuests == 0 and "No Elwynn objectives match your current level and known professions." or "Choose one notice to begin your adventure."))
-    board.abandon:SetShown(active ~= nil)
-    board.abandon:SetEnabled(active ~= nil)
     board.reroll:SetEnabled(active == nil)
 end
 
@@ -839,8 +847,9 @@ CreateMinimapButton = function()
     minimapButton.icon = minimapButton:CreateTexture(nil, "ARTWORK")
     minimapButton.icon:SetTexture("Interface\\Icons\\INV_Misc_Map_01")
     minimapButton.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    minimapButton.icon:SetSize(14, 14)
-    minimapButton.icon:SetPoint("CENTER", minimapButton, "CENTER", 0, 0)
+    minimapButton.icon:ClearAllPoints()
+    minimapButton.icon:SetPoint("TOPLEFT", minimapButton, "TOPLEFT", 8, -8)
+    minimapButton.icon:SetPoint("BOTTOMRIGHT", minimapButton, "BOTTOMRIGHT", -8, 8)
     minimapButton.border = minimapButton:CreateTexture(nil, "OVERLAY")
     minimapButton.border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
     minimapButton.border:SetSize(54, 54)

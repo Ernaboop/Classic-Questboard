@@ -2,6 +2,15 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.4.5] - 2026-09-27
+
+### Fixed
+
+- Anchored the minimap icon by its inner corners so it stays centered and contained as the UI scales.
+- Moved quest abandonment onto the active quest card; its button now changes from “Accept Quest” to “Abandon Quest.”
+- Added a visible gear icon to the Debug Mode toggle.
+- Routed offer generation through the active generation level: the debug override when Debug Mode is on, and the capped player level otherwise. Changing the debug level refreshes offers immediately when no quest is active.
+
 ## [0.4.4] - 2026-09-27
 
 ### Fixed
