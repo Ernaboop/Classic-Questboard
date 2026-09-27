@@ -2,6 +2,12 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.6.2] - 2026-09-27
+
+### Changed
+
+- AGENTS.md now requires an iterative patch-version increment for each completed change set, synchronized release labels, and a local Git commit after appropriate validation.
+
 ## [0.6.1] - 2026-09-27
 
 ### Fixed
