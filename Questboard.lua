@@ -316,7 +316,11 @@ local function ObjectiveOptions(category, branch, playerLevel, outleveled)
     if not category then return {} end
     local objectives = category.id == "hunt" and branch and branch.objectives
         or category.profession and category.profession.objectives or category.objectives
-    local effectiveLevel = outleveled and HighestCategoryLevel(category) or playerLevel
+    -- A capped/debug level can exceed a category's ceiling even when it does
+    -- not exceed the zone ceiling. Clamp each category independently.
+    local highest = HighestCategoryLevel(category)
+    local effectiveLevel = playerLevel
+    if highest and (outleveled or playerLevel > highest) then effectiveLevel = highest end
     return EligibleObjectives(objectives, effectiveLevel)
 end
 
@@ -846,7 +850,7 @@ CreateBoard = function()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.6.0 (0.6.0)")
+    title:SetText("WoW Forever | Questboard — Alpha V0.6.1 (0.6.1)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")

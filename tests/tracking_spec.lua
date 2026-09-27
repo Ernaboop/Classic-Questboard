@@ -292,6 +292,42 @@ for _ = 1, 1200 do
 end
 check(sawHerbalism, 'learned gathering profession contributes to outleveled generation')
 professionSlots, professionLines = {}, {}
+-- Enumerate the entire pool through exclusions: no chance-based coverage and
+-- no outleveled flag, matching capped normal and debug generation paths.
+local function enumeratePool(generationLevel)
+    local excluded, categories, professions = {}, {}, {}
+    for _ = 1, 100 do
+        local offer = realNS.GenerateQuestForLevel(generationLevel, false, excluded)
+        if not offer then return categories, professions end
+        check(not excluded[offer.selectionId], 'enumeration respects objective exclusions')
+        excluded[offer.selectionId] = true
+        categories[offer.categoryName] = true
+        if offer.professionId then professions[offer.professionId] = true end
+        local ceiling = offer.categoryName == 'Kill' or offer.categoryName == 'Collect & Sell'
+            or offer.professionId == 'skinning'
+        if generationLevel >= 11 then
+            check(offer.maxPlayerLevel == (ceiling and 10 or 12), 'fallback uses category highest pool at capped levels')
+        else
+            check(offer.minPlayerLevel <= generationLevel and offer.maxPlayerLevel >= generationLevel,
+                'fallback never promotes low-level players into higher bands')
+        end
+    end
+    error('pool enumeration did not terminate')
+end
+for _, generationLevel in ipairs({1, 6, 11, 12}) do
+    local categories = enumeratePool(generationLevel)
+    check(categories.Kill and categories['Collect & Sell'], 'normal/debug level retains lower-ceiling categories')
+    check(not categories.Gather, 'category fallback preserves profession gating')
+end
+professionSlots, professionLines = {1, 2, 3, 4}, {[1] = 182, [2] = 186, [3] = 393, [4] = 356}
+for _, generationLevel in ipairs({11, 12}) do
+    local categories, professions = enumeratePool(generationLevel)
+    check(categories.Kill and categories['Collect & Sell'] and categories.Hunt and categories.Gather,
+        'each category contributes independently at zone cap')
+    check(professions.herbalism and professions.mining and professions.skinning and professions.fishing,
+        'each learned profession contributes even below zone cap')
+end
+professionSlots, professionLines = {}, {}
 WoWForeverDB = nil
 for _, frame in ipairs(frames) do
     if frame.registered.ADDON_LOADED then frame.scripts.OnEvent(frame, 'ADDON_LOADED', 'WoWForever') end
@@ -304,6 +340,24 @@ local function cards()
     return result
 end
 local cs = cards()
+-- Exercise the actual debug selector and Reroll button at the zone cap.
+WoWForeverDebugModeButton.scripts.OnClick()
+for _ = 1, 6 do board.debugLevelUp.scripts.OnClick() end
+local debugCategories = {}
+for _ = 1, 60 do
+    board.reroll.scripts.OnClick()
+    local ids = {}
+    for _, offer in ipairs(WoWForeverDB.displayedQuests) do
+        debugCategories[offer.categoryName] = true
+        check(not ids[offer.selectionId], 'debug cap reroll has no duplicate objectives')
+        ids[offer.selectionId] = true
+    end
+end
+check(debugCategories.Kill and debugCategories['Collect & Sell'] and debugCategories.Hunt,
+    'debug level 12 rerolls include lower-ceiling categories')
+for _ = 1, 6 do board.debugLevelDown.scripts.OnClick() end
+WoWForeverDebugModeButton.scripts.OnClick()
+board.reroll.scripts.OnClick()
 assert(loadstring(binding_source))()
 check(not board:IsShown(), 'configured binding closes an open board')
 assert(loadstring(binding_source))()

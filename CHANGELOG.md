@@ -2,6 +2,13 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.6.1] - 2026-09-27
+
+### Fixed
+
+- Category fallback now compares the selected generation level against each category's own ceiling, including debug levels and normal levels at or below Elwynn's level-12 cap. Kill, Collect & Sell, and learned Skinning remain eligible at levels 11 and 12 instead of requiring the actual character to exceed level 12.
+- The same filtering applies to manual rerolls and single-slot replacements. Saved offers and active quests are preserved; use Reroll Quests to refresh existing offers.
+
 ## [0.6.0] - 2026-09-27
 
 ### Added
