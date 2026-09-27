@@ -12,6 +12,7 @@ local names, loot, gathering, merchant = {}, nil, nil, nil
 local killEvidence = {}
 local pendingLoot = {}
 local ACTIVE, READY, COMPLETED = "Active", "Ready to Turn In", "Completed"
+local statisticCategories = {Kill = true, ["Collect & Sell"] = true, Hunt = true, Gather = true}
 local function Refresh() if changed then changed() end end
 local function ItemID(link) return link and tonumber(link:match("item:(%d+)")) end
 local function Count(id)
@@ -96,11 +97,13 @@ function Tracking.Accept(q, bypassLocation)
     q.state, q.progress, q.acceptedAt = ACTIVE, {}, time()
     Normalize(q)
     db.activeQuest = q
+    db.statistics.accepted = db.statistics.accepted + 1
     ResetTransient()
     return true
 end
 function Tracking.Abandon()
     if not db or not db.activeQuest then return false end
+    db.statistics.abandoned = db.statistics.abandoned + 1
     local q = db.activeQuest
     q.state, q.progress, q.acceptedAt, q.completedAt = nil, nil, nil, nil
     db.activeQuest = nil
@@ -110,6 +113,11 @@ end
 function Tracking.TurnIn(bypassLocation)
     local q = db and db.activeQuest
     if not q or q.state ~= READY or (not bypassLocation and not Tracking.IsResting()) then return false end
+    db.statistics.handedIn = db.statistics.handedIn + 1
+    if statisticCategories[q.categoryName] then
+        local counts = db.statistics.completedByCategory
+        counts[q.categoryName] = counts[q.categoryName] + 1
+    end
     q.state, q.completedAt = COMPLETED, time()
     db.completedQuests[#db.completedQuests + 1] = {
         id = q.id, title = q.title, zone = q.zone, amount = q.amount,
@@ -121,6 +129,16 @@ function Tracking.TurnIn(bypassLocation)
     print('|cffffd27fClassic Questbook:|r Completed "' .. q.title .. '".')
     return true
 end
+function Tracking.GetStatistics()
+    local stats = db and db.statistics or {}
+    local categories = {}
+    for category in pairs(statisticCategories) do
+        categories[category] = stats.completedByCategory and stats.completedByCategory[category] or 0
+    end
+    return {accepted = stats.accepted or 0, handedIn = stats.handedIn or 0, abandoned = stats.abandoned or 0,
+        completedByCategory = categories}
+end
+
 function Tracking.ProgressText(q)
     if not q.tracking then return "Tracking unavailable for this legacy objective. You may abandon it." end
     local p = q.progress
@@ -476,6 +494,16 @@ end
 local events = CreateFrame("Frame")
 function Tracking.Initialize(saved, resolver, callback)
     db, resolve, changed = saved, resolver, callback
+    db.statistics = type(db.statistics) == "table" and db.statistics or {}
+    for _, key in ipairs({"accepted", "handedIn", "abandoned"}) do
+        local value = tonumber(db.statistics[key])
+        db.statistics[key] = value and value == value and value >= 0 and value < math.huge and math.floor(value) or 0
+    end
+    db.statistics.completedByCategory = type(db.statistics.completedByCategory) == "table" and db.statistics.completedByCategory or {}
+    for category in pairs(statisticCategories) do
+        local value = tonumber(db.statistics.completedByCategory[category])
+        db.statistics.completedByCategory[category] = value and value == value and value >= 0 and value < math.huge and math.floor(value) or 0
+    end
     db.completedQuests = type(db.completedQuests) == "table" and db.completedQuests or {}
     if db.activeQuest then Normalize(db.activeQuest) end
     for _, event in ipairs({"PLAYER_UPDATE_RESTING", "PLAYER_ENTERING_WORLD",

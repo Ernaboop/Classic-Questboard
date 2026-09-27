@@ -1,4 +1,4 @@
-# Alpha 0.6.9 tracking
+# Alpha 0.6.12 tracking
 
 ## Forever compatibility
 
@@ -35,6 +35,8 @@ The Debug Mode left-card category dropdown offers Any category, Kill, Collect & 
 Debug Mode also exposes Required amount at the bottom of the board. Enter a whole number from 1 to 1000 and click Apply (or press Enter). This edits only the accepted quest and refreshes its objective text and readiness. Earned progress is preserved, including across reloads; lowering the target may show progress above the new requirement. Raising it can return a ready quest to Active. No quest is handed in automatically.
 
 Options, Help (the question-mark button), and Quest Browser toggle open/closed. Secondary windows open beside the previous visible window with support for nested windows; they use the left side when needed and remain clamped to the screen.
+
+Statistics opens a toggleable window with per-character totals for quests accepted, handed in, and abandoned. Use the + beside Quests handed in to expand completion counts for Kill, Collect & Sell, Hunt, and Gather; use − to collapse. Totals start when statistics are installed, include successful Debug Mode actions, and persist independently of recent-completion history. Failed actions, cancelled abandonment, ready-state changes, and reloads do not increment totals. Earlier activity cannot be reconstructed reliably and is not backfilled.
 
 ## What earns progress
 

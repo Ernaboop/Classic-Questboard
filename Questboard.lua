@@ -773,7 +773,7 @@ local function CreateDebugModeButton(parent)
     debugModeButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
-local optionsWindow, abandonDialog, helpWindow
+local optionsWindow, abandonDialog, helpWindow, statisticsWindow
 
 local function SecondaryWindow(name, title, width, height, strata)
     local frame = CreateFrame("Frame", name, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
@@ -824,6 +824,60 @@ local function OpenOptions()
     end
     optionsWindow.confirmation:SetChecked(db.settings.showAbandonConfirmation)
     Windows.Open(optionsWindow, Windows.Previous(board, optionsWindow))
+end
+
+local function RefreshStatistics()
+    if not statisticsWindow then return end
+    local stats = Tracking.GetStatistics()
+    for key, label in pairs(statisticsWindow.values) do label:SetText(tostring(stats[key])) end
+    for category, label in pairs(statisticsWindow.categoryValues) do
+        label:SetText(tostring(stats.completedByCategory[category]))
+    end
+end
+
+local function ToggleStatistics()
+    if statisticsWindow and statisticsWindow:IsShown() then statisticsWindow:Hide(); return end
+    if not statisticsWindow then
+        statisticsWindow = SecondaryWindow("WoWForeverStatistics", "Classic Questbook Statistics", 440, 260)
+        statisticsWindow.values = {}
+        statisticsWindow.categoryValues = {}
+        for index, entry in ipairs({{"accepted", "Quests accepted"}, {"handedIn", "Quests handed in"}, {"abandoned", "Quests abandoned"}}) do
+            local label = Text(statisticsWindow)
+            label:SetPoint("TOPLEFT", 28, -62 - (index - 1) * 40)
+            label:SetText(entry[2])
+            local value = Text(statisticsWindow, "GameFontNormalLarge")
+            value:SetPoint("TOPRIGHT", -32, -62 - (index - 1) * 40)
+            statisticsWindow.values[entry[1]] = value
+        end
+        statisticsWindow.expand = CreateFrame("Button", nil, statisticsWindow, "UIPanelButtonTemplate")
+        statisticsWindow.expand:SetSize(22, 22)
+        statisticsWindow.expand:SetPoint("TOPLEFT", 206, -98)
+        statisticsWindow.expand:SetText("+")
+        statisticsWindow.categories = CreateFrame("Frame", nil, statisticsWindow)
+        statisticsWindow.categories:SetSize(380, 128)
+        statisticsWindow.categories:SetPoint("TOPLEFT", 28, -181)
+        for index, category in ipairs({"Kill", "Collect & Sell", "Hunt", "Gather"}) do
+            local label = Text(statisticsWindow.categories, "GameFontHighlightSmall")
+            label:SetPoint("TOPLEFT", 12, -(index - 1) * 30)
+            label:SetText(category)
+            local value = Text(statisticsWindow.categories, "GameFontNormal")
+            value:SetPoint("TOPRIGHT", -4, -(index - 1) * 30)
+            statisticsWindow.categoryValues[category] = value
+        end
+        statisticsWindow.categories:Hide()
+        statisticsWindow.expand:SetScript("OnClick", function(self)
+            local expanded = not statisticsWindow.categories:IsShown()
+            statisticsWindow.categories:SetShown(expanded)
+            statisticsWindow:SetHeight(expanded and 400 or 260)
+            self:SetText(expanded and "−" or "+")
+        end)
+        local note = Text(statisticsWindow, "GameFontHighlightSmall", {0.65, 0.65, 0.65})
+        note:SetPoint("BOTTOMLEFT", 28, 24)
+        note:SetSize(380, 42)
+        note:SetText("This character, since statistics were added.\nIncludes Debug Mode actions; earlier history is not counted.")
+    end
+    RefreshStatistics()
+    Windows.Open(statisticsWindow, Windows.Previous(board, statisticsWindow))
 end
 
 local function ToggleHelp()
@@ -924,7 +978,7 @@ CreateBoard = function()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("Classic Questbook — Alpha V0.6.11 (0.6.11)")
+    title:SetText("Classic Questbook — Alpha V0.6.12 (0.6.12)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")
@@ -956,6 +1010,11 @@ CreateBoard = function()
         GameTooltip:Show()
     end)
     board.help:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    board.statistics = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
+    board.statistics:SetSize(86, 26)
+    board.statistics:SetPoint("TOPRIGHT", -104, -9)
+    board.statistics:SetText("Statistics")
+    board.statistics:SetScript("OnClick", ToggleStatistics)
     table.insert(UISpecialFrames, "WoWForeverQuestboard")
     CreateDebugModeButton(board)
 
@@ -1181,6 +1240,7 @@ SetDebugMode = function(enabled, openBrowser)
 end
 
 Refresh = function()
+    RefreshStatistics()
     if not board or not db then return end
     local resting = Tracking.IsResting()
     local locationAllowed = debugMode or resting

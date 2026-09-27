@@ -2,6 +2,15 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.6.12] - 2026-09-28
+
+### Added
+
+- Statistics button opens a toggleable, nested Statistics window with quests accepted, handed in, and abandoned.
+- A plus/minus expansion beside quests handed in shows successful completions by Kill, Collect & Sell, Hunt, and Gather category, saved per character.
+- Per-character counters persist across sessions and update only on successful lifecycle actions. Cancelled confirmations, denied actions, ready-state transitions, and reloads do not add counts.
+- Totals begin when this feature is installed, include Debug Mode actions, and are independent of the limited recent-completion history.
+
 ## [0.6.11] - 2026-09-28
 
 ### Changed

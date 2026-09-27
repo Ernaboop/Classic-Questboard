@@ -423,6 +423,15 @@ local function cards()
     return result
 end
 local cs = cards()
+board.statistics.scripts.OnClick()
+local statsWindow = WoWForeverStatistics
+check(statsWindow:IsShown() and statsWindow.values.accepted.text == '0', 'statistics window opens with starting totals')
+statsWindow.expand.scripts.OnClick(statsWindow.expand)
+check(statsWindow.categories:IsShown() and statsWindow.categoryValues.Hunt.text == '0', 'plus expands category completion totals')
+statsWindow.expand.scripts.OnClick(statsWindow.expand)
+check(not statsWindow.categories:IsShown() and statsWindow.expand.text == '+', 'minus collapses category completion totals')
+board.statistics.scripts.OnClick()
+check(not statsWindow:IsShown(), 'statistics button toggles window closed')
 board.help.scripts.OnClick()
 check(WoWForeverHelp:IsShown(), 'help button opens help window')
 board.help.scripts.OnClick()
@@ -508,9 +517,11 @@ local pending = WoWForeverDB.activeQuest
 cs[2].button.scripts.OnClick()
 local dialog = WoWForeverAbandonDialog
 check(dialog:IsShown() and WoWForeverDB.activeQuest == pending, 'abandon waits for confirmation')
+local abandonedBeforeCancel = WoWForeverDB.statistics.abandoned
 dialog.skip:SetChecked(true); dialog.cancel.scripts.OnClick()
 check(WoWForeverDB.activeQuest == pending and WoWForeverDB.settings.showAbandonConfirmation,
     'cancel preserves active quest and does not save opt-out')
+check(WoWForeverDB.statistics.abandoned == abandonedBeforeCancel, 'cancel does not count abandonment')
 cs[2].button.scripts.OnClick(); dialog.skip:SetChecked(true); dialog.confirm.scripts.OnClick()
 check(not WoWForeverDB.activeQuest and not WoWForeverDB.settings.showAbandonConfirmation,
     'confirmed opt-out is saved')
@@ -534,6 +545,8 @@ resting = false; realNS.Tracking.OnEvent('PLAYER_UPDATE_RESTING'); cs[1].button.
 check(WoWForeverDB.activeQuest == active, 'ready card cannot turn in outside rest')
 resting = true; realNS.Tracking.OnEvent('PLAYER_UPDATE_RESTING'); cs[1].button.scripts.OnClick()
 check(not WoWForeverDB.activeQuest and board.reroll.enabled and #WoWForeverDB.completedQuests == 1, 'manual turn-in returns to three selectable cards')
+check(statsWindow.values.handedIn.text == '1' and statsWindow.categoryValues[active.categoryName].text == '1',
+    'statistics total and category refresh after successful turn-in')
 check(WoWForeverDB.displayedQuests == originalOffers and originalOffers[1] ~= active
     and originalOffers[2] == beforeAbandon[2] and originalOffers[3] == beforeAbandon[3],
     'turn-in replaces only completed slot and preserves other offer objects')
@@ -781,4 +794,39 @@ T.Initialize(saved, function(v) return v.tracking end, function() end); T.OnEven
 hit('saved', 'Kobold Miner'); units.target.dead = true; T.PollKills()
 check(q.progress.count == 5, 'saved GUID prevents duplicate kill credit after reload')
 check(not frames[1].registered.COMBAT_LOG_EVENT_UNFILTERED, 'no kill tracker uses restricted combat-log registration')
+fresh(); q = quest({kind = 'kill', targets = {'Kobold Miner'}}); q.categoryName = 'Kill'
+resting = false
+check(not T.Accept(q) and saved.statistics.accepted == 0, 'failed acceptance does not count')
+resting = true; T.Accept(q)
+check(saved.statistics.accepted == 1 and not T.Accept(q) and saved.statistics.accepted == 1, 'acceptance counts exactly once')
+T.DebugAddProgress(true); T.DebugAddProgress(true)
+check(saved.statistics.handedIn == 0, 'ready state does not count as handed in')
+resting = false
+check(not T.TurnIn() and saved.statistics.handedIn == 0, 'failed turn-in does not count')
+T.Abandon()
+check(saved.statistics.abandoned == 1 and saved.statistics.completedByCategory.Kill == 0, 'abandoning ready quest does not count completion')
+check(not T.Abandon() and saved.statistics.abandoned == 1, 'repeated abandonment does not count')
+resting = true
+for _, category in ipairs({'Kill', 'Collect & Sell', 'Hunt', 'Gather'}) do
+    q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 1); q.categoryName = category
+    T.Accept(q); T.DebugAddProgress(true); T.TurnIn()
+    check(saved.statistics.completedByCategory[category] == 1, 'completion category counted: ' .. category)
+end
+for _ = 1, 24 do
+    q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 1); q.categoryName = 'Kill'
+    T.Accept(q); T.DebugAddProgress(true); T.TurnIn()
+end
+check(saved.statistics.handedIn == 28 and saved.statistics.completedByCategory.Kill == 25 and #saved.completedQuests == 20,
+    'statistics persist independently of recent completion history limit')
+local statsSnapshot = T.GetStatistics()
+T.Initialize(saved, function(v) return v.tracking end, function() end)
+check(saved.statistics.accepted == 29 and saved.statistics.abandoned == 1 and saved.statistics.handedIn == 28,
+    'statistics survive initialization without recounting history')
+statsSnapshot.completedByCategory.Kill = 0
+check(saved.statistics.completedByCategory.Kill == 25, 'statistics snapshots do not expose mutable saved counters')
+saved.statistics = {accepted = -2, handedIn = math.huge, abandoned = 'bad', completedByCategory = {Kill = -1, Hunt = '3'}}
+T.Initialize(saved, function(v) return v.tracking end, function() end)
+check(saved.statistics.accepted == 0 and saved.statistics.handedIn == 0 and saved.statistics.abandoned == 0
+    and saved.statistics.completedByCategory.Kill == 0 and saved.statistics.completedByCategory.Hunt == 3,
+    'malformed statistics repaired safely')
 print('PASS: ' .. passed .. ' tracking and UI assertions (Lua 5.1)')
