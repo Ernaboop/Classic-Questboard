@@ -9,17 +9,42 @@ local database = {
         {
             id = "kill", name = "Kill", source = "A local guard",
             objectives = {
-                {id = "kobold_tunneler", name = "Kobold Tunneler", level = "5-6", minAmount = 8, maxAmount = 12, location = "Fargodeep Mine"},
-                {id = "murloc_streamrunner", name = "Murloc Streamrunner", level = "6-7", minAmount = 7, maxAmount = 11, location = "Crystal Lake"},
-                {id = "riverpaw_outrunner", name = "Riverpaw Outrunner", level = "9-10", minAmount = 5, maxAmount = 8, location = "south of Eastvale"},
+                {id = "kobold_vermin", name = "Kobold Vermin", level = "1-2", minPlayerLevel = 1, maxPlayerLevel = 3, minAmount = 8, maxAmount = 12, location = "Northshire Valley"},
+                {id = "young_wolf", name = "Young Wolf", level = "1", minPlayerLevel = 1, maxPlayerLevel = 3, minAmount = 8, maxAmount = 12, location = "Northshire and the western woods"},
+                {id = "timber_wolf", name = "Timber Wolf", level = "2", minPlayerLevel = 1, maxPlayerLevel = 3, minAmount = 7, maxAmount = 10, location = "Northshire and the western woods"},
+                {id = "defias_thug", name = "Defias Thug", level = "3-4", minPlayerLevel = 2, maxPlayerLevel = 4, minAmount = 6, maxAmount = 9, location = "the vineyards north of Goldshire"},
+                {id = "kobold_laborer", name = "Kobold Laborer", level = "3-4", minPlayerLevel = 2, maxPlayerLevel = 4, minAmount = 6, maxAmount = 9, location = "the kobold camps north of Goldshire"},
+                {id = "forest_spider", name = "Forest Spider", level = "5-6", minPlayerLevel = 4, maxPlayerLevel = 6, minAmount = 6, maxAmount = 9, location = "the woods around Goldshire"},
+                {id = "kobold_tunneler", name = "Kobold Tunneler", level = "5-6", minPlayerLevel = 4, maxPlayerLevel = 7, minAmount = 8, maxAmount = 12, location = "Fargodeep Mine"},
+                {id = "kobold_miner", name = "Kobold Miner", level = "6-7", minPlayerLevel = 5, maxPlayerLevel = 7, minAmount = 7, maxAmount = 10, location = "Fargodeep Mine"},
+                {id = "stonetusk_boar", name = "Stonetusk Boar", level = "5-6", minPlayerLevel = 4, maxPlayerLevel = 7, minAmount = 6, maxAmount = 9, location = "Stonefield and Maclure farms"},
+                {id = "defias_cutpurse", name = "Defias Cutpurse", level = "5-6", minPlayerLevel = 4, maxPlayerLevel = 7, minAmount = 6, maxAmount = 9, location = "the roads east of Goldshire"},
+                {id = "murloc_streamrunner", name = "Murloc Streamrunner", level = "6-7", minPlayerLevel = 5, maxPlayerLevel = 7, minAmount = 7, maxAmount = 11, location = "Crystal Lake"},
+                {id = "gray_forest_wolf", name = "Gray Forest Wolf", level = "7-8", minPlayerLevel = 6, maxPlayerLevel = 9, minAmount = 5, maxAmount = 8, location = "the eastern woods"},
+                {id = "riverpaw_runt", name = "Riverpaw Runt", level = "8-9", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 5, maxAmount = 8, location = "the Hogger camp"},
+                {id = "young_forest_bear", name = "Young Forest Bear", level = "8-9", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 5, maxAmount = 8, location = "the eastern woods"},
+                {id = "murloc_lurker", name = "Murloc Lurker", level = "9-10", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 5, maxAmount = 8, location = "the eastern shore of Crystal Lake"},
+                {id = "murloc_forager", name = "Murloc Forager", level = "9-10", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 5, maxAmount = 8, location = "Crystal Lake"},
+                {id = "prowler", name = "Prowler", level = "9-10", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 4, maxAmount = 7, location = "the eastern woods"},
+                {id = "riverpaw_outrunner", name = "Riverpaw Outrunner", level = "9-10", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 5, maxAmount = 8, location = "south of Eastvale"},
+                {id = "defias_bandit", name = "Defias Bandit", level = "8-9", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 5, maxAmount = 8, location = "Brackwell Pumpkin Patch"},
+                {id = "defias_rogue_wizard", name = "Defias Rogue Wizard", level = "9-10", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 4, maxAmount = 7, location = "Jasperlode Mine"},
             },
         },
         {
             id = "collect_sell", name = "Collect & Sell", source = "A local trader",
             objectives = {
-                {id = "kobold_spoils", name = "Kobold Spoils", target = "Kobold Workers, Tunnelers, and Miners", level = "5-7", minAmount = 4, maxAmount = 6, location = "Fargodeep Mine"},
-                {id = "murloc_spoils", name = "Murloc Spoils", target = "Murlocs", level = "6-10", minAmount = 3, maxAmount = 5, location = "Crystal Lake"},
-                {id = "riverpaw_spoils", name = "Riverpaw Spoils", target = "Riverpaw Gnolls", level = "8-10", minAmount = 3, maxAmount = 5, location = "the eastern roads"},
+                {id = "northshire_kobold_loot", name = "Kobold Camp Loot", target = "Kobold Vermin and Laborers", level = "1-4", minPlayerLevel = 1, maxPlayerLevel = 3, minAmount = 3, maxAmount = 5, location = "Northshire Valley"},
+                {id = "young_wolf_meat", name = "Meat from the Western Woods", target = "Young Wolves and Timber Wolves", item = "Tough Wolf Meat", level = "1-2", minPlayerLevel = 1, maxPlayerLevel = 3, minAmount = 3, maxAmount = 5, location = "Northshire and the western woods"},
+                {id = "defias_thug_loot", name = "Thieves' Pockets", target = "Defias Thugs", level = "3-4", minPlayerLevel = 2, maxPlayerLevel = 4, minAmount = 3, maxAmount = 5, location = "the vineyards north of Goldshire"},
+                {id = "fargodeep_kobold_loot", name = "Fargodeep Mine Spoils", target = "Kobold Tunnelers and Miners", level = "5-7", minPlayerLevel = 4, maxPlayerLevel = 7, minAmount = 4, maxAmount = 6, location = "Fargodeep Mine"},
+                {id = "stonetusk_boar_meat", name = "Boar Meat for the Market", target = "Stonetusk Boars", item = "Chunk of Boar Meat", level = "5-6", minPlayerLevel = 4, maxPlayerLevel = 7, minAmount = 4, maxAmount = 7, location = "Stonefield and Maclure farms"},
+                {id = "crystal_lake_murloc_loot", name = "Crystal Lake Salvage", target = "Murlocs and Streamrunners", level = "6-7", minPlayerLevel = 5, maxPlayerLevel = 7, minAmount = 3, maxAmount = 5, location = "Crystal Lake"},
+                {id = "eastern_wolf_loot", name = "Eastern Wolf Pelts", target = "Gray Forest Wolves and Young Forest Bears", level = "7-9", minPlayerLevel = 6, maxPlayerLevel = 10, minAmount = 3, maxAmount = 5, location = "the eastern woods"},
+                {id = "riverpaw_runt_loot", name = "Hogger Camp Spoils", target = "Riverpaw Runts", level = "8-9", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 3, maxAmount = 5, location = "the Hogger camp"},
+                {id = "murloc_forager_loot", name = "Murloc Forager Supplies", target = "Murloc Foragers and Lurkers", level = "9-10", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 3, maxAmount = 5, location = "Crystal Lake"},
+                {id = "brackwell_defias_loot", name = "Brackwell Salvage", target = "Defias Bandits", level = "8-9", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 3, maxAmount = 5, location = "Brackwell Pumpkin Patch"},
+                {id = "riverpaw_outrunner_loot", name = "Eastern Road Spoils", target = "Riverpaw Outrunners", level = "9-10", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 3, maxAmount = 5, location = "south of Eastvale"},
             },
         },
         {
@@ -28,15 +53,18 @@ local database = {
                 {
                     id = "rare", name = "Rare target",
                     objectives = {
-                        {id = "narg", name = "Narg the Taskmaster", level = "10", minAmount = 1, maxAmount = 1, location = "outside Fargodeep Mine", rarity = "Rare"},
-                        {id = "morgaine", name = "Morgaine the Sly", level = "10", minAmount = 1, maxAmount = 1, location = "near the river to Westfall", rarity = "Rare"},
-                        {id = "fedfennel", name = "Fedfennel", level = "12", minAmount = 1, maxAmount = 1, location = "northeast Elwynn Forest", rarity = "Rare"},
+                        {id = "narg", name = "Narg the Taskmaster", level = "10", minPlayerLevel = 8, maxPlayerLevel = 10, minAmount = 1, maxAmount = 1, location = "outside Fargodeep Mine", rarity = "Rare"},
+                        {id = "morgaine", name = "Morgaine the Sly", level = "10", minPlayerLevel = 8, maxPlayerLevel = 10, minAmount = 1, maxAmount = 1, location = "near the river to Westfall", rarity = "Rare"},
+                        {id = "fedfennel", name = "Fedfennel", level = "12", minPlayerLevel = 10, maxPlayerLevel = 12, minAmount = 1, maxAmount = 1, location = "Stone Cairn Lake", rarity = "Rare"},
+                        {id = "gruff_swiftbite", name = "Gruff Swiftbite", level = "12", minPlayerLevel = 10, maxPlayerLevel = 12, minAmount = 1, maxAmount = 1, location = "the Hogger camp", rarity = "Rare"},
                     },
                 },
                 {
                     id = "elite", name = "Elite targets",
                     objectives = {
-                        {id = "mine_spider", name = "Mine Spider", level = "7-9", minAmount = 3, maxAmount = 5, location = "Jasperlode Mine", rarity = "Elite"},
+                        {id = "mine_spider", name = "Mine Spider", level = "7-9", minPlayerLevel = 6, maxPlayerLevel = 9, minAmount = 3, maxAmount = 5, location = "Jasperlode Mine", rarity = "Elite"},
+                        {id = "mother_fang", name = "Mother Fang", level = "7-10", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 1, maxAmount = 1, location = "Jasperlode Mine", rarity = "Elite"},
+                        {id = "hogger", name = "Hogger", level = "11", minPlayerLevel = 9, maxPlayerLevel = 12, minAmount = 1, maxAmount = 1, location = "the Hogger camp", rarity = "Elite"},
                     },
                 },
             },
@@ -47,34 +75,37 @@ local database = {
             id = "herbalism", name = "Herbalism",
             skillLine = 182,
             objectives = {
-                {id = "peacebloom", name = "Peacebloom", level = "Gathering skill 1", minAmount = 4, maxAmount = 8, location = "throughout Elwynn Forest"},
-                {id = "silverleaf", name = "Silverleaf", level = "Gathering skill 1", minAmount = 4, maxAmount = 8, location = "near trees and shaded areas"},
-                {id = "earthroot", name = "Earthroot", level = "Gathering skill 15", minAmount = 3, maxAmount = 5, location = "hillsides and rocky ground"},
+                {id = "peacebloom", name = "Peacebloom", level = "Herbalism 1", minPlayerLevel = 1, maxPlayerLevel = 5, minAmount = 4, maxAmount = 8, location = "throughout Elwynn Forest"},
+                {id = "silverleaf", name = "Silverleaf", level = "Herbalism 1", minPlayerLevel = 1, maxPlayerLevel = 7, minAmount = 4, maxAmount = 8, location = "near trees and shaded areas"},
+                {id = "earthroot", name = "Earthroot", level = "Herbalism 15", minPlayerLevel = 3, maxPlayerLevel = 9, minAmount = 3, maxAmount = 5, location = "hillsides and rocky ground"},
+                {id = "mageroyal", name = "Mageroyal", level = "Herbalism 50", minPlayerLevel = 6, maxPlayerLevel = 12, minAmount = 2, maxAmount = 4, location = "the more open eastern fields"},
             },
         },
         {
             id = "mining", name = "Mining",
             skillLine = 186,
             objectives = {
-                {id = "copper_ore", name = "Copper Ore", level = "Mining skill 1", minAmount = 5, maxAmount = 9, location = "hillsides and rocky ground"},
-                {id = "rough_stone", name = "Rough Stone", level = "Mining skill 1", minAmount = 5, maxAmount = 9, location = "from Copper Veins"},
+                {id = "copper_ore", name = "Copper Ore", level = "Mining 1", minPlayerLevel = 1, maxPlayerLevel = 12, minAmount = 5, maxAmount = 9, location = "Copper Veins throughout Elwynn Forest"},
+                {id = "rough_stone", name = "Rough Stone", level = "Mining 1", minPlayerLevel = 1, maxPlayerLevel = 12, minAmount = 5, maxAmount = 9, location = "from Copper Veins throughout Elwynn Forest"},
+                {id = "copper_vein_prospecting", name = "Copper Vein Prospecting", level = "Mining 1", minPlayerLevel = 1, maxPlayerLevel = 12, minAmount = 3, maxAmount = 5, location = "Copper Veins throughout Elwynn Forest", target = "Copper Veins"},
             },
         },
         {
             id = "skinning", name = "Skinning",
             skillLine = 393,
             objectives = {
-                {id = "ruined_leather_scraps", name = "Ruined Leather Scraps", level = "Skinning skill 1", minAmount = 4, maxAmount = 8, location = "skinnable beasts throughout Elwynn"},
-                {id = "light_leather", name = "Light Leather", level = "Skinning skill 1", minAmount = 3, maxAmount = 5, location = "skinnable beasts throughout Elwynn"},
+                {id = "ruined_leather_scraps", name = "Ruined Leather Scraps", level = "Skinning 1", minPlayerLevel = 1, maxPlayerLevel = 5, minAmount = 4, maxAmount = 8, location = "skinnable low-level creatures in western Elwynn"},
+                {id = "stonefield_light_leather", name = "Light Leather from Boars", level = "Skinning 1", minPlayerLevel = 4, maxPlayerLevel = 8, minAmount = 3, maxAmount = 5, location = "Stonetusk Boars at Stonefield and Maclure farms"},
+                {id = "eastern_light_leather", name = "Light Leather from Forest Beasts", level = "Skinning 1", minPlayerLevel = 7, maxPlayerLevel = 10, minAmount = 3, maxAmount = 5, location = "wolves, bears, and prowlers in eastern Elwynn"},
             },
         },
         {
             id = "fishing", name = "Fishing",
             skillLine = 356,
             objectives = {
-                {id = "brilliant_smallfish", name = "Raw Brilliant Smallfish", level = "Fishing skill 1", minAmount = 5, maxAmount = 9, location = "lakes and rivers"},
-                {id = "longjaw_mud_snapper", name = "Raw Longjaw Mud Snapper", level = "Fishing skill 50", minAmount = 4, maxAmount = 8, location = "lakes and rivers"},
-                {id = "bristle_whisker_catfish", name = "Raw Bristle Whisker Catfish", level = "Fishing skill 100", minAmount = 2, maxAmount = 4, location = "Wildbend River"},
+                {id = "brilliant_smallfish", name = "Raw Brilliant Smallfish", level = "Fishing 1", minPlayerLevel = 1, maxPlayerLevel = 5, minAmount = 5, maxAmount = 9, location = "lakes and rivers"},
+                {id = "longjaw_mud_snapper", name = "Raw Longjaw Mud Snapper", level = "Fishing 50", minPlayerLevel = 4, maxPlayerLevel = 8, minAmount = 4, maxAmount = 8, location = "lakes and rivers"},
+                {id = "bristle_whisker_catfish", name = "Raw Bristle Whisker Catfish", level = "Fishing 100", minPlayerLevel = 7, maxPlayerLevel = 12, minAmount = 2, maxAmount = 4, location = "Wildbend River"},
             },
         },
     },
@@ -137,11 +168,34 @@ local function CategoryOptions(includeUnlearned)
     return result
 end
 
-local function ObjectiveOptions(category, branch)
+local function CurrentPlayerLevel()
+    return type(UnitLevel) == "function" and UnitLevel("player") or 1
+end
+
+local function ProgressionBand(level)
+    if level <= 3 then return "Early" end
+    if level <= 6 then return "Mid" end
+    if level <= 12 then return "Late" end
+    return "Beyond Elwynn"
+end
+
+local function EligibleObjectives(objectives, playerLevel)
+    local result = {}
+    playerLevel = playerLevel or CurrentPlayerLevel()
+    for _, objective in ipairs(objectives or {}) do
+        if type(objective.minPlayerLevel) == "number" and type(objective.maxPlayerLevel) == "number"
+            and playerLevel >= objective.minPlayerLevel and playerLevel <= objective.maxPlayerLevel then
+            result[#result + 1] = objective
+        end
+    end
+    return result
+end
+
+local function ObjectiveOptions(category, branch, playerLevel)
     if not category then return {} end
-    if category.id == "hunt" then return branch and branch.objectives or {} end
-    if category.profession then return category.profession.objectives end
-    return category.objectives or {}
+    if category.id == "hunt" then return EligibleObjectives(branch and branch.objectives, playerLevel) end
+    if category.profession then return EligibleObjectives(category.profession.objectives, playerLevel) end
+    return EligibleObjectives(category.objectives, playerLevel)
 end
 
 local function BuildQuest(category, branch, objective, amount)
@@ -154,7 +208,7 @@ local function BuildQuest(category, branch, objective, amount)
     if category.id == "kill" then
         action = "Travel to " .. objective.location .. " and defeat " .. amount .. " " .. target .. "."
     elseif category.id == "collect_sell" then
-        action = "Collect " .. amount .. " vendor-value item" .. (amount == 1 and "" or "s") .. " from " .. target .. " near " .. objective.location .. ", then sell the items to a vendor."
+        action = "Collect " .. amount .. " " .. (objective.item or "vendor-value item") .. (amount == 1 and "" or "s") .. " from " .. target .. " near " .. objective.location .. ", then sell them to a vendor."
     elseif category.id == "hunt" and branch.id == "rare" then
         action = "Find and defeat " .. target .. ", a level " .. objective.level .. " " .. objective.rarity .. " target, " .. location .. "."
     elseif category.id == "hunt" then
@@ -182,16 +236,36 @@ local function BuildQuest(category, branch, objective, amount)
         branchId = branch and branch.id,
         professionId = category.profession and category.profession.id,
         amount = amount,
+        minPlayerLevel = objective.minPlayerLevel,
+        maxPlayerLevel = objective.maxPlayerLevel,
     }
 end
 
-local function GenerateQuest()
-    local categories = CategoryOptions(false)
+local function GenerateQuest(playerLevel)
+    playerLevel = playerLevel or CurrentPlayerLevel()
+    local categories = {}
+    for _, candidate in ipairs(CategoryOptions(false)) do
+        if candidate.id == "hunt" then
+            local hasEligible = false
+            for _, branchOption in ipairs(candidate.branches) do
+                if #ObjectiveOptions(candidate, branchOption, playerLevel) > 0 then hasEligible = true; break end
+            end
+            if hasEligible then categories[#categories + 1] = candidate end
+        elseif #ObjectiveOptions(candidate, nil, playerLevel) > 0 then
+            categories[#categories + 1] = candidate
+        end
+    end
     local category = RandomFrom(categories)
     if not category then return nil end
     local branch
-    if category.id == "hunt" then branch = RandomFrom(category.branches) end
-    local objective = RandomFrom(ObjectiveOptions(category, branch))
+    if category.id == "hunt" then
+        local branches = {}
+        for _, option in ipairs(category.branches) do
+            if #ObjectiveOptions(category, option, playerLevel) > 0 then branches[#branches + 1] = option end
+        end
+        branch = RandomFrom(branches)
+    end
+    local objective = RandomFrom(ObjectiveOptions(category, branch, playerLevel))
     if not objective then return nil end
     return BuildQuest(category, branch, objective, RollAmount(objective))
 end
@@ -225,7 +299,7 @@ local function ValidQuest(quest)
 end
 
 local function ValidDisplayedQuests(displayed)
-    if type(displayed) ~= "table" or #displayed ~= 3 then return false end
+    if type(displayed) ~= "table" or #displayed > 3 then return false end
     local seen = {}
     for _, quest in ipairs(displayed) do
         if not ValidQuest(quest) or seen[quest.id] then return false end
@@ -234,7 +308,7 @@ local function ValidDisplayedQuests(displayed)
     return true
 end
 
-local debugState = {layer = 1, categoryIndex = 1, branchIndex = 1, objectiveIndex = 1, amountIndex = 1}
+local debugState = {layer = 1, categoryIndex = 1, branchIndex = 1, objectiveIndex = 1, amountIndex = 1, testLevel = CurrentPlayerLevel()}
 
 local function DebugSelection()
     local categories = CategoryOptions(true)
@@ -244,7 +318,7 @@ local function DebugSelection()
     if category.id == "hunt" then
         branch = category.branches[debugState.branchIndex]
     end
-    local objectives = ObjectiveOptions(category, branch)
+    local objectives = ObjectiveOptions(category, branch, debugState.testLevel)
     local objective = objectives[debugState.objectiveIndex]
     return categories, category, branch, objectives, objective
 end
@@ -329,20 +403,35 @@ local function RenderDebug()
     debugPanel.layer:SetText("Layer " .. debugState.layer .. " of " .. count .. "  |  " .. (layerName or ""))
     debugPanel.selection:SetText(selected)
     debugPanel.position:SetText("Option " .. selectionIndex .. " of " .. #options)
+    debugPanel.testLevel:SetText("Test level " .. debugState.testLevel .. " (" .. ProgressionBand(debugState.testLevel) .. ")")
 
     local detail
     if debugState.layer == 1 then
         local available = CategoryOptions(false)
         local availableNames = {}
         for _, item in ipairs(available) do availableNames[#availableNames + 1] = item.name end
+        local levelAvailable = {}
+        for _, item in ipairs(CategoryOptions(true)) do
+            if item.id == "hunt" then
+                for _, huntBranch in ipairs(item.branches) do
+                    if #ObjectiveOptions(item, huntBranch, debugState.testLevel) > 0 then
+                        levelAvailable[#levelAvailable + 1] = item.name .. " — " .. huntBranch.name
+                    end
+                end
+            elseif #ObjectiveOptions(item, nil, debugState.testLevel) > 0 then
+                levelAvailable[#levelAvailable + 1] = item.name
+            end
+        end
         detail = category.id == "hunt"
             and "Hunt randomly branches to a Rare target or Elite targets; the next layer chooses the target."
             or "Generator order: choose a category, then an objective, then roll an amount inside that objective's range."
-        detail = detail .. "\n\nAvailable to this character: " .. table.concat(availableNames, ", ")
+        detail = detail .. "\n\nAvailable to this character: " .. table.concat(availableNames, ", ") ..
+            "\nEligible at test level: " .. table.concat(levelAvailable, ", ")
         if category.locked then detail = detail .. "\n\nThis gathering profession is not learned, so normal generation skips it." end
     elseif objective then
         detail = "Objective: " .. objective.name ..
             "\nLevel or skill: " .. objective.level ..
+            "\nEligible player level: " .. objective.minPlayerLevel .. "-" .. objective.maxPlayerLevel .. " (" .. ProgressionBand(objective.minPlayerLevel) .. " to " .. ProgressionBand(objective.maxPlayerLevel) .. ")" ..
             "\nElwynn location: " .. objective.location ..
             "\nAllowed amount range: " .. objective.minAmount .. "-" .. objective.maxAmount
         if category.id == "collect_sell" then
@@ -357,12 +446,15 @@ local function RenderDebug()
     else
         detail = "No objectives are available for this layer."
     end
+    detail = "Test level " .. debugState.testLevel .. " (" .. ProgressionBand(debugState.testLevel) .. "); character level " .. CurrentPlayerLevel() .. "\n\n" .. detail
     debugPanel.details:SetText(detail)
 
     debugPanel.previousOption:SetEnabled(#options > 1)
     debugPanel.nextOption:SetEnabled(#options > 1)
     debugPanel.previousLayer:SetEnabled(debugState.layer > 1)
     debugPanel.nextLayer:SetEnabled(debugState.layer < count)
+    debugPanel.levelDown:SetEnabled(debugState.testLevel > 1)
+    debugPanel.levelUp:SetEnabled(debugState.testLevel < 12)
     debugPanel.previewButton:SetEnabled(objective ~= nil)
 end
 
@@ -397,6 +489,12 @@ local function ChangeDebugLayer(delta)
     RenderDebug()
 end
 
+local function ChangeDebugLevel(delta)
+    debugState.testLevel = math.min(12, math.max(1, debugState.testLevel + delta))
+    debugState.branchIndex, debugState.objectiveIndex, debugState.amountIndex = 1, 1, 1
+    RenderDebug()
+end
+
 local function CreateBoard()
     board = CreateFrame("Frame", "WoWForeverQuestboard", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     board:SetSize(840, 570)
@@ -412,7 +510,7 @@ local function CreateBoard()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 24, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.2.2 (0.2.2)")
+    title:SetText("WoW Forever | Questboard — Alpha V0.3 (0.3.0)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Elwynn Forest commissions, assembled from category, objective, and amount.")
@@ -452,6 +550,7 @@ local function CreateBoard()
         card.button:SetScript("OnClick", function()
             if db.activeQuest then return end
             local quest = db.displayedQuests[offerIndex]
+            if not quest then return end
             db.activeQuest = quest
             db.displayedQuests = PickDisplayedQuests()
             Refresh()
@@ -503,9 +602,21 @@ local function CreateBoard()
     debugPanel.selection:SetSize(740, 30)
     debugPanel.position = Text(debugPanel, "GameFontHighlightSmall")
     debugPanel.position:SetPoint("TOPLEFT", 22, -140)
+    debugPanel.testLevel = Text(debugPanel, "GameFontHighlight")
+    debugPanel.testLevel:SetPoint("TOPRIGHT", -146, -137)
+    debugPanel.levelDown = CreateFrame("Button", nil, debugPanel, "UIPanelButtonTemplate")
+    debugPanel.levelDown:SetSize(36, 24)
+    debugPanel.levelDown:SetPoint("TOPRIGHT", -102, -133)
+    debugPanel.levelDown:SetText("-")
+    debugPanel.levelDown:SetScript("OnClick", function() ChangeDebugLevel(-1) end)
+    debugPanel.levelUp = CreateFrame("Button", nil, debugPanel, "UIPanelButtonTemplate")
+    debugPanel.levelUp:SetSize(36, 24)
+    debugPanel.levelUp:SetPoint("TOPRIGHT", -58, -133)
+    debugPanel.levelUp:SetText("+")
+    debugPanel.levelUp:SetScript("OnClick", function() ChangeDebugLevel(1) end)
     debugPanel.details = Text(debugPanel, "GameFontHighlight")
-    debugPanel.details:SetPoint("TOPLEFT", 22, -170)
-    debugPanel.details:SetSize(744, 116)
+    debugPanel.details:SetPoint("TOPLEFT", 22, -174)
+    debugPanel.details:SetSize(744, 108)
     debugPanel.previousOption = CreateFrame("Button", nil, debugPanel, "UIPanelButtonTemplate")
     debugPanel.previousOption:SetSize(126, 26)
     debugPanel.previousOption:SetPoint("BOTTOMLEFT", 22, 54)
@@ -564,19 +675,19 @@ end
 Refresh = function()
     for index, card in ipairs(cards) do
         local quest = db.displayedQuests[index]
-        local accepted = db.activeQuest and db.activeQuest.id == quest.id
-        card.heading:SetText(quest.title)
-        card.meta:SetText(quest.kind .. "  |  " .. quest.zone .. "\nLevel or skill: " .. quest.level .. "  |  " .. quest.source)
-        card.story:SetText(quest.description)
-        card.objective:SetText("Your objective\n|cffffffff" .. quest.objective .. "|r")
-        card.prompt:SetText("Roleplay prompt\n|cffffffff" .. quest.prompt .. "|r")
-        card.button:SetText(accepted and "Accepted" or (db.activeQuest and "Unavailable" or "Accept objective"))
-        card.button:SetEnabled(not db.activeQuest)
+        local accepted = quest and db.activeQuest and db.activeQuest.id == quest.id
+        card.heading:SetText(quest and quest.title or "No suitable quest")
+        card.meta:SetText(quest and (quest.kind .. "  |  " .. quest.zone .. "\nLevel or skill: " .. quest.level .. "  |  " .. quest.source) or "Elwynn Forest")
+        card.story:SetText(quest and quest.description or "No objectives match your current level and known professions.")
+        card.objective:SetText(quest and ("Your objective\n|cffffffff" .. quest.objective .. "|r") or "")
+        card.prompt:SetText(quest and ("Roleplay prompt\n|cffffffff" .. quest.prompt .. "|r") or "")
+        card.button:SetText(not quest and "Unavailable" or (accepted and "Accepted" or (db.activeQuest and "Unavailable" or "Accept objective")))
+        card.button:SetEnabled(quest ~= nil and not db.activeQuest)
         card.marker:SetText(accepted and "YOUR ACTIVE OBJECTIVE" or "")
         card:SetBackdropBorderColor(accepted and 0.9 or 0.36, accepted and 0.3 or 0.3, accepted and 0.16 or 0.16, 1)
     end
     local active = db.activeQuest
-    board.status:SetText(active and ("Active: " .. active.title) or "Choose one notice to begin your adventure.")
+    board.status:SetText(active and ("Active: " .. active.title) or (#db.displayedQuests == 0 and "No Elwynn objectives match your current level and known professions." or "Choose one notice to begin your adventure."))
     board.release:SetEnabled(active ~= nil)
 end
 
@@ -586,6 +697,10 @@ events:SetScript("OnEvent", function(self, event, loaded)
     if loaded ~= addonName then return end
     WoWForeverDB = type(WoWForeverDB) == "table" and WoWForeverDB or {}
     db = WoWForeverDB
+    if db.generatorDataVersion ~= "0.3.0" then
+        db.displayedQuests = nil
+        db.generatorDataVersion = "0.3.0"
+    end
     if not ValidQuest(db.activeQuest) then db.activeQuest = nil end
     if db.activeQuest then db.activeQuestId = nil end
     if not ValidDisplayedQuests(db.displayedQuests) then db.displayedQuests = PickDisplayedQuests() end

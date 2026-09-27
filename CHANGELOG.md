@@ -2,6 +2,20 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.3.0] - 2026-09-27
+
+### Added
+
+- Expanded the Elwynn Forest objective pools across early, mid, and late zone progression for Kill, Collect & Sell, Hunt, and each gathering profession.
+- Added per-objective player-level eligibility and level-aware category, branch, and objective selection.
+- Added level testing to the debug browser, including the selected test level and each objective's eligible level range.
+
+### Changed
+
+- Kept rare hunts at exactly one target and limited elite targets to one or a small group according to the target.
+- Preserved known-profession gating, three distinct quest offers, reroll behavior, and active-quest snapshots while regenerating stale offers for the expanded data.
+- Display an unavailable card when no objective is eligible for the current character level.
+
 ## [0.2.2] - 2026-09-27
 
 ### Changed
