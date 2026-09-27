@@ -2,6 +2,12 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.6.7] - 2026-09-28
+
+### Changed
+
+- Debug Mode now uses a magnifying-glass inspection icon to distinguish it from the Options cog. Existing toggle behavior, tooltip, and active glow are preserved.
+
 ## [0.6.6] - 2026-09-28
 
 ### Changed
