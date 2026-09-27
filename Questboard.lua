@@ -201,6 +201,35 @@ local function EligibleObjectives(objectives, playerLevel)
     return result
 end
 
+-- The browser is an inspection tool, so keep showing a category's nearest
+-- supported band when the selected level falls outside its available ranges.
+local function BrowserObjectives(objectives, playerLevel)
+    local eligible = EligibleObjectives(objectives, playerLevel)
+    if #eligible > 0 then return eligible, playerLevel end
+
+    local closestLevel, closestDistance
+    for _, objective in ipairs(objectives or {}) do
+        local minimum, maximum = objective.minPlayerLevel, objective.maxPlayerLevel
+        if type(minimum) == "number" and type(maximum) == "number" then
+            local candidateLevel
+            if playerLevel < minimum then
+                candidateLevel = minimum
+            elseif playerLevel > maximum then
+                candidateLevel = maximum
+            else
+                candidateLevel = playerLevel
+            end
+            local distance = math.abs(playerLevel - candidateLevel)
+            if not closestDistance or distance < closestDistance
+                or (distance == closestDistance and candidateLevel < closestLevel) then
+                closestLevel, closestDistance = candidateLevel, distance
+            end
+        end
+    end
+    if not closestLevel then return {}, nil end
+    return EligibleObjectives(objectives, closestLevel), closestLevel
+end
+
 local function ObjectiveOptions(category, branch, playerLevel)
     if not category then return {} end
     if category.id == "hunt" then return EligibleObjectives(branch and branch.objectives, playerLevel) end
@@ -364,7 +393,8 @@ local function CreateQuestBrowser()
     questBrowser = CreateFrame("Frame", "WoWForeverQuestBrowser", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     questBrowser:SetSize(680, 510)
     questBrowser:SetPoint("CENTER", UIParent, "CENTER", 100, 0)
-    questBrowser:SetFrameStrata("DIALOG")
+    questBrowser:SetFrameStrata("FULLSCREEN_DIALOG")
+    questBrowser:SetFrameLevel((board and board:GetFrameLevel() or 20) + 20)
     questBrowser:SetClampedToScreen(true)
     questBrowser:SetMovable(true)
     questBrowser:EnableMouse(true)
@@ -502,23 +532,41 @@ RefreshQuestBrowser = function()
     if browserTab == "hunt" then
         local category = BrowserCategory("hunt")
         for _, branch in ipairs(category.branches) do
-            AddSection(branch.name == "Rare target" and "Rare Targets" or "Elite Targets")
-            for _, objective in ipairs(EligibleObjectives(branch.objectives, debugState.testLevel)) do
+            local objectives, effectiveLevel = BrowserObjectives(branch.objectives, debugState.testLevel)
+            local label = branch.name == "Rare target" and "Rare Targets" or "Elite Targets"
+            if effectiveLevel then
+                label = label .. " — Level " .. effectiveLevel
+                if effectiveLevel ~= debugState.testLevel then label = label .. " (requested " .. debugState.testLevel .. ")" end
+            end
+            AddSection(label)
+            for _, objective in ipairs(objectives) do
                 AddObjective(category, branch, objective)
             end
         end
     elseif browserTab == "gather" then
         for _, profession in ipairs(database.gather) do
             local category = BrowserGatherCategory(profession)
-            AddSection(profession.name, profession.icon)
-            for _, objective in ipairs(EligibleObjectives(profession.objectives, debugState.testLevel)) do
+            local objectives, effectiveLevel = BrowserObjectives(profession.objectives, debugState.testLevel)
+            local label = profession.name
+            if effectiveLevel then
+                label = label .. " — Level " .. effectiveLevel
+                if effectiveLevel ~= debugState.testLevel then label = label .. " (requested " .. debugState.testLevel .. ")" end
+            end
+            AddSection(label, profession.icon)
+            for _, objective in ipairs(objectives) do
                 AddObjective(category, nil, objective)
             end
         end
     else
         local category = BrowserCategory(browserTab)
-        AddSection(category.name .. " Objectives — Level " .. debugState.testLevel)
-        for _, objective in ipairs(ObjectiveOptions(category, nil, debugState.testLevel)) do
+        local objectives, effectiveLevel = BrowserObjectives(category.objectives, debugState.testLevel)
+        local label = category.name .. " Objectives"
+        if effectiveLevel then
+            label = label .. " — Level " .. effectiveLevel
+            if effectiveLevel ~= debugState.testLevel then label = label .. " (requested " .. debugState.testLevel .. ")" end
+        end
+        AddSection(label)
+        for _, objective in ipairs(objectives) do
             AddObjective(category, nil, objective)
         end
     end
@@ -530,18 +578,16 @@ RefreshQuestBrowser = function()
     questBrowser.scroll:SetVerticalScroll(0)
 end
 
-local function CreateDebugModeButton()
+local function CreateDebugModeButton(parent)
     if debugModeButton then return end
-    debugModeButton = CreateFrame("Button", "WoWForeverDebugModeButton", UIParent)
-    debugModeButton:SetSize(30, 30)
-    debugModeButton:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 12, -72)
-    debugModeButton:SetFrameStrata("HIGH")
-    debugModeButton:SetFrameLevel(20)
+    debugModeButton = CreateFrame("Button", "WoWForeverDebugModeButton", parent)
+    debugModeButton:SetSize(28, 28)
+    debugModeButton:SetPoint("TOPLEFT", parent, "TOPLEFT", 16, -16)
     debugModeButton:EnableMouse(true)
     debugModeButton.icon = debugModeButton:CreateTexture(nil, "ARTWORK")
     debugModeButton.icon:SetTexture("Interface\\Icons\\INV_Misc_Bug_01")
-    debugModeButton.icon:SetPoint("CENTER")
-    debugModeButton.icon:SetSize(24, 24)
+    debugModeButton.icon:SetPoint("CENTER", debugModeButton, "CENTER", 0, 0)
+    debugModeButton.icon:SetSize(20, 20)
     debugModeButton.active = debugModeButton:CreateTexture(nil, "OVERLAY")
     debugModeButton.active:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
     debugModeButton.active:SetBlendMode("ADD")
@@ -563,6 +609,7 @@ CreateBoard = function()
     board:SetSize(840, 570)
     board:SetPoint("CENTER")
     board:SetFrameStrata("DIALOG")
+    board:SetFrameLevel(20)
     board:SetClampedToScreen(true)
     board:SetMovable(true)
     board:EnableMouse(true)
@@ -572,14 +619,15 @@ CreateBoard = function()
     board:SetBackdrop({bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", tile = true, tileSize = 32, edgeSize = 16, insets = {left = 4, right = 4, top = 4, bottom = 4}})
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", 24, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.4.3 (0.4.3)")
+    title:SetPoint("TOPLEFT", 54, -22)
+    title:SetText("WoW Forever | Questboard — Alpha V0.4.4 (0.4.4)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")
     local close = CreateFrame("Button", nil, board, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -4, -4)
     table.insert(UISpecialFrames, "WoWForeverQuestboard")
+    CreateDebugModeButton(board)
 
     cards = {}
     for index = 1, 3 do
@@ -652,22 +700,25 @@ CreateBoard = function()
         if not debugMode then return end
         CreateQuestBrowser()
         RefreshQuestBrowser()
+        questBrowser:SetFrameLevel(board:GetFrameLevel() + 20)
         questBrowser:Show()
     end)
-    board.release = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
-    board.release:SetSize(142, 26)
-    board.release:SetPoint("RIGHT", board.debugButton, "LEFT", -8, 0)
-    board.release:SetText("Release objective")
-    board.release:SetScript("OnClick", function()
+    board.abandon = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
+    board.abandon:SetSize(142, 26)
+    board.abandon:SetPoint("RIGHT", board.debugButton, "LEFT", -8, 0)
+    board.abandon:SetText("Abandon Quest")
+    board.abandon:SetScript("OnClick", function()
+        if not db.activeQuest then return end
         db.activeQuest = nil
         db.displayedQuests = PickDisplayedQuests()
         Refresh()
     end)
     board.reroll = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
     board.reroll:SetSize(120, 26)
-    board.reroll:SetPoint("RIGHT", board.release, "LEFT", -8, 0)
+    board.reroll:SetPoint("RIGHT", board.abandon, "LEFT", -8, 0)
     board.reroll:SetText("Reroll quests")
     board.reroll:SetScript("OnClick", function()
+        if db.activeQuest then return end
         db.displayedQuests = PickDisplayedQuests()
         Refresh()
     end)
@@ -687,6 +738,7 @@ SetDebugMode = function(enabled, openBrowser)
         if openBrowser then
             CreateQuestBrowser()
             RefreshQuestBrowser()
+            questBrowser:SetFrameLevel(board:GetFrameLevel() + 20)
             questBrowser:Show()
         end
     elseif questBrowser then
@@ -699,6 +751,7 @@ SetDebugMode = function(enabled, openBrowser)
         board.debugLevelUp:SetEnabled(debugState.testLevel < ELWYNN_MAX_LEVEL)
         board.debugLevelControls:SetShown(debugMode)
         board.debugButton:SetShown(debugMode)
+        board.abandon:SetShown(db.activeQuest ~= nil)
     end
 end
 
@@ -711,14 +764,16 @@ Refresh = function()
         card.story:SetText(quest and quest.description or "No objectives match your current level and known professions.")
         card.objective:SetText(quest and ("Your objective\n|cffffffff" .. quest.objective .. "|r") or "")
         card.prompt:SetText(quest and ("Roleplay prompt\n|cffffffff" .. quest.prompt .. "|r") or "")
-        card.button:SetText(not quest and "Unavailable" or (accepted and "Accepted" or (db.activeQuest and "Unavailable" or "Accept objective")))
+        card.button:SetText(not quest and "Unavailable" or (accepted and "Accepted" or (db.activeQuest and "Unavailable" or "Accept Quest")))
         card.button:SetEnabled(quest ~= nil and not db.activeQuest)
         card.marker:SetText(accepted and "YOUR ACTIVE OBJECTIVE" or "")
         card:SetBackdropBorderColor(accepted and 0.9 or 0.36, accepted and 0.3 or 0.3, accepted and 0.16 or 0.16, 1)
     end
     local active = db.activeQuest
     board.status:SetText(active and ("Active: " .. active.title) or (#db.displayedQuests == 0 and "No Elwynn objectives match your current level and known professions." or "Choose one notice to begin your adventure."))
-    board.release:SetEnabled(active ~= nil)
+    board.abandon:SetShown(active ~= nil)
+    board.abandon:SetEnabled(active ~= nil)
+    board.reroll:SetEnabled(active == nil)
 end
 
 local events = CreateFrame("Frame")
@@ -740,7 +795,6 @@ events:SetScript("OnEvent", function(self, event, loaded)
     if db.activeQuest then db.activeQuestId = nil end
     if not ValidDisplayedQuests(db.displayedQuests) then db.displayedQuests = PickDisplayedQuests() end
     CreateMinimapButton()
-    CreateDebugModeButton()
     self:UnregisterEvent("ADDON_LOADED")
 end)
 
@@ -758,6 +812,8 @@ ToggleBoard = function(wantsDebug)
     end
     if not ValidDisplayedQuests(db.displayedQuests) then db.displayedQuests = PickDisplayedQuests() end
     board:SetScale(math.min(1, UIParent:GetWidth() / 880, UIParent:GetHeight() / 610))
+    board.debugLevelControls:SetShown(debugMode)
+    board.debugButton:SetShown(debugMode)
     Refresh()
     board:Show()
 end
@@ -783,7 +839,7 @@ CreateMinimapButton = function()
     minimapButton.icon = minimapButton:CreateTexture(nil, "ARTWORK")
     minimapButton.icon:SetTexture("Interface\\Icons\\INV_Misc_Map_01")
     minimapButton.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    minimapButton.icon:SetSize(18, 18)
+    minimapButton.icon:SetSize(14, 14)
     minimapButton.icon:SetPoint("CENTER", minimapButton, "CENTER", 0, 0)
     minimapButton.border = minimapButton:CreateTexture(nil, "OVERLAY")
     minimapButton.border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")

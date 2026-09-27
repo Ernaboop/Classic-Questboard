@@ -2,6 +2,16 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.4.4] - 2026-09-27
+
+### Fixed
+
+- Disabled quest rerolls while a quest is active and replaced “Release Objective” with “Abandon Quest,” which clears the active quest and refreshes the offers.
+- Moved the Debug Mode toggle into the Questboard header and restored the level selector and Quest Browser button to debug-only visibility.
+- Reduced and centered the minimap icon within its circular button.
+- Put the Quest Browser on a higher frame strata so it stays fully in front of the main Questboard.
+- Made the Quest Browser show the nearest supported objective level band when the selected level has no direct matches, with the effective level in each section heading.
+
 ## [0.4.3] - 2026-09-27
 
 ### Added
