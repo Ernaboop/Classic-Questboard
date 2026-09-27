@@ -2,6 +2,13 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.3.1] - 2026-09-27
+
+### Changed
+
+- Cap normal Elwynn quest generation at the zone maximum level of 12 so overleveled characters continue to receive eligible objectives.
+- Add a debug generation-level override and a generated test-quest preview that does not modify the character level, saved offers, or active quest.
+
 ## [0.3.0] - 2026-09-27
 
 ### Added

@@ -1,6 +1,7 @@
 local addonName = ...
 local board, cards, db, debugPanel
 local Refresh
+local ELWYNN_MAX_LEVEL = 12
 
 -- Amount ranges are deliberately curated per objective. Mob levels and zone
 -- data use the WoW Forever Elwynn Forest tables; counts are balance choices.
@@ -172,6 +173,10 @@ local function CurrentPlayerLevel()
     return type(UnitLevel) == "function" and UnitLevel("player") or 1
 end
 
+local function NormalGenerationLevel()
+    return math.min(CurrentPlayerLevel(), ELWYNN_MAX_LEVEL)
+end
+
 local function ProgressionBand(level)
     if level <= 3 then return "Early" end
     if level <= 6 then return "Mid" end
@@ -242,7 +247,7 @@ local function BuildQuest(category, branch, objective, amount)
 end
 
 local function GenerateQuest(playerLevel)
-    playerLevel = playerLevel or CurrentPlayerLevel()
+    playerLevel = playerLevel or NormalGenerationLevel()
     local categories = {}
     for _, candidate in ipairs(CategoryOptions(false)) do
         if candidate.id == "hunt" then
@@ -308,7 +313,7 @@ local function ValidDisplayedQuests(displayed)
     return true
 end
 
-local debugState = {layer = 1, categoryIndex = 1, branchIndex = 1, objectiveIndex = 1, amountIndex = 1, testLevel = CurrentPlayerLevel()}
+local debugState = {layer = 1, categoryIndex = 1, branchIndex = 1, objectiveIndex = 1, amountIndex = 1, testLevel = math.min(CurrentPlayerLevel(), ELWYNN_MAX_LEVEL)}
 
 local function DebugSelection()
     local categories = CategoryOptions(true)
@@ -454,7 +459,7 @@ local function RenderDebug()
     debugPanel.previousLayer:SetEnabled(debugState.layer > 1)
     debugPanel.nextLayer:SetEnabled(debugState.layer < count)
     debugPanel.levelDown:SetEnabled(debugState.testLevel > 1)
-    debugPanel.levelUp:SetEnabled(debugState.testLevel < 12)
+    debugPanel.levelUp:SetEnabled(debugState.testLevel < ELWYNN_MAX_LEVEL)
     debugPanel.previewButton:SetEnabled(objective ~= nil)
 end
 
@@ -490,7 +495,7 @@ local function ChangeDebugLayer(delta)
 end
 
 local function ChangeDebugLevel(delta)
-    debugState.testLevel = math.min(12, math.max(1, debugState.testLevel + delta))
+    debugState.testLevel = math.min(ELWYNN_MAX_LEVEL, math.max(1, debugState.testLevel + delta))
     debugState.branchIndex, debugState.objectiveIndex, debugState.amountIndex = 1, 1, 1
     RenderDebug()
 end
@@ -510,7 +515,7 @@ local function CreateBoard()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 24, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.3 (0.3.0)")
+    title:SetText("WoW Forever | Questboard — Alpha V0.3.1 (0.3.1)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Elwynn Forest commissions, assembled from category, objective, and amount.")
@@ -648,6 +653,18 @@ local function CreateBoard()
         local preview = BuildQuest(category, branch, objective, amount)
         debugPanel.preview:SetText(preview.title .. "  |  " .. preview.kind .. "  |  " .. preview.amount .. "\n" .. preview.objective)
     end)
+    debugPanel.generateButton = CreateFrame("Button", nil, debugPanel, "UIPanelButtonTemplate")
+    debugPanel.generateButton:SetSize(160, 26)
+    debugPanel.generateButton:SetPoint("RIGHT", debugPanel.previewButton, "LEFT", -8, 0)
+    debugPanel.generateButton:SetText("Generate test quest")
+    debugPanel.generateButton:SetScript("OnClick", function()
+        local quest = GenerateQuest(debugState.testLevel)
+        if not quest then
+            debugPanel.preview:SetText("No eligible objective at test level " .. debugState.testLevel .. ".")
+            return
+        end
+        debugPanel.preview:SetText("Generated at level " .. debugState.testLevel .. ": " .. quest.title .. "  |  " .. quest.kind .. "  |  " .. quest.amount .. "\n" .. quest.objective)
+    end)
     debugPanel.preview = Text(debugPanel, "GameFontHighlightSmall", {0.6, 1, 0.6})
     debugPanel.preview:SetPoint("BOTTOMLEFT", 22, 14)
     debugPanel.preview:SetSize(748, 34)
@@ -697,9 +714,9 @@ events:SetScript("OnEvent", function(self, event, loaded)
     if loaded ~= addonName then return end
     WoWForeverDB = type(WoWForeverDB) == "table" and WoWForeverDB or {}
     db = WoWForeverDB
-    if db.generatorDataVersion ~= "0.3.0" then
+    if db.generatorDataVersion ~= "0.3.1" then
         db.displayedQuests = nil
-        db.generatorDataVersion = "0.3.0"
+        db.generatorDataVersion = "0.3.1"
     end
     if not ValidQuest(db.activeQuest) then db.activeQuest = nil end
     if db.activeQuest then db.activeQuestId = nil end
