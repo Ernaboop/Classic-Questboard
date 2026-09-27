@@ -1,3 +1,6 @@
+local interfaceVersion, restrictedCombat = 11507, false
+function GetBuildInfo() return "test", "1", "date", interfaceVersion end
+C_CombatLog = {IsCombatLogRestricted = function() return restrictedCombat end}
 local passed = 0
 local function check(value, message)
     assert(value, message)
@@ -9,7 +12,12 @@ local function object(name, parent)
     local o = {scripts = {}, registered = {}, shown = true, parent = parent, name = name, width = 32, height = 32}
     setmetatable(o, {__index = function(_, key) return function() end end})
     function o:SetScript(k, fn) self.scripts[k] = fn end
-    function o:RegisterEvent(e) self.registered[e] = true end
+    function o:RegisterEvent(e)
+        if e == 'COMBAT_LOG_EVENT_UNFILTERED' and (restrictedCombat or interfaceVersion == 16001 or interfaceVersion >= 120000) then
+            error('ADDON_ACTION_FORBIDDEN: forbidden combat-log registration')
+        end
+        self.registered[e] = true
+    end
     function o:UnregisterEvent(e) self.registered[e] = nil end
     function o:SetText(text) self.text = text end
     function o:SetSize(w, h) self.width, self.height = w, h end
@@ -284,4 +292,33 @@ for _, frame in ipairs(frames) do
     if frame.parent == WoWForeverQuestboard and rawget(frame, 'heading') and frame.heading.text == persistent.title then reloadedCard = frame end
 end
 check(reloadedCard and reloadedCard.prompt.text:find('Active'), 'reloaded active card renders authoritative saved state')
+-- Client restrictions must be modeled: a protected registration is not a Lua
+-- exception that an addon should try to catch after triggering the popup.
+for _, build in ipairs({16001, 120000, 11507}) do
+    interfaceVersion = build
+    restrictedCombat = build == 11507 -- Also honor the public restriction predicate.
+    local restrictedNS = {}
+    assert(loadstring(tracking_source))('WoWForever', restrictedNS)
+    local t = restrictedNS.Tracking
+    local kept = quest({kind = 'kill', targets = {'Kobold Miner'}}, 4)
+    kept.state, kept.progress = 'Active', {count = 2}
+    local record = {activeQuest = kept}
+    t.Initialize(record, function(v) return v.tracking end, function() end)
+    check(not frames[#frames].registered.COMBAT_LOG_EVENT_UNFILTERED, 'restricted client never registers combat-log event')
+    check(frames[#frames].registered.CHAT_MSG_LOOT and frames[#frames].registered.MERCHANT_SHOW, 'safe tracking events still register')
+    check(kept.progress.count == 2 and kept.amount == 4 and t.ProgressText(kept):find('unavailable'), 'restricted active kills retain progress and explain pause')
+    t.OnEvent('COMBAT_LOG_EVENT_UNFILTERED')
+    check(kept.progress.count == 2, 'restricted combat payload never read')
+    resting = true; t.Abandon()
+    check(not t.Accept(kept), 'untrackable new kill quests cannot be accepted')
+    check(t.Accept(quest({kind = 'collect_sell', targets = {'Young Wolf'}, itemID = 2672}, 2)), 'collection quests remain available')
+    local secret = {}
+    issecretvalue = function(value) return value == secret end
+    units.target = {guid = secret, name = secret}
+    t.OnEvent('PLAYER_TARGET_CHANGED')
+    t.OnEvent('UNIT_SPELLCAST_SUCCEEDED', 'player', 'cast', secret)
+    t.OnEvent('CHAT_MSG_LOOT', secret)
+    check(record.activeQuest.progress.collected == 0, 'secret unit/spell/chat values are ignored')
+    issecretvalue = nil
+end
 print('PASS: ' .. passed .. ' tracking and UI assertions (Lua 5.1)')

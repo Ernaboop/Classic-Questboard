@@ -1,4 +1,12 @@
-# Alpha 0.5.0 tracking
+# Alpha 0.5.1 tracking
+
+## Forever compatibility
+
+Forever restricts combat-log event registration. Version 0.5.1 does not request it on Forever or Midnight. Automatic Kill/Hunt tracking is therefore unavailable on these clients: the cards explain the limitation and cannot be newly accepted. Existing active Kill/Hunt quests retain their progress and can be abandoned; already-ready quests can still be handed in. The generator's pools are preserved, so some displayed offers may be unavailable until an alternative supported kill-credit system is implemented.
+
+Collection and gathering continue using public loot, inventory, and profession events. When corpse identities are secret or unavailable, source-specific loot cannot be credited. No attempt is made to read restricted combat data or bypass the client's protection. On supported legacy clients, automatic kill tracking remains enabled.
+
+The blocked-event restriction is documented in [Blizzard's extracted combat-log API definitions](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/CombatLogDocumentation.lua).
 
 ## Player flow
 
@@ -12,7 +20,7 @@ Abandon is available on the active card anywhere. A ready quest has a smaller Ab
 
 ## What earns progress
 
-- **Kill / Hunt:** the matching named creature must die after the player or their pet damages it. Nearby strangers' kills and duplicate death events do not count. Rare target amounts remain one.
+- **Kill / Hunt (supported legacy clients only):** the matching named creature must die after the player or their pet damages it. Nearby strangers' kills and duplicate death events do not count. Rare target amounts remain one.
 - **Collect & Sell:** obtain the specified item, or vendor-value loot for generic spoils, from one of the objective's named creatures. Then sell qualifying quantities to a vendor. Sales require matching bag loss, buyback data, and money received. Existing inventory, purchases, trades, bank transfers, item destruction, and quest rewards do not earn collection credit. Removing eligible items from carried bags removes their remaining sale eligibility; buying them back does not restore it.
 - **Herbalism / Mining / Skinning / Fishing:** a gathering action (or fishing channel) must precede the loot, with the correct item ID and creature/object source. The player's own loot message, a cleared loot slot, and an inventory gain confirm receipt. Boar and eastern-beast leather objectives also check the corpse's name.
 - **Copper Vein Prospecting:** loot ore from the required number of different vein sources. Several ore from one vein count as one vein.

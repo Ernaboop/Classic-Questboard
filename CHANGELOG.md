@@ -2,6 +2,15 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.5.1] - 2026-09-27
+
+### Fixed
+
+- Removed unconditional combat-log event registration, which triggers Blizzard's protected-action popup on restricted clients. Forever and Midnight never request that event; legacy clients additionally honor the public restriction predicate.
+- Preserved existing Kill/Hunt progress and visibly paused unsupported tracking. New Kill/Hunt acceptance is disabled when the client cannot support it; ready quests can still be handed in.
+- Kept collection, sale, gathering, rest-area controls, and saved quest state active. Secret unit names, GUIDs, spell IDs, and loot-chat messages are ignored rather than inspected.
+- Extended regression tests to simulate forbidden event registration instead of assuming every event is available.
+
 ## [0.5.0] - 2026-09-27
 
 ### Added

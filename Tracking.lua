@@ -2,6 +2,20 @@ local _, ns = ...
 local Tracking = {}
 ns.Tracking = Tracking
 local db, changed, resolve
+local combatLogEnabled = false
+local function Public(value) return not (issecretvalue and issecretvalue(value)) end
+local function SupportsCombatLog()
+    -- Forever (1.60+) and Midnight expose restricted combat-log events.
+    -- Event existence and pcall do not make registration safe. Never probe it.
+    local interface = GetBuildInfo and select(4, GetBuildInfo())
+    if not Public(interface) or type(interface) ~= "number" then return false end
+    if (interface >= 16000 and interface < 17000) or interface >= 120000 then return false end
+    if C_CombatLog and C_CombatLog.IsCombatLogRestricted then
+        local restricted = C_CombatLog.IsCombatLogRestricted()
+        if not Public(restricted) or restricted ~= false then return false end
+    end
+    return type(CombatLogGetCurrentEventInfo) == "function"
+end
 local names, tagged, loot, gathering, merchant = {}, {}, nil, nil, nil
 local pendingLoot = {}
 local ACTIVE, READY, COMPLETED = "Active", "Ready to Turn In", "Completed"
@@ -37,8 +51,11 @@ local function Matches(list, name)
     return false
 end
 local function Observe(unit)
-    local guid = UnitGUID(unit)
-    if guid then names[guid] = UnitName(unit) end
+    if not Public(unit) then return end
+    local guid, name = UnitGUID(unit), UnitName(unit)
+    if Public(guid) and Public(name) and type(guid) == "string" and type(name) == "string" then
+        names[guid] = name
+    end
 end
 local function ResetTransient()
     names, tagged, loot, gathering, merchant = {}, {}, nil, nil, nil
@@ -74,9 +91,13 @@ local function Normalize(q)
         q.state = ACTIVE
     end
 end
+function Tracking.CanTrack(q)
+    local spec = resolve and resolve(q) or q.tracking
+    return spec ~= nil and (spec.kind ~= "kill" or combatLogEnabled)
+end
 function Tracking.Accept(q)
     if not db or db.activeQuest or not Tracking.IsResting() then return false end
-    if not resolve(q) then return false end
+    if not Tracking.CanTrack(q) then return false end
     q.state, q.progress, q.acceptedAt = ACTIVE, {}, time()
     Normalize(q)
     db.activeQuest = q
@@ -106,12 +127,16 @@ end
 function Tracking.ProgressText(q)
     if not q.tracking then return "Tracking unavailable for this legacy objective. You may abandon it." end
     local p = q.progress
+    if q.tracking.kind == "kill" and not combatLogEnabled and q.state == ACTIVE then
+        return "Progress: " .. p.count .. "/" .. q.amount .. "\nKill tracking unavailable on this client."
+    end
     if q.tracking.kind == "collect_sell" then
         return q.state .. "\nCollected: " .. p.collected .. "/" .. q.amount .. "   Sold: " .. p.sold .. "/" .. q.amount
     end
     return q.state .. "\nProgress: " .. p.count .. "/" .. q.amount
 end
 local function Combat()
+    if not combatLogEnabled then return end
     local q = Working()
     if not q then return end
     local _, event, _, source, sourceName, _, _, dest, destName = CombatLogGetCurrentEventInfo()
@@ -140,11 +165,12 @@ local function SpellName(id)
     if GetSpellInfo then return GetSpellInfo(id) end
 end
 local function Cast(event, unit, castGUID, spellID)
+    if not Public(unit) or not Public(spellID) then return end
     local q = Working()
     if not q or not q.tracking.profession or unit ~= "player" or not InZone() then return end
     local profession = q.tracking.profession
     local spellName, expected = SpellName(spellID), SpellName(professionSpells[profession])
-    if not spellName or not expected or spellName ~= expected then return end
+    if not Public(spellName) or not Public(expected) or not spellName or not expected or spellName ~= expected then return end
     if event == "UNIT_SPELLCAST_SUCCEEDED" or (profession == "fishing" and event == "UNIT_SPELLCAST_CHANNEL_START") then
         gathering = {profession = profession, expires = GetTime() + (profession == "fishing" and 35 or 10)}
         Observe("target")
@@ -157,7 +183,7 @@ local function EligibleSources(q, slot, context)
     local sources = {GetLootSourceInfo(slot)}
     for i = 1, #sources, 2 do
         local guid, quantity = sources[i], sources[i + 1]
-        if type(guid) == "string" and type(quantity) == "number" then
+        if Public(guid) and Public(quantity) and type(guid) == "string" and type(quantity) == "number" then
             local creature = guid:match("^Creature%-") ~= nil
             local object = guid:match("^GameObject%-") ~= nil
             local allowed = spec.kind == "collect_sell" and creature and Matches(spec.targets, names[guid])
@@ -236,6 +262,7 @@ local function LootPattern(format)
         :gsub("%%s", "(.+)"):gsub("%%d", "(%%d+)") .. "$"
 end
 local function LootReceipt(message)
+    if not Public(message) or type(message) ~= "string" then return end
     local q = Working()
     if not q then return end
     local link, quantity
@@ -350,7 +377,9 @@ function Tracking.Initialize(saved, resolver, callback)
     db, resolve, changed = saved, resolver, callback
     db.completedQuests = type(db.completedQuests) == "table" and db.completedQuests or {}
     if db.activeQuest then Normalize(db.activeQuest) end
-    for _, event in ipairs({"COMBAT_LOG_EVENT_UNFILTERED", "PLAYER_UPDATE_RESTING", "PLAYER_ENTERING_WORLD",
+    combatLogEnabled = SupportsCombatLog()
+    if combatLogEnabled then events:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED") end
+    for _, event in ipairs({"PLAYER_UPDATE_RESTING", "PLAYER_ENTERING_WORLD",
         "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "LOOT_READY", "LOOT_OPENED", "LOOT_SLOT_CLEARED", "LOOT_CLOSED",
         "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "BAG_UPDATE_DELAYED", "MERCHANT_SHOW", "MERCHANT_CLOSED",
         "MERCHANT_UPDATE", "PLAYER_MONEY", "GET_ITEM_INFO_RECEIVED", "CHAT_MSG_LOOT"}) do
