@@ -631,7 +631,7 @@ CreateBoard = function()
     board:SetBackdropColor(0.12, 0.1, 0.08, 1)
     local title = Text(board, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 54, -22)
-    title:SetText("WoW Forever | Questboard — Alpha V0.4.5 (0.4.5)")
+    title:SetText("WoW Forever | Questboard — Alpha V0.4.6 (0.4.6)")
     local subtitle = Text(board, "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", 24, -50)
     subtitle:SetText("Generated Elwynn Forest adventures.")
@@ -837,57 +837,93 @@ end
 
 CreateMinimapButton = function()
     if minimapButton or not Minimap then return end
-    minimapButton = CreateFrame("Button", "WoWForeverMinimapButton", Minimap)
-    minimapButton:SetSize(32, 32)
-    minimapButton:SetFrameStrata("MEDIUM")
-    minimapButton:SetFrameLevel(Minimap:GetFrameLevel() + 5)
-    minimapButton:EnableMouse(true)
-    minimapButton:RegisterForClicks("LeftButtonUp")
-    minimapButton:RegisterForDrag("LeftButton")
-    minimapButton.icon = minimapButton:CreateTexture(nil, "ARTWORK")
-    minimapButton.icon:SetTexture("Interface\\Icons\\INV_Misc_Map_01")
-    minimapButton.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    minimapButton.icon:ClearAllPoints()
-    minimapButton.icon:SetPoint("TOPLEFT", minimapButton, "TOPLEFT", 8, -8)
-    minimapButton.icon:SetPoint("BOTTOMRIGHT", minimapButton, "BOTTOMRIGHT", -8, 8)
-    minimapButton.border = minimapButton:CreateTexture(nil, "OVERLAY")
-    minimapButton.border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-    minimapButton.border:SetSize(54, 54)
-    minimapButton.border:SetPoint("CENTER", minimapButton, "CENTER", 0, 0)
+    local button = CreateFrame("Button", "WoWForeverMinimapButton", Minimap)
+    minimapButton = button
+    button:SetSize(32, 32)
+    button:SetFrameStrata("MEDIUM")
+    button:SetFrameLevel(Minimap:GetFrameLevel() + 5)
+    button:EnableMouse(true)
+    button:RegisterForClicks("LeftButtonUp")
+    button:RegisterForDrag("LeftButton")
+
+    button.background = button:CreateTexture(nil, "BACKGROUND")
+    button.background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+    button.background:SetSize(24, 24)
+    button.background:SetPoint("CENTER", button, "CENTER", 0, 0)
+
+    button.icon = button:CreateTexture(nil, "ARTWORK")
+    button.icon:SetTexture("Interface\\Icons\\INV_Misc_Map_01")
+    button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    button.icon:SetSize(20, 20)
+    button.icon:SetPoint("CENTER", button, "CENTER", 0, 0)
+    button.iconMask = button:CreateMaskTexture()
+    button.iconMask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask",
+        "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    button.iconMask:SetAllPoints(button.icon)
+    button.icon:AddMaskTexture(button.iconMask)
+
+    -- The tracking texture includes transparent padding on its right/bottom.
+    -- Its standard TOPLEFT anchor aligns the visible ring with the 32px button.
+    button.border = button:CreateTexture(nil, "OVERLAY")
+    button.border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    button.border:SetSize(53, 53)
+    button.border:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
+    button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")
+
     local function PositionButton()
-        -- The upper-right keeps the Questboard clear of the default lower-right
-        -- minimap tracking control; users can still drag it to another position.
         local angle = math.rad(tonumber(db.minimapAngle) or 45)
-        local radius = (Minimap:GetWidth() / 2) + 8
-        minimapButton:ClearAllPoints()
-        minimapButton:SetPoint("CENTER", Minimap, "CENTER", math.cos(angle) * radius, math.sin(angle) * radius)
+        button:ClearAllPoints()
+        button:SetPoint("CENTER", Minimap, "CENTER",
+            math.cos(angle) * (Minimap:GetWidth() / 2 + 8),
+            math.sin(angle) * (Minimap:GetHeight() / 2 + 8))
     end
-    PositionButton()
-    minimapButton:SetScript("OnClick", function(self, button)
-        if self.dragStoppedAt and GetTime() - self.dragStoppedAt < 0.25 then return end
-        self.dragStoppedAt = nil
-        if button == "LeftButton" then ToggleBoard(false) end
+    local function UpdateDrag()
+        local centerX, centerY = Minimap:GetCenter()
+        if not centerX or not centerY then return end
+        local x, y = GetCursorPosition()
+        local scale = Minimap:GetEffectiveScale()
+        x, y = x / scale - centerX, y / scale - centerY
+        if x ~= 0 or y ~= 0 then
+            db.minimapAngle = math.deg(math.atan2(y, x)) % 360
+            PositionButton()
+        end
+    end
+    local function StopDrag(self)
+        self:SetScript("OnUpdate", nil)
+        self.dragging = false
+    end
+
+    button:SetScript("OnMouseDown", function(self) self.suppressClick = false end)
+    button:SetScript("OnClick", function(self)
+        if self.suppressClick then
+            self.suppressClick = false
+            return
+        end
+        ToggleBoard(false)
     end)
-    minimapButton:SetScript("OnEnter", function(self)
+    button:SetScript("OnEnter", function(self)
+        if self.dragging then return end
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:AddLine("WoW Forever Questboard")
         GameTooltip:AddLine("Click to open the questboard", 1, 1, 1)
         GameTooltip:AddLine("Drag to reposition this button", 0.7, 0.7, 0.7)
         GameTooltip:Show()
     end)
-    minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    minimapButton:SetScript("OnDragStart", function(self)
-        self.dragStoppedAt = nil
-        self:SetScript("OnUpdate", function()
-            local x, y = GetCursorPosition()
-            local scale = UIParent:GetScale()
-            local centerX, centerY = Minimap:GetCenter()
-            x, y = x / scale - centerX, y / scale - centerY
-            if x ~= 0 or y ~= 0 then db.minimapAngle = math.deg(math.atan2(y, x)); PositionButton() end
-        end)
+    button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    button:SetScript("OnDragStart", function(self)
+        self.dragging, self.suppressClick = true, true
+        GameTooltip:Hide()
+        self:SetScript("OnUpdate", UpdateDrag)
+        UpdateDrag()
     end)
-    minimapButton:SetScript("OnDragStop", function(self)
-        self:SetScript("OnUpdate", nil)
-        self.dragStoppedAt = GetTime()
+    button:SetScript("OnDragStop", function(self)
+        UpdateDrag()
+        StopDrag(self)
     end)
+    button:SetScript("OnHide", function(self)
+        StopDrag(self)
+        if GameTooltip:GetOwner() == self then GameTooltip:Hide() end
+    end)
+    button:SetScript("OnShow", PositionButton)
+    PositionButton()
 end

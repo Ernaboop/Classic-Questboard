@@ -2,6 +2,13 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.4.6] - 2026-09-27
+
+### Fixed
+
+- Rebuilt the minimap button with a restored 20px icon, circular texture mask, and correctly anchored traditional round border.
+- Corrected dragging coordinates for minimap UI scale and prevented drag release from opening the Questboard.
+
 ## [0.4.5] - 2026-09-27
 
 ### Fixed
