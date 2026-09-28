@@ -2,6 +2,12 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.11.3] - 2026-09-29
+
+### Fixed
+
+- Secondary windows remain at a readable size and slide fully on screen when there is not enough space beside or below the Questboard.
+
 ## [0.11.2] - 2026-09-28
 
 ### Added

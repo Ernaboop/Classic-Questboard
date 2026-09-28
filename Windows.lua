@@ -47,24 +47,42 @@ function Windows.Open(frame, parent)
     entry.parent = parent
     frame:ClearAllPoints()
     frame:SetScale(1)
-    local right, left = parent:GetRight(), parent:GetLeft()
-    local parentScale = parent:GetEffectiveScale()
+    local uiScale = UIParent:GetEffectiveScale()
+    local screenWidth = UIParent:GetWidth() * uiScale
+    local screenHeight = UIParent:GetHeight() * uiScale
     local scale = frame:GetEffectiveScale()
-    local screenWidth = UIParent:GetWidth() * UIParent:GetEffectiveScale()
-    local required = (frame:GetWidth() + 8) * scale
+    local margin = 12 * uiScale
+    -- Only shrink a window if the whole window is larger than the screen.
+    -- Limited space below its parent must not make it unreadably small.
+    local fit = math.min(1, (screenWidth - 2 * margin) / (frame:GetWidth() * scale),
+        (screenHeight - 2 * margin) / (frame:GetHeight() * scale))
+    if fit < 1 then frame:SetScale(fit) end
+    scale = frame:GetEffectiveScale()
+    local width, height = frame:GetWidth() * scale, frame:GetHeight() * scale
+    local parentScale = parent:GetEffectiveScale()
+    local right, left = parent:GetRight(), parent:GetLeft()
     local parentEntry = Windows.entries[parent]
-    if (parentEntry and parentEntry.parent) or (right and right * parentScale + required > screenWidth) then
-        -- Nested windows continue down the auxiliary column, never back over
-        -- the main board to the left. Fit that column when screen space permits.
-        local bottom = parent:GetBottom()
-        if left and bottom and bottom > 20 then
-            local availableWidth = math.max(100, screenWidth - left * parentScale - 12)
-            local availableHeight = math.max(100, bottom * parentScale - 12)
-            frame:SetScale(math.min(1, availableWidth / (frame:GetWidth() * scale), availableHeight / (frame:GetHeight() * scale)))
+    local beside = not (parentEntry and parentEntry.parent)
+        and (not right or right * parentScale + 8 * uiScale + width + margin <= screenWidth)
+    local top = beside and parent:GetTop() or parent:GetBottom()
+    local x = beside and right or left
+    if x and top then
+        x = x * parentScale + (beside and 8 * uiScale or 0)
+        top = top * parentScale - (beside and 0 or 8 * uiScale)
+        local clampedX = math.max(margin, math.min(x, screenWidth - width - margin))
+        local clampedTop = math.max(height + margin, math.min(top, screenHeight - margin))
+        if clampedX ~= x or clampedTop ~= top then
+            -- Keep the requested column, but slide the whole window onto the
+            -- screen when there is not enough room beneath its parent.
+            frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", clampedX / uiScale,
+                (clampedTop - screenHeight) / uiScale)
+        else
+            frame:SetPoint("TOPLEFT", parent, beside and "TOPRIGHT" or "BOTTOMLEFT",
+                beside and 8 or 0, beside and 0 or -8)
         end
-        frame:SetPoint("TOPLEFT", parent, "BOTTOMLEFT", 0, -8)
     else
-        frame:SetPoint("TOPLEFT", parent, "TOPRIGHT", 8, 0)
+        frame:SetPoint("TOPLEFT", parent, beside and "TOPRIGHT" or "BOTTOMLEFT",
+            beside and 8 or 0, beside and 0 or -8)
     end
     frame:Show()
     Windows.Raise(frame)

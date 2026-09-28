@@ -158,6 +158,22 @@ check(nestedWindow:GetFrameLevel() > childWindow:GetFrameLevel() and parentWindo
     'raising parent keeps nested child above it and main below both')
 wm.Open(childWindow, nestedWindow)
 check(wm.entries[childWindow].parent == parentWindow, 'window manager rejects nesting cycles')
+local edgeParent, edgeChild = object(), object()
+edgeChild:SetSize(440, 260)
+function edgeParent:GetLeft() return 1050 end
+function edgeParent:GetRight() return 1890 end
+function edgeParent:GetTop() return 610 end
+function edgeParent:GetBottom() return 40 end
+function edgeChild:SetScale(value) self.scale = value end
+wm.Register(edgeParent); wm.Register(edgeChild, edgeParent)
+wm.Open(edgeChild, edgeParent)
+check(edgeChild.scale == 1, 'edge placement keeps a window at full scale when it fits the screen')
+check(edgeChild.point[2] == UIParent and edgeChild.point[3] == 'TOPLEFT',
+    'window without room below is anchored to the screen instead of shrinking')
+local edgeX, edgeTop = edgeChild.point[4], UIParent:GetHeight() + edgeChild.point[5]
+check(edgeX >= 0 and edgeX + edgeChild:GetWidth() <= UIParent:GetWidth()
+    and edgeTop - edgeChild:GetHeight() >= 0 and edgeTop <= UIParent:GetHeight(),
+    'edge placement keeps the entire secondary window visible')
 assert(loadstring(tracking_source))('Classic Questboard', ns)
 local T = ns.Tracking
 local saved
