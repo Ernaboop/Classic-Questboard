@@ -24,6 +24,12 @@ Database.professions = {
 }
 local professions = {herbalism = true, mining = true, skinning = true, fishing = true}
 
+-- NPC tags describe roles, not zones or quest categories. New tags belong here;
+-- objective requirements may combine any number of tags (all must match).
+Database.npcTags = {vendor = true, blacksmith = true, innkeeper = true, guard = true,
+    questgiver = true, collector = true, farmer = true, fisherman = true,
+    trainer = true, quartermaster = true, engineer = true, scout = true, resident = true}
+
 -- Shared by validation, documentation and the editor. Lists use semicolons in
 -- the GUI; source files always use normal Lua arrays.
 Database.schema = {
@@ -56,7 +62,13 @@ Database.schema = {
         {key = "itemID", label = "Item ID", type = "number", categories = {supply = true, gather = true}},
         {key = "lootMode", label = "Collected loot", type = "choice", choices = {"item", "any_vendor_item"}, categories = {supply = true}},
         {key = "vendorID", label = "Specific vendor NPC ID (optional)", type = "number", categories = {supply = true}},
-        {key = "trackingKind", label = "Gather tracking", type = "choice", choices = {"gather", "nodes"}, categories = {gather = true}},
+        {key = "trackingKind", label = "Gather tracking", type = "choice", choices = {"gather", "nodes", "mining_workorder"}, categories = {gather = true}},
+        {key = "requiredNPCTags", label = "Required NPC tags (all)", type = "strings", required = true},
+        {key = "minProfessionSkill", label = "Minimum profession skill", type = "number", categories = {gather = true}},
+        {key = "oreItemID", label = "Mined ore item ID", type = "number", categories = {gather = true}},
+        {key = "oreName", label = "Mined ore name", type = "string", categories = {gather = true}},
+        {key = "smeltSpellID", label = "Smelting spell ID", type = "number", categories = {gather = true}},
+        {key = "handoff", label = "Final handoff", type = "choice", choices = {"sale"}, categories = {gather = true}},
     },
     questGivers = {
         {key = "id", label = "Stable ID", type = "string", required = true},
@@ -65,8 +77,7 @@ Database.schema = {
         {key = "zone", label = "Zone", type = "choice", choices = "zones", required = true},
         {key = "location", label = "Location", type = "string", required = true},
         {key = "faction", label = "Friendly faction", type = "choice", choices = {"Alliance", "Horde", "Neutral"}, required = true},
-        {key = "categories", label = "Categories (semicolon separated IDs)", type = "strings", required = true},
-        {key = "vendor", label = "Has a merchant inventory", type = "boolean"},
+        {key = "tags", label = "NPC tags (semicolon separated)", type = "strings", required = true},
     },
     flavourText = {
         {key = "id", label = "Stable ID", type = "string", required = true},
@@ -82,6 +93,13 @@ local function Integer(value) return type(value) == "number" and value == value 
 local function Contains(list, value)
     for _, item in ipairs(list or {}) do if item == value then return true end end
     return false
+end
+function Database.HasTags(npc, required)
+    if type(npc) ~= "table" or type(npc.tags) ~= "table" or type(required) ~= "table" then return false end
+    for _, tag in ipairs(required or {}) do
+        if not Contains(npc.tags, tag) then return false end
+    end
+    return true
 end
 local function Sorted(map)
     local result = {}
@@ -210,6 +228,10 @@ function Database:Validate(candidate)
                 if entry.zone and not candidate.zones[entry.zone] then Fail("unknown zone " .. tostring(entry.zone)) end
                 if entry.category and not self.categories[entry.category] then Fail("unknown category") end
                 if entry.profession and not professions[entry.profession] then Fail("unknown profession") end
+                local tags = entry.tags or entry.requiredNPCTags
+                for _, tag in ipairs(type(tags) == "table" and tags or {}) do
+                    if not self.npcTags[tag] then Fail("unknown NPC tag " .. tostring(tag)) end
+                end
                 if kind == "zones" and Integer(entry.minLevel) and Integer(entry.maxLevel) and entry.minLevel > entry.maxLevel then Fail("minimum level exceeds maximum") end
                 if kind == "objectives" then
                     if Integer(entry.minPlayerLevel) and Integer(entry.maxPlayerLevel) and entry.minPlayerLevel > entry.maxPlayerLevel then Fail("invalid player level range") end
@@ -219,11 +241,31 @@ function Database:Validate(candidate)
                         and (entry.minPlayerLevel < zone.minLevel or entry.maxPlayerLevel > zone.maxLevel) then Fail("player level range is outside the zone range") end
                     local hasTargets = type(entry.targets) == "table" and #entry.targets > 0 or Integer(entry.npcID) or type(entry.npcIDs) == "table" and #entry.npcIDs > 0
                     if entry.category ~= "gather" and not hasTargets then Fail("missing NPC ID(s) or exact target names") end
+                    local giverFound = false
+                    for _, giver in pairs(candidate.questGivers) do
+                        if type(giver) == "table" and giver.zone == entry.zone
+                            and self.HasTags(giver, entry.requiredNPCTags) then
+                            if not entry.vendorID or giver.npcID == entry.vendorID then giverFound = true end
+                        end
+                    end
+                    if not giverFound then Fail("no NPC in this zone has all required tags") end
                     if entry.category == "gather" then
                         if not professions[entry.profession] then Fail("Gather requires a profession") end
                         if not Integer(entry.itemID) then Fail("Gather requires an itemID") end
-                        if entry.trackingKind ~= "gather" and entry.trackingKind ~= "nodes" then Fail("Gather requires trackingKind gather or nodes") end
+                        if entry.trackingKind ~= "gather" and entry.trackingKind ~= "nodes"
+                            and entry.trackingKind ~= "mining_workorder" then Fail("Gather requires a supported trackingKind") end
                         if entry.trackingKind == "nodes" and entry.profession ~= "mining" then Fail("node counting requires Mining") end
+                        if entry.trackingKind == "mining_workorder" then
+                            if entry.profession ~= "mining" or not Integer(entry.oreItemID) or not Nonempty(entry.oreName)
+                                or not Integer(entry.smeltSpellID) or not Integer(entry.itemID) then
+                                Fail("Mining work orders require Mining, ore, smelt spell, and bar item IDs")
+                            end
+                            if entry.handoff == "sale" and not Contains(type(entry.requiredNPCTags) == "table" and entry.requiredNPCTags or {}, "vendor") then
+                                Fail("sale handoff requires the vendor NPC tag")
+                            end
+                        elseif entry.oreItemID or entry.oreName or entry.smeltSpellID or entry.handoff then
+                            Fail("ore, smelt, and handoff fields require a Mining work order")
+                        end
                         if hasTargets and entry.profession ~= "skinning" then Fail("creature targets only apply to Skinning") end
                     elseif entry.category == "hunt" then
                         if entry.classification ~= "rare" and entry.classification ~= "elite" then Fail("Hunt requires rare or elite classification") end
@@ -232,18 +274,7 @@ function Database:Validate(candidate)
                         if entry.lootMode ~= "item" and entry.lootMode ~= "any_vendor_item" then Fail("Supply requires lootMode") end
                         if entry.lootMode == "item" and not Integer(entry.itemID) then Fail("specific-item collection requires itemID") end
                         if entry.lootMode == "any_vendor_item" and entry.itemID then Fail("any_vendor_item must not restrict itemID") end
-                        local vendorFound = false
-                        for _, giver in pairs(candidate.questGivers) do
-                            if type(giver) == "table" and giver.zone == entry.zone and giver.vendor == true
-                                and type(giver.categories) == "table" and Contains(giver.categories, "supply")
-                                and (not entry.vendorID or giver.npcID == entry.vendorID) then vendorFound = true end
-                        end
-                        if not vendorFound then Fail("no suitable vendor in this zone for Supply") end
-                    end
-                elseif kind == "questGivers" and type(entry.categories) == "table" then
-                    for _, category in ipairs(entry.categories) do
-                        if not self.categories[category] then Fail("unknown quest-giver category " .. tostring(category)) end
-                        if category == "supply" and entry.vendor ~= true then Fail("Supply giver must be a vendor") end
+                        if not Contains(type(entry.requiredNPCTags) == "table" and entry.requiredNPCTags or {}, "vendor") then Fail("Supply requires the vendor NPC tag") end
                     end
                 end
             end
@@ -318,8 +349,7 @@ function Database:BuildRuntime()
         local zone = zones[giver.zone]
         if zone then
             local item = Copy(giver)
-            item.databaseID, item.id, item.roles = item.id, item.npcID, {}
-            for _, category in ipairs(item.categories) do item.roles[category] = true end
+            item.databaseID, item.id = item.id, item.npcID
             zone.questGivers[#zone.questGivers + 1] = item
         end
     end
@@ -345,11 +375,37 @@ local function MigrateLegacySupply(value, visited)
     end
 end
 
+local function MigrateLegacyNPCFields(saved)
+    local overrides = type(saved.databaseOverrides) == "table" and saved.databaseOverrides or {}
+    for _, change in pairs(type(overrides.objectives) == "table" and overrides.objectives or {}) do
+        local entry = type(change) == "table" and change.entry
+        if type(entry) == "table" and not entry.requiredNPCTags then
+            local tag = entry.category == "supply" and "vendor"
+                or entry.category == "gather" and "collector" or "questgiver"
+            entry.requiredNPCTags = {tag}
+        end
+    end
+    for _, change in pairs(type(overrides.questGivers) == "table" and overrides.questGivers or {}) do
+        local entry = type(change) == "table" and change.entry
+        if type(entry) == "table" then
+            local tags = type(entry.tags) == "table" and entry.tags or {}
+            for _, category in ipairs(type(entry.categories) == "table" and entry.categories or {}) do
+                local tag = category == "supply" and "vendor" or category == "gather" and "collector"
+                    or (category == "kill" or category == "hunt") and "questgiver"
+                if tag and not Contains(tags, tag) then tags[#tags + 1] = tag end
+            end
+            if entry.vendor == true and not Contains(tags, "vendor") then tags[#tags + 1] = "vendor" end
+            entry.tags, entry.categories, entry.vendor = tags, nil, nil
+        end
+    end
+end
+
 function Database:Initialize(saved)
     owner = saved or {}
     -- Old offers, progress, statistics, and editor overrides all used this ID.
     -- Migrate the save before overlay validation or tracking reads any records.
     MigrateLegacySupply(owner, {})
+    MigrateLegacyNPCFields(owner)
     local overrides = owner.databaseOverrides or {version = 1}
     local candidate, errors = Merge(overrides)
     local valid, issues = self:Validate(candidate)

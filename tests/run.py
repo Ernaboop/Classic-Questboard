@@ -6,7 +6,7 @@ from lupa.lua51 import LuaRuntime
 root = Path(__file__).resolve().parents[1]
 lua = LuaRuntime(unpack_returned_tuples=True)
 data_files = ["Data/Database.lua", "Data/Zones/ElwynnForest.lua", "Data/Zones/DunMorogh.lua", "Data/Zones/Westfall.lua", "Data/Zones/Darkshore.lua",
-              "Data/QuestGivers.lua", "Data/FlavourText.lua"]
+              "Data/QuestGivers.lua", "Data/FlavourText.lua", "Data/UpdateHistory.lua"]
 toc = (root / "Classic Questboard.toc").read_text(encoding="utf-8")
 load_order = [line.strip().replace(chr(92), "/") for line in toc.splitlines() if line.strip() and not line.startswith("#")]
 assert load_order == data_files + ["Tracking.lua", "Windows.lua", "DatabaseEditor.lua", "Questboard.lua", "Tooltips.lua"], "TOC load order differs from tests"
@@ -15,9 +15,9 @@ assert "Alpha V" + version in (root / "Questboard.lua").read_text(encoding="utf-
 assert "current release is " + version in (root / "AGENTS.md").read_text(encoding="utf-8")
 assert "## [" + version + "]" in (root / "CHANGELOG.md").read_text(encoding="utf-8")
 changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
-recent_versions = re.findall(r"^## \[(\d+\.\d+\.\d+)\]", changelog, flags=re.MULTILINE)[:3]
-in_game_versions = re.findall(r'\{version = "(\d+\.\d+\.\d+)", text = ', (root / "Questboard.lua").read_text(encoding="utf-8"))
-assert len(in_game_versions) == 3 and in_game_versions == recent_versions, "In-game changelog must list the newest three releases"
+release_versions = re.findall(r"^## \[(\d+\.\d+\.\d+)\]", changelog, flags=re.MULTILINE)
+in_game_versions = re.findall(r'\{version = "(\d+\.\d+\.\d+)", text = ', (root / "Data/UpdateHistory.lua").read_text(encoding="utf-8"))
+assert in_game_versions == release_versions, "In-game changelog must list every release in order"
 for name in load_order:
     lua.execute("assert(loadstring(...))", (root / name).read_text(encoding="utf-8"))
 lua.globals().tracking_source = (root / "Tracking.lua").read_text(encoding="utf-8")
@@ -38,8 +38,8 @@ lua.globals().binding_source = bindings.find("Binding").text
 lua.execute((root / "tests" / "tracking_spec.lua").read_text(encoding="utf-8"))
 lua.execute((root / "tests" / "database_spec.lua").read_text(encoding="utf-8"))
 
-# Freeze the 0.9.0 content contract apart from intentionally widened player
-# eligibility bands: IDs, targets, quantities, item IDs, and locations stay put.
+# Freeze the 0.9.0 content contract apart from widened player bands and the
+# new role requirements: IDs, targets, quantities, items and locations stay put.
 base_objectives = lua.execute('''local ns = {}
 for _, source in ipairs(data_sources) do assert(loadstring(source))("test", ns) end
 return ns.Database:GetBase().objectives''')
@@ -59,9 +59,9 @@ for key, expected in legacy_objectives.items():
     old = expected.copy()
     assert (actual["minPlayerLevel"] <= old["minPlayerLevel"] and
             actual["maxPlayerLevel"] >= old["maxPlayerLevel"]), f"legacy eligibility narrowed: {key}"
-    for field in ("minPlayerLevel", "maxPlayerLevel"):
+    for field in ("minPlayerLevel", "maxPlayerLevel", "requiredNPCTags"):
         actual.pop(field, None)
         old.pop(field, None)
     assert actual == old, f"0.9.0 content changed beyond eligibility bands: {key}"
-assert len(base_entries) == 200, "Darkshore should add 50 objectives"
+assert len(base_entries) == 208, "Mining work orders should add eight objectives"
 print("PASS: all 100 original objectives preserve their 0.9.0 identity and mechanics")

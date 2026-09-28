@@ -1,4 +1,4 @@
-# Zone data — Alpha 0.12.0
+# Zone data — Alpha 0.13.0
 
 ## Dun Morogh
 
@@ -88,3 +88,9 @@ The [Forever Darkshore zone record](https://www.wowhead.com/forever/zone=148/dar
 The gathering pool uses Darkshore-available [Mageroyal](https://www.wowhead.com/forever/object=1620/mageroyal), [Briarthorn](https://www.wowhead.com/forever/object=1621/briarthorn), [Bruiseweed](https://www.wowhead.com/forever/object=1622/bruiseweed), [Stranglekelp](https://www.wowhead.com/forever/object=2045/stranglekelp), [Copper Veins](https://www.wowhead.com/forever/object=1731/copper-vein), [Tin Veins](https://www.wowhead.com/forever/object=1732/tin-vein), local skinnable beasts, [Raw Rainbow Fin Albacore](https://www.wowhead.com/forever/item=6361/raw-rainbow-fin-albacore), and [Oily Blackmouth](https://www.wowhead.com/forever/item=6358/oily-blackmouth). Darkshore uses UI maps 62 and 1439; the Forever zone ID is 148, which is not a UI map ID.
 
 Selected narrow Elwynn and Dun Morogh ordinary-objective bands were widened without changing target names, creature levels, amount ranges, or items. Early 1–3 bands commonly extend to level 4; 2–4 bands to level 5; some mid- and late-zone tasks gain two levels of availability. Hunt unlocks and the existing per-category outleveled fallback stay unchanged. Saved accepted quests retain their original generated details. Live client checks are still needed for spawn locations, exact skinning yields, merchant event ordering, and map/tooltip behavior.
+
+## Mining work orders — Alpha 0.13.0
+
+Each zone now has additional Mining objectives beyond ordinary ore gathering. Elwynn gains one Copper Bar order; Dun Morogh gains two Copper Bar orders, including a sale to [Thrawn Boltar](https://www.wowhead.com/forever/npc=1690); Westfall gains Copper and Tin Bar orders; Darkshore gains three Copper/Tin orders, including a sale to [Elisa Steelhand](https://www.wowhead.com/forever/npc=6300). The current totals are Elwynn 52, Dun Morogh 51, Westfall 52, and Darkshore 53 objectives. The older sections above record the counts when those zones were first introduced.
+
+The work orders use local [Copper Ore](https://www.wowhead.com/forever/item=2770), [Tin Ore](https://www.wowhead.com/forever/item=2771), [Copper Bars](https://www.wowhead.com/forever/item=2840), and [Tin Bars](https://www.wowhead.com/forever/item=3576). [Smelt Copper](https://www.wowhead.com/forever/spell=2657) and [Smelt Tin](https://www.wowhead.com/forever/spell=3304) provide the bar steps. Tin tasks require Mining skill 65. The amount and player-level bands are addon balancing choices; mining, crafting, and assigned-vendor sales still need a live Forever-client pass.

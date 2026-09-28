@@ -2,6 +2,19 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.13.0] - 2026-09-29
+
+### Added
+
+- NPC role tags now determine which friendly local can offer each objective. Every existing NPC has at least one tag, and Supply still selects a real merchant through the vendor tag.
+- Eight Mining work orders across Elwynn Forest, Dun Morogh, Westfall, and Darkshore. These track ore mined, bars smelted, and, where a blacksmith merchant is available, bars sold to that assigned NPC. Amounts come from each objective's own range.
+- An optional fourth PvP notice appears to the right while the player is PvP flagged. It asks for 1–5 honorable enemy-player kills and uses the normal active, ready, and turn-in flow. The board returns to its usual width when the flag ends.
+- The compact in-game changelog now scrolls through every release in player-friendly language.
+
+### Changed
+
+- Removed the separate vendor flag/list in favor of reusable NPC tags and objective-required tag combinations. Existing saved database edits using old giver fields migrate on load.
+
 ## [0.12.0] - 2026-09-29
 
 ### Added

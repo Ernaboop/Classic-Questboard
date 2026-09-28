@@ -9,11 +9,37 @@ local D = newDatabase()
 local saved = {}
 check(D:Initialize(saved), 'all built-in content validates')
 local base = D:GetBase()
-check(#D:List('zones') == 4 and #D:List('objectives') == 200, 'all four zones and objectives validate')
-check(#D:List('questGivers') == 40 and #D:List('flavourText') == 48, 'all givers and flavour validate')
+check(#D:List('zones') == 4 and #D:List('objectives') == 208, 'all four zones and Mining work orders validate')
+check(#D:List('questGivers') == 42 and #D:List('flavourText') == 48, 'all tagged givers and flavour validate')
 for _, objective in pairs(base.objectives) do
     check(base.zones[objective.zone] and objective.minAmount and objective.maxAmount, 'every objective uses shared schema')
 end
+local ordersByZone, orderCount = {}, 0
+for _, npc in pairs(base.questGivers) do
+    check(type(npc.tags) == 'table' and #npc.tags >= 1 and npc.categories == nil and npc.vendor == nil,
+        'every NPC has tags and no legacy category/vendor fields')
+    for _, tag in ipairs(npc.tags) do check(D.npcTags[tag], 'each NPC tag is registered') end
+end
+for _, objective in pairs(base.objectives) do
+    check(type(objective.requiredNPCTags) == 'table' and #objective.requiredNPCTags > 0,
+        'every objective states its required NPC tags')
+    if objective.category == 'supply' then
+        check(D.HasTags({tags = objective.requiredNPCTags}, {'vendor'}), 'Supply requires a vendor tag')
+    end
+    if objective.trackingKind == 'mining_workorder' then
+        orderCount = orderCount + 1
+        ordersByZone[objective.zone] = (ordersByZone[objective.zone] or 0) + 1
+        check(objective.profession == 'mining' and objective.oreItemID and objective.smeltSpellID
+            and objective.minAmount <= objective.maxAmount, 'Mining work order has ore, bars, and amount range')
+        if objective.handoff == 'sale' then
+            check(D.HasTags({tags = objective.requiredNPCTags}, {'blacksmith', 'vendor'}),
+                'bar-sale order requires a blacksmith merchant')
+        end
+    end
+end
+check(orderCount == 8 and ordersByZone.elwynn == 1 and ordersByZone.dun_morogh == 2
+    and ordersByZone.westfall == 2 and ordersByZone.darkshore == 3,
+    'all four zones have their planned Mining work-order pools')
 local function reject(edit, description)
     local candidate = D.Copy(base)
     edit(candidate.objectives.kobold_vermin, candidate)
@@ -32,6 +58,8 @@ reject(function(o) o.maxPlayerLevel = 99 end, 'levels beyond zone')
 reject(function(o) o.minAmount = 99 end, 'inverted amounts')
 reject(function(o) o.profession = 'alchemy' end, 'wrong profession and category field')
 reject(function(o) o.itemID = 123 end, 'item identifier on Kill rejected')
+reject(function(o) o.requiredNPCTags = {'imaginary_role'} end, 'unknown NPC tag rejected')
+reject(function(o) o.requiredNPCTags = {'blacksmith', 'vendor'} end, 'unavailable NPC tag combination rejected')
 reject(function(o, c) c.questGivers = {} end, 'Supply needs zone vendors')
 reject(function(o, c) c.zones.elwynn = false end, 'malformed referenced zone does not crash')
 reject(function(o, c) c.flavourText.kobold_vermin = {id = o.id, category = 'kill', text = 'Duplicate'} end, 'cross-kind duplicate IDs')
@@ -65,7 +93,7 @@ check(D:Get('questGivers', giver.id).name == giver.name and D:Get('flavourText',
 check(D:GetBase().objectives.kobold_vermin.minAmount == 8, 'reload does not alter base')
 local broken = {databaseOverrides = {version = 1, objectives = {custom = {entry = {id = 'custom'}}}}}
 check(not D:Initialize(broken), 'invalid saved edit reported safely')
-check(broken.databaseOverrideBackup.objectives.custom and #D:List('objectives') == 200, 'broken edits backed up and base restored')
+check(broken.databaseOverrideBackup.objectives.custom and #D:List('objectives') == 208, 'broken edits backed up and base restored')
 local duplicate = newDatabase()
 check(not duplicate:RegisterObjective(base.objectives.kobold_vermin), 'registration duplicate rejected')
 check(not duplicate:Initialize({}), 'registration error reported at load')
@@ -74,9 +102,9 @@ local function registerTestZone(db)
     db:RegisterZone({id = 'test_zone', name = 'Test Zone', minLevel = 1, maxLevel = 12, mapIDs = {999999},
         objectives = {{id = 'test_kill', name = 'Test creature', category = 'kill', level = '1',
             minPlayerLevel = 1, maxPlayerLevel = 12, minAmount = 2, maxAmount = 2,
-            location = 'Test location', npcID = 999999}},
+            location = 'Test location', npcID = 999999, requiredNPCTags = {'questgiver'}}},
         questGivers = {{id = 'test_giver', name = 'Test giver', npcID = 999998, zone = 'test_zone',
-            faction = 'Alliance', location = 'Test inn', categories = {'kill'}}},
+            faction = 'Alliance', location = 'Test inn', tags = {'questgiver'}}},
         flavourText = {{id = 'test_story', category = 'kill', text = 'Test story.'}},
     })
 end
@@ -140,6 +168,7 @@ check(not addon.GenerateQuestForLevel(6, false, nil, 'kill'), 'disabled objectiv
 E.New()
 ui.fields.id:SetText('gui_custom'); ui.fields.name:SetText('GUI custom objective')
 ui.fields.level:SetText('1'); ui.fields.location:SetText('Test location'); ui.fields.npcID:SetText('999999')
+ui.fields.requiredNPCTags:SetText('questgiver')
 TestEnvironment.select(ui.fields.zone, 'Test Zone')
 check(E.Save() and D:Get('objectives', 'gui_custom'), 'GUI Add stores complete new objective')
 TestEnvironment.select(ui.zoneFilter, 'Test Zone')
@@ -184,8 +213,8 @@ local counts = {kill = 0, supply = 0, hunt = 0, gather = 0}
 for _, objective in ipairs(D:List('objectives')) do
     if objective.zone == 'westfall' then counts[objective.category] = counts[objective.category] + 1 end
 end
-check(counts.kill == 20 and counts.supply == 11 and counts.hunt == 7 and counts.gather == 12,
-    'Westfall has balanced 50-objective category pool')
+check(counts.kill == 20 and counts.supply == 11 and counts.hunt == 7 and counts.gather == 14,
+    'Westfall has balanced categories and two Mining work orders')
 check(#WoWForeverDB.displayedQuests == 3 and WoWForeverDB.selectedZone == 'westfall', 'Westfall fills three live cards')
 local seen = {}
 for _, offer in ipairs(WoWForeverDB.displayedQuests) do
@@ -213,7 +242,7 @@ check(hunt and hunt.amount == 1 and hunt.tracking.npcID, 'Westfall rare Hunt req
 WoWForeverDebugModeButton.scripts.OnClick()
 board.debugButton.scripts.OnClick()
 browser = WoWForeverQuestBrowser
-for index, expected in ipairs({20, 11, 7, 12}) do
+for index, expected in ipairs({20, 11, 7, 14}) do
     local tab = browser.tabs[index]
     check(tab.objectiveCount == expected and tab.label.text:find('|cff999999(' .. expected .. ')', 1, true),
         'browser tab shows grey all-level Westfall objective count')
@@ -228,7 +257,7 @@ local elwynnGatherCount = 0
 for _, objective in ipairs(D:List('objectives')) do
     if objective.zone == 'elwynn' and objective.category == 'gather' then elwynnGatherCount = elwynnGatherCount + 1 end
 end
-check(browser.tabs[4].objectiveCount == elwynnGatherCount and elwynnGatherCount == 13,
+check(browser.tabs[4].objectiveCount == elwynnGatherCount and elwynnGatherCount == 14,
     'browser category count refreshes when zone changes')
 local initialBrowserLevel = browser.levelLabel.text
 browser.levelDown.scripts.OnClick()
@@ -265,7 +294,9 @@ legacy.statistics.completedByCategory['Collect & Sell'] = 2
 legacy.statistics.abandonedByCategory['Collect & Sell'] = 3
 local objective = D:Get('objectives', supply.objectiveId); objective.category = 'collect_sell'
 local giver = D:Get('questGivers', supply.questGiverEntryID)
-for index, id in ipairs(giver.categories) do if id == 'supply' then giver.categories[index] = 'collect_sell' end end
+giver.categories, giver.vendor = {'collect_sell'}, true
+giver.tags = nil
+objective.requiredNPCTags = nil
 local story
 for _, entry in ipairs(D:List('flavourText')) do if entry.category == 'supply' then story = entry; break end end
 story.category = 'collect_sell'
@@ -279,7 +310,7 @@ addon, board = TestEnvironment.load(legacy)
 D = addon.Database
 local migratedGiver = D:Get('questGivers', giver.id)
 local hasSupply = false
-for _, id in ipairs(migratedGiver.categories) do if id == 'supply' then hasSupply = true end end
+for _, id in ipairs(migratedGiver.tags) do if id == 'vendor' then hasSupply = true end end
 check(#D.errors == 0 and D:Get('objectives', objective.id).category == 'supply'
     and hasSupply
     and D:Get('flavourText', story.id).category == 'supply',
@@ -317,8 +348,8 @@ for _, entry in ipairs(D:List('objectives')) do
     end
 end
 check(darkCounts.kill == 20 and darkCounts.supply == 11 and darkCounts.hunt == 7
-    and darkCounts.gather == 12, 'Darkshore has 50 balanced objectives')
-check(darkProfessions.herbalism == 4 and darkProfessions.mining == 3
+    and darkCounts.gather == 15, 'Darkshore has balanced objectives and three Mining work orders')
+check(darkProfessions.herbalism == 4 and darkProfessions.mining == 6
     and darkProfessions.skinning == 3 and darkProfessions.fishing == 2,
     'Darkshore covers all four gathering professions')
 check(#WoWForeverDB.displayedQuests == 3 and WoWForeverDB.selectedZone == 'darkshore',
@@ -368,12 +399,72 @@ WoWForeverDebugModeButton.scripts.OnClick()
 board.debugButton.scripts.OnClick()
 local darkBrowser = WoWForeverQuestBrowser
 check(darkBrowser.zoneDropdown.text == 'Darkshore', 'Quest Browser opens on the registered Darkshore zone')
-for index, expected in ipairs({20, 11, 7, 12}) do
+for index, expected in ipairs({20, 11, 7, 15}) do
     check(darkBrowser.tabs[index].objectiveCount == expected,
         'Quest Browser tab counts Darkshore objectives in each category')
 end
 TestEnvironment.select(darkBrowser.zoneDropdown, 'Elwynn Forest')
 check(darkBrowser.zoneDropdown.text == 'Elwynn Forest' and WoWForeverDB.selectedZone == 'darkshore'
-    and darkBrowser.tabs[4].objectiveCount == 13,
+    and darkBrowser.tabs[4].objectiveCount == 14,
     'Quest Browser can inspect another zone without changing the Darkshore board')
+
+-- The optional PvP notice is a fourth card, not one of the three zone offers.
+addon, board = TestEnvironment.load(nil)
+local originalOffers = WoWForeverDB.displayedQuests
+TestEnvironment.flag(true)
+local pvpCard
+for _, frame in ipairs(TestEnvironment.frames) do
+    if frame.parent == board and rawget(frame, 'heading') and frame.heading.text == 'Honorable Combat' then
+        pvpCard = frame; break
+    end
+end
+check(pvpCard and pvpCard:IsShown() and board:GetWidth() == 1108
+    and WoWForeverDB.displayedQuests == originalOffers,
+    'PvP flag reveals an independent card beside unchanged zone offers')
+local pvpOffer = WoWForeverDB.pvpQuest
+pvpCard.button.scripts.OnClick()
+check(WoWForeverDB.activeQuest == pvpOffer and pvpOffer.tracking.kind == 'pvp_honor',
+    'PvP card accepts through the normal one-active-quest flow')
+for _ = 1, pvpOffer.amount do addon.Tracking.OnEvent('PLAYER_PVP_KILLS_CHANGED', 'player') end
+check(pvpOffer.state == 'Ready to Turn In' and pvpCard.button.text == 'Turn In Quest',
+    'honorable kill credit makes the PvP card ready')
+pvpCard.button.scripts.OnClick()
+check(not WoWForeverDB.activeQuest and WoWForeverDB.pvpQuest ~= pvpOffer
+    and WoWForeverDB.displayedQuests == originalOffers,
+    'PvP turn-in replaces only its own card')
+local pvpStatistics = addon.Tracking.GetStatistics()
+check(pvpStatistics.acceptedByCategory.PvP == 1
+    and pvpStatistics.completedByCategory.PvP == 1,
+    'accepted and handed-in PvP quests appear in their own statistics category')
+pvpCard.button.scripts.OnClick()
+TestEnvironment.flag(false)
+check(not pvpCard:IsShown() and board:GetWidth() == 840 and board.pvpAbandon:IsShown(),
+    'unflagging hides the card but leaves an abandon action for the active PvP quest')
+board.pvpAbandon.scripts.OnClick()
+WoWForeverAbandonDialog.confirm.scripts.OnClick()
+check(not WoWForeverDB.activeQuest and WoWForeverDB.pvpQuest
+    and WoWForeverDB.displayedQuests == originalOffers,
+    'abandoning hidden PvP quest keeps the normal three offers')
+check(addon.Tracking.GetStatistics().abandonedByCategory.PvP == 1,
+    'abandoned PvP quests appear in their own statistics category')
+addon, board = TestEnvironment.load(nil)
+TestEnvironment.professions({186}, {1})
+TestEnvironment.select(board.zoneDropdown, 'Westfall')
+local function workOrderPool()
+    local excluded, result = {}, {}
+    for _ = 1, 80 do
+        local offer = addon.GenerateQuestForLevel(18, false, excluded, 'gather')
+        if not offer then break end
+        excluded[offer.selectionId] = true
+        if offer.tracking.kind == 'mining_workorder' then result[offer.objectiveId] = offer end
+    end
+    return result
+end
+local lowSkill = workOrderPool()
+check(lowSkill.wf_copper_bar_workorder and not lowSkill.wf_tin_bar_workorder,
+    'Tin work order stays hidden below Mining skill 65')
+TestEnvironment.professions({186}, {65})
+local highSkill = workOrderPool()
+check(highSkill.wf_copper_bar_workorder and highSkill.wf_tin_bar_workorder,
+    'Tin work order appears once Mining skill reaches 65')
 print('PASS: ' .. count .. ' database, override, editor and new-zone assertions (Lua 5.1)')

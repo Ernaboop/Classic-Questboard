@@ -1,4 +1,4 @@
-# Classic Questboard data format — Alpha 0.12.0
+# Classic Questboard data format — Alpha 0.13.0
 
 ## Files and load order
 
@@ -8,6 +8,7 @@ Classic Questboard/
 │  ├─ Database.lua          # schema, registration, validation, overrides
 │  ├─ QuestGivers.lua       # friendly NPCs and verified vendors
 │  ├─ FlavourText.lua       # category/profession story alternatives
+│  ├─ UpdateHistory.lua     # player-facing summaries of every release
 │  └─ Zones/
 │     ├─ ElwynnForest.lua
 │     ├─ DunMorogh.lua
@@ -47,15 +48,15 @@ Unknown fields and fields on the wrong category are rejected.
 | Entry | Required fields | Optional fields |
 |---|---|---|
 | Zone | `id`, `name`, `minLevel`, `maxLevel`, `mapIDs` | `order`; registration arrays listed above |
-| Objective | `id`, `name`, `zone`, `category`, `level`, `minPlayerLevel`, `maxPlayerLevel`, `minAmount`, `maxAmount`, `location` | Category-specific fields below |
-| Quest giver / vendor | `id`, `name`, `npcID`, `zone`, `location`, `faction`, `categories` | `vendor` (defaults false) |
+| Objective | `id`, `name`, `zone`, `category`, `level`, `minPlayerLevel`, `maxPlayerLevel`, `minAmount`, `maxAmount`, `location`, `requiredNPCTags` | Category-specific fields below |
+| NPC | `id`, `name`, `npcID`, `zone`, `location`, `faction`, `tags` | Multiple tags may be combined |
 | Flavour text | `id`, `category`, `text` | `zone`, `profession` (Gather only) |
 
 `category` uses `kill`, `supply`, `hunt`, or `gather`. The former `collect_sell`
 ID and "Collect & Sell" label in 0.9.0 saves are migrated on load. `profession` uses
 `herbalism`, `mining`, `skinning`, or `fishing`. `faction` is `Alliance`, `Horde`,
 or `Neutral`; verify the NPC's friendliness in the targeted client before adding it.
-`categories` is an array of category IDs. `mapIDs` is an array of zone map IDs;
+`tags` and `requiredNPCTags` are arrays of role tags. Every NPC needs at least one tag; an objective may require several, and its assigned NPC must have all of them. The current tags are `vendor`, `blacksmith`, `innkeeper`, `guard`, `questgiver`, `collector`, `farmer`, `fisherman`, `trainer`, `quartermaster`, `engineer`, `scout`, and `resident`. Add new tags to `Database.npcTags` before using them. Old saved `categories` and `vendor` fields are converted on load. `mapIDs` is an array of zone map IDs;
 tracking walks parent maps for interiors and also supports zone-name matching.
 
 `level` is a display string (for example `"5-6"` or `"Mining 1"`). Eligibility uses
@@ -63,7 +64,7 @@ the numeric `minPlayerLevel` and `maxPlayerLevel`, inclusively, inside the zone'
 range. Hunt's two-level early allowance is already represented in those values;
 do not subtract it again. Existing overlevel category fallback is unchanged.
 Profession gating checks whether the character knows the profession, as before;
-the skill label does not introduce a new skill-rank gate.
+the skill label does not introduce a skill-rank gate by itself. An optional `minProfessionSkill` does gate a Gather objective when the client reports the learned skill.
 
 Amounts are inclusive integer ranges from 1 to 1000, with minimum ≤ maximum.
 Rare Hunts must use 1–1. Keep elite counts suitably small.
@@ -73,7 +74,7 @@ Rare Hunts must use 1–1. Keep elite counts suitably small.
 | Kill | `npcID`, `npcIDs`, or `targets` (exact creature-name array) |
 | Hunt | Same targets as Kill, plus `classification = "rare"` or `"elite"` |
 | Supply | Creature identifiers above; `lootMode = "item"` with `itemID`, or `"any_vendor_item"`; optional `item` display name and `vendorID` |
-| Gather | `profession`, `itemID`, `trackingKind = "gather"`; Mining may use `"nodes"`; Skinning may restrict creature identifiers |
+| Gather | `profession`, `itemID`, `trackingKind = "gather"`; Mining may use `"nodes"` or `"mining_workorder"`; Skinning may restrict creature identifiers |
 
 `target` is an optional display label, not a tracking identifier. NPC IDs, when
 present, take precedence over names. Existing name-based targets are preserved;
@@ -81,10 +82,9 @@ no unverified NPC IDs were invented during the refactor. Numeric IDs allow new
 content to avoid name/localization ambiguity. The shared `npcID`/`npcIDs` fields
 refer to creatures; Gather uses `itemID` plus existing gathering evidence.
 
-Supply requires an enabled merchant in the same zone whose `categories`
-contains `supply` and whose `vendor` is true. `vendorID` optionally pins
-one NPC ID; otherwise generation chooses an eligible friendly vendor. The chosen
-merchant is saved on the quest, and only sales to that NPC count.
+Supply objectives require `requiredNPCTags = {"vendor"}` (or a larger set including `vendor`). Generation chooses a matching friendly NPC in the same zone; optional `vendorID` pins one NPC ID. The chosen merchant is saved on the quest, and only sales to that NPC count.
+
+Mining work orders use `trackingKind = "mining_workorder"`, `oreItemID`, `oreName`, `itemID` for the resulting bar, and `smeltSpellID`. Their `minAmount`/`maxAmount` roll the required quantity. The tracker requires ore mined from a matching local node, then bars created by smelting. `handoff = "sale"` adds a final sale to the assigned NPC, so its `requiredNPCTags` must include both `blacksmith` and `vendor`. Non-sale work orders can use another suitable collector. Skill 65 Tin work orders set `minProfessionSkill = 65`.
 
 ## Elwynn example: zone and Kill objective
 
@@ -99,7 +99,7 @@ ns.Database:RegisterZone({
     objectives = {
         {
             id = "kobold_vermin", name = "Kobold Vermin",
-            category = "kill", level = "1-2",
+            category = "kill", requiredNPCTags = {"questgiver"}, level = "1-2",
             minPlayerLevel = 1, maxPlayerLevel = 3,
             minAmount = 8, maxAmount = 12,
             location = "Northshire Valley",
@@ -120,13 +120,14 @@ Place entries in a zone's `objectives` array (zone inherited), or pass each to
 -- Hunt: target once; elite entries use classification = "elite".
 {
     id = "example_narg", name = "Narg the Taskmaster", category = "hunt",
-    classification = "rare", level = "10",
+    classification = "rare", requiredNPCTags = {"questgiver"}, level = "10",
     minPlayerLevel = 8, maxPlayerLevel = 12, minAmount = 1, maxAmount = 1,
     location = "Fargodeep Mine", targets = {"Narg the Taskmaster"},
 },
 -- Collect item from a known creature, then sell to the assigned merchant.
 {
     id = "example_boar_meat", name = "Boar Meat Delivery", category = "supply",
+    requiredNPCTags = {"vendor"},
     level = "5-6", minPlayerLevel = 4, maxPlayerLevel = 7,
     minAmount = 3, maxAmount = 5, location = "Stonefield and Maclure farms",
     targets = {"Stonetusk Boar"}, lootMode = "item",
@@ -135,22 +136,32 @@ Place entries in a zone's `objectives` array (zone inherited), or pass each to
 -- Herbalism: count verified gathered items.
 {
     id = "example_peacebloom", name = "Peacebloom", category = "gather",
-    profession = "herbalism", level = "Herbalism 1",
+    profession = "herbalism", requiredNPCTags = {"collector"}, level = "Herbalism 1",
     minPlayerLevel = 1, maxPlayerLevel = 5, minAmount = 4, maxAmount = 8,
     location = "throughout Elwynn Forest", itemID = 2447, trackingKind = "gather",
 },
 -- Mining: count ore; use trackingKind = "nodes" to count distinct looted nodes.
 {
     id = "example_copper", name = "Copper Ore", category = "gather",
-    profession = "mining", level = "Mining 1",
+    profession = "mining", requiredNPCTags = {"collector"}, level = "Mining 1",
     minPlayerLevel = 1, maxPlayerLevel = 12, minAmount = 5, maxAmount = 9,
     location = "Copper Veins throughout Elwynn Forest", itemID = 2770,
     trackingKind = "gather",
 },
+-- Mining work order: mine ore, smelt bars, then sell to a blacksmith vendor.
+{
+    id = "example_copper_bars", name = "Copper Bars for the Forge",
+    category = "gather", profession = "mining", requiredNPCTags = {"blacksmith", "vendor"},
+    level = "Mining 1", minPlayerLevel = 5, maxPlayerLevel = 12,
+    minAmount = 3, maxAmount = 5, location = "Copper Veins throughout Dun Morogh",
+    target = "Copper Bar", oreItemID = 2770, oreName = "Copper Ore",
+    itemID = 2840, smeltSpellID = 2657,
+    trackingKind = "mining_workorder", handoff = "sale",
+},
 -- Skinning: optionally restrict which beasts supply the leather.
 {
     id = "example_leather", name = "Light Leather from Boars", category = "gather",
-    profession = "skinning", level = "Skinning 1",
+    profession = "skinning", requiredNPCTags = {"collector"}, level = "Skinning 1",
     minPlayerLevel = 4, maxPlayerLevel = 8, minAmount = 3, maxAmount = 5,
     location = "Stonefield and Maclure farms", targets = {"Stonetusk Boar"},
     itemID = 2318, trackingKind = "gather",
@@ -158,7 +169,7 @@ Place entries in a zone's `objectives` array (zone inherited), or pass each to
 -- Fishing: only matching fishing loot counts.
 {
     id = "example_smallfish", name = "Raw Brilliant Smallfish", category = "gather",
-    profession = "fishing", level = "Fishing 1",
+    profession = "fishing", requiredNPCTags = {"collector"}, level = "Fishing 1",
     minPlayerLevel = 1, maxPlayerLevel = 5, minAmount = 5, maxAmount = 9,
     location = "lakes and rivers", itemID = 6291, trackingKind = "gather",
 },
@@ -175,12 +186,12 @@ local _, ns = ...
 ns.Database:RegisterQuestGiver({
     id = "npc_240", name = "Marshal Dughan", npcID = 240,
     zone = "elwynn", location = "Goldshire", faction = "Alliance",
-    categories = {"kill", "hunt"}, vendor = false,
+    tags = {"questgiver", "guard"},
 })
 ns.Database:RegisterQuestGiver({
     id = "npc_295", name = "Innkeeper Farley", npcID = 295,
     zone = "elwynn", location = "Lion's Pride Inn", faction = "Alliance",
-    categories = {"supply", "gather"}, vendor = true,
+    tags = {"vendor", "collector", "innkeeper"},
 })
 ns.Database:RegisterFlavour({
     id = "example_mining_story", category = "gather", profession = "mining",
@@ -232,7 +243,7 @@ WoWForeverDB.databaseOverrides = {
         kobold_vermin = {disabled = true},
         custom_vermin = {entry = {
             id = "custom_vermin", name = "My Vermin Patrol", zone = "elwynn",
-            category = "kill", level = "1-2", minPlayerLevel = 1, maxPlayerLevel = 3,
+            category = "kill", requiredNPCTags = {"questgiver"}, level = "1-2", minPlayerLevel = 1, maxPlayerLevel = 3,
             minAmount = 4, maxAmount = 6, location = "Northshire Valley",
             targets = {"Kobold Vermin"},
         }},
@@ -266,7 +277,7 @@ Classic Questboard Options
   [Database Editor]
          ↓
 ┌ Classic Questboard Database Editor ─────────────────────── × ┐
-│ [Zones] [Objectives] [Quest Givers] [Vendors] [Flavour Text] │
+│ [Zones] [Objectives] [Quest Givers] [Flavour Text]           │
 │ [All zones ▼]       [All categories ▼] [All professions ▼] │
 │ Entry list ↕        │ Selected entry's schema fields ↕    │
 │ Name + stable ID    │ ID, name, zone, category...          │
@@ -305,11 +316,10 @@ profession/level filtering, statistics, debug tools, and stable quest cards.
 
 These are automated client simulations, not a live WoW playtest. After `/reload`,
 check Options → Database Editor, nested window placement at your UI scale, and
-one accept/track/hand-in cycle. This change set is intentionally **uncommitted**
-pending your review.
+one accept/track/hand-in cycle. The 0.10.0 review was completed before that release.
 
 ## Review checks for 0.11.0
 
 The Westfall file registers 50 objectives in the shared schema: 20 Kill, 11 Supply, 7 Hunt, and 12 Gather. The Quest Browser has its own registered-zone dropdown and preview level; its category tabs show all-level counts for that selected zone. The main board's zone and debug generation level remain independent. The old `collect_sell` identifier and `Collect & Sell` label migrate in saved offers, active quests, statistics, and editor overrides before validation. Supply still requires the assigned vendor for a sale.
 
-The complete Lua 5.1 simulation suite passes: 3,888 tracking/UI assertions and 260 database/override/editor/new-zone assertions, plus the 100-objective 0.9.0 content comparison. These checks do not replace a live client pass for window appearance, spawns, gathering, or merchant events. This update remains uncommitted for review.
+The complete Lua 5.1 simulation suite passes: 3,888 tracking/UI assertions and 260 database/override/editor/new-zone assertions, plus the 100-objective 0.9.0 content comparison. These checks do not replace a live client pass for window appearance, spawns, gathering, or merchant events. That release was reviewed before the current update.

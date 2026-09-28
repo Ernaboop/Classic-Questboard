@@ -31,7 +31,9 @@ local function TrackingSpec(categoryId, objective, profession, vendorID)
         or categoryId == "supply" and "supply" or objective.trackingKind
     return {kind = kind, targets = Database.Copy(objective.targets), npcID = objective.npcID,
         npcIDs = Database.Copy(objective.npcIDs), itemID = objective.itemID,
-        profession = profession, vendorID = categoryId == "supply" and vendorID or nil}
+        profession = profession, oreItemID = objective.oreItemID,
+        smeltSpellID = objective.smeltSpellID, handoff = objective.handoff,
+        vendorID = (categoryId == "supply" or objective.handoff == "sale") and vendorID or nil}
 end
 local function ResolveTracking(quest)
     -- Accepted/offered quests are snapshots. Content edits only affect new rolls.
@@ -55,9 +57,12 @@ end
 local function EligibleGivers(zone, categoryId, objective)
     local result, faction = {}, PlayerFaction()
     if not faction then return result end
+    -- Only legacy saved offers lack tag requirements; newly registered data
+    -- supplies them on the objective itself.
+    local required = objective and objective.requiredNPCTags
+        or {categoryId == "supply" and "vendor" or categoryId == "gather" and "collector" or "questgiver"}
     for _, giver in ipairs(zone.questGivers or {}) do
-        if (giver.faction == faction or giver.faction == "Neutral") and giver.roles[categoryId]
-            and (categoryId ~= "supply" or giver.vendor)
+        if (giver.faction == faction or giver.faction == "Neutral") and Database.HasTags(giver, required)
             and (not objective or not objective.vendorID or objective.vendorID == giver.npcID) then
             result[#result + 1] = giver
         end
@@ -102,9 +107,11 @@ local function LearnedGatherProfessions(zone)
     local primaryOne, primaryTwo, third, fourth, fifth = GetProfessions()
     local function IncludeProfession(index)
         if index then
-            local _, _, _, _, _, _, skillLine = GetProfessionInfo(index)
+            local _, _, skillLevel, _, _, _, skillLine = GetProfessionInfo(index)
             for _, profession in ipairs((zone or SelectedZone()).data.gather) do
-                if skillLine == profession.skillLine then known[profession.id] = true end
+                if skillLine == profession.skillLine then
+                    known[profession.id] = type(skillLevel) == "number" and skillLevel or 1
+                end
             end
         end
     end
@@ -130,6 +137,7 @@ local function CategoryOptions(includeUnlearned, zone)
                 name = "Gather — " .. profession.name,
                 baseName = "Gather",
                 profession = profession,
+                skillLevel = known[profession.id],
                 source = "A gathering commission",
                 locked = not known[profession.id],
             }
@@ -236,7 +244,15 @@ local function ObjectiveOptions(category, branch, playerLevel, outleveled)
     local highest = HighestCategoryLevel(category)
     local effectiveLevel = playerLevel
     if highest and (outleveled or playerLevel > highest) then effectiveLevel = highest end
-    return EligibleObjectives(objectives, effectiveLevel)
+    local eligible = EligibleObjectives(objectives, effectiveLevel)
+    if not category.profession then return eligible end
+    local result = {}
+    for _, objective in ipairs(eligible) do
+        if not objective.minProfessionSkill or (category.skillLevel or 0) >= objective.minProfessionSkill then
+            result[#result + 1] = objective
+        end
+    end
+    return result
 end
 
 local function ObjectiveText(category, objective, amount, zone, quest)
@@ -250,6 +266,12 @@ local function ObjectiveText(category, objective, amount, zone, quest)
         return "Collect " .. amount .. " " .. (objective.item or "vendor-value item") .. (amount == 1 and "" or "s") .. " from " .. target .. " near " .. objective.location .. ", then sell them to " .. vendor .. " in " .. vendorLocation .. "."
     elseif category.id == "hunt" then
         return "Find and defeat " .. (amount > 1 and (amount .. " ") or "") .. target .. location .. "."
+    elseif objective.trackingKind == "mining_workorder" then
+        local bars = target .. (amount == 1 and "" or "s")
+        local handoff = objective.handoff == "sale" and quest
+            and (", then sell " .. amount .. " " .. bars .. " to " .. quest.source .. " in " .. quest.questGiverLocation) or ""
+        return "Mine " .. amount .. " " .. (objective.oreName or "ore") .. " " .. location
+            .. ", then smelt " .. amount .. " " .. bars .. handoff .. "."
     elseif objective.trackingKind == "nodes"  then
         return "Mine " .. amount .. " different " .. target .. " in " .. zone.name .. " and loot their ore."
     elseif category.profession then
@@ -287,7 +309,7 @@ local function BuildQuest(category, branch, objective, amount)
     }
     if not AssignNarrative(quest, zone, categoryId, objective) then return nil end
     quest.objective = ObjectiveText(category, objective, amount, zone, quest)
-    quest.tracking = TrackingSpec(category.id, objective, category.profession and category.profession.id, quest.questGiverID)
+    quest.tracking = TrackingSpec(categoryId, objective, category.profession and category.profession.id, quest.questGiverID)
     return quest
 end
 
@@ -421,6 +443,21 @@ local function ValidQuest(quest)
         and type(quest.kind) == "string"
         and type(quest.objective) == "string"
         and type(quest.amount) == "number" and quest.amount >= 1 and quest.amount <= 1000 and quest.amount == math.floor(quest.amount)
+end
+local function IsPvPFlagged()
+    if type(UnitIsPVP) ~= "function" then return false end
+    local ok, flagged = pcall(function() return not not UnitIsPVP("player") end)
+    return ok and flagged
+end
+local function NewPvPQuest()
+    local amount = math.random(1, 5)
+    return {id = "pvp:honorable_kills:" .. amount, selectionId = "pvp:honorable_kills",
+        title = "Honorable Combat", kind = "PvP", categoryName = "PvP",
+        zone = "Any contested area", amount = amount,
+        level = "Honorable targets", source = "Classic Questboard",
+        description = "The call to arms is open to anyone willing to face a worthy opponent.",
+        objective = "Defeat " .. amount .. (amount == 1 and " honorable enemy player." or " honorable enemy players."),
+        tracking = {kind = "pvp_honor"}}
 end
 
 local function ValidDisplayedQuests(displayed)
@@ -871,7 +908,7 @@ local function LayoutStatistics()
         local section = statisticsWindow.sections[definition.key]
         section:ClearAllPoints()
         section:SetPoint("TOPLEFT", statisticsWindow, "TOPLEFT", 24, y)
-        local height = section.expanded and 164 or 40
+        local height = section.expanded and 188 or 40
         section:SetHeight(height)
         section.categories:SetShown(section.expanded)
         section.expand:SetText(section.expanded and "−" or "+")
@@ -926,16 +963,16 @@ local function ToggleStatistics()
             value:SetPoint("TOPRIGHT", -8, -4)
             statisticsWindow.values[definition.key] = value
             section.categories = CreateFrame("Frame", nil, section)
-            section.categories:SetSize(352, 120)
+            section.categories:SetSize(352, 144)
             section.categories:SetPoint("TOPLEFT", 32, -30)
             section.categoryValues = {}
-            for index, category in ipairs({"Kill", "Supply", "Hunt", "Gather", "Earlier / unclassified"}) do
+            for index, category in ipairs({"Kill", "Supply", "Hunt", "Gather", "PvP", "Earlier / unclassified"}) do
                 local categoryLabel = Text(section.categories, "GameFontHighlightSmall")
                 categoryLabel:SetPoint("TOPLEFT", 8, -(index - 1) * 24)
                 categoryLabel:SetText(category)
                 local count = Text(section.categories, "GameFontNormal")
                 count:SetPoint("TOPRIGHT", 0, -(index - 1) * 24)
-                if index == 5 then section.unclassified = count else section.categoryValues[category] = count end
+                if index == 6 then section.unclassified = count else section.categoryValues[category] = count end
             end
             section.expand:SetScript("OnClick", function()
                 section.expanded = not section.expanded
@@ -952,26 +989,36 @@ local function ToggleStatistics()
     Windows.Open(statisticsWindow, Windows.Previous(board, statisticsWindow))
 end
 
--- Keep these three plain-language summaries aligned with the newest CHANGELOG.md entries.
-local recentUpdates = {
-    {version = "0.12.0", text = "Darkshore joins the board with 50 new notices. More quests remain available across nearby levels."},
-    {version = "0.11.3", text = "Extra windows now stay readable and on screen when the Questboard is near an edge."},
-    {version = "0.11.2", text = "You can now open a short changelog from Help to see the three latest updates."},
-}
+-- Data/UpdateHistory.lua mirrors all CHANGELOG.md releases for the in-game UI.
+local recentUpdates = ns.UpdateHistory or {}
 ns.RecentUpdates = recentUpdates
 
 local function ToggleChangelog()
     if changelogWindow and changelogWindow:IsShown() then changelogWindow:Hide(); return end
     if not changelogWindow then
         changelogWindow = SecondaryWindow("WoWForeverChangelog", "Recent Updates", 460, 350)
+        local scroll = CreateFrame("ScrollFrame", "WoWForeverChangelogScroll", changelogWindow, "UIPanelScrollFrameTemplate")
+        scroll:SetPoint("TOPLEFT", 24, -52)
+        scroll:SetPoint("BOTTOMRIGHT", -38, 22)
+        scroll:EnableMouseWheel(true)
+        scroll:SetScript("OnMouseWheel", function(self, delta)
+            local position = self:GetVerticalScroll()
+            local maximum = self:GetVerticalScrollRange()
+            self:SetVerticalScroll(math.max(0, math.min(maximum, position - delta * 40)))
+        end)
+        local content = CreateFrame("Frame", nil, scroll)
+        content:SetSize(370, #recentUpdates * 124 + 12)
+        scroll:SetScrollChild(content)
+        changelogWindow.scroll = scroll
+        changelogWindow.content = content
         changelogWindow.entries = {}
         for index, release in ipairs(recentUpdates) do
-            local heading = Text(changelogWindow, "GameFontNormal")
-            heading:SetPoint("TOPLEFT", 28, -56 - (index - 1) * 92)
+            local heading = Text(content, "GameFontNormal")
+            heading:SetPoint("TOPLEFT", 2, -8 - (index - 1) * 124)
             heading:SetText("Alpha " .. release.version)
-            local summary = Text(changelogWindow, "GameFontHighlightSmall")
-            summary:SetPoint("TOPLEFT", 28, -80 - (index - 1) * 92)
-            summary:SetSize(402, 62)
+            local summary = Text(content, "GameFontHighlightSmall")
+            summary:SetPoint("TOPLEFT", 2, -34 - (index - 1) * 124)
+            summary:SetSize(352, 84)
             summary:SetText(release.text)
             changelogWindow.entries[index] = {heading = heading, summary = summary}
         end
@@ -1008,6 +1055,10 @@ local function AbandonActive(expected)
         if offer.id == expected.id then
             offer.state, offer.progress, offer.acceptedAt, offer.completedAt = nil, nil, nil, nil
         end
+    end
+    if db.pvpQuest and db.pvpQuest.id == expected.id then
+        db.pvpQuest.state, db.pvpQuest.progress = nil, nil
+        db.pvpQuest.acceptedAt, db.pvpQuest.completedAt = nil, nil
     end
     Refresh()
     return true
@@ -1068,6 +1119,12 @@ local function TurnInSlot(index)
     if replacement then db.displayedQuests[index] = replacement else table.remove(db.displayedQuests, index) end
     Refresh()
 end
+local function TurnInPvP()
+    if not db.pvpQuest or not db.activeQuest or db.activeQuest.id ~= db.pvpQuest.id then return end
+    if not Tracking.TurnIn(debugMode) then return end
+    db.pvpQuest = NewPvPQuest()
+    Refresh()
+end
 
 CreateBoard = function()
     board = CreateFrame("Frame", "WoWForeverQuestboard", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
@@ -1089,7 +1146,7 @@ CreateBoard = function()
     title:SetText("Classic Questboard")
     local version = Text(board, "GameFontHighlightSmall")
     version:SetPoint("TOPLEFT", 54, -31)
-    version:SetText("Alpha V0.12.0")
+    version:SetText("Alpha V0.13.0")
     board.zoneDropdown = CreateFrame("Frame", "WoWForeverZoneDropdown", board, "UIDropDownMenuTemplate")
     board.zoneDropdown:SetPoint("TOP", board, "TOP", 0, -8)
     UIDropDownMenu_SetWidth(board.zoneDropdown, 190)
@@ -1149,14 +1206,16 @@ CreateBoard = function()
     CreateDebugModeButton(board)
 
     cards = {}
-    for index = 1, 3 do
+    for index = 1, 4 do
         local offerIndex = index
+        local isPvP = index == 4
         local card = CreateFrame("Frame", nil, board, BackdropTemplateMixin and "BackdropTemplate" or nil)
         cards[index] = card
         card:SetSize(256, 396)
         card:SetPoint("TOPLEFT", 24 + (index - 1) * 268, -82)
         card:SetBackdrop({bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12, insets = {left = 3, right = 3, top = 3, bottom = 3}})
         card:SetBackdropColor(0.16, 0.135, 0.09, 0.96)
+        if isPvP then card:SetBackdropBorderColor(0.8, 0.28, 0.18, 1) end
         card.heading = Text(card, "GameFontNormalLarge")
         card.heading:SetPoint("TOPLEFT", 14, -16)
         card.heading:SetSize(228, 44)
@@ -1178,18 +1237,18 @@ CreateBoard = function()
         card.button:SetSize(218, 26)
         card.button:SetPoint("BOTTOM", 0, 12)
         card.button:SetScript("OnClick", function()
-            local quest = db.displayedQuests[offerIndex]
+            local quest = isPvP and db.pvpQuest or db.displayedQuests[offerIndex]
             if not quest then return end
             if db.activeQuest then
                 if db.activeQuest.id ~= quest.id then return end
                 if db.activeQuest.state == "Ready to Turn In" then
-                    TurnInSlot(offerIndex)
+                    if isPvP then TurnInPvP() else TurnInSlot(offerIndex) end
                 else
                     RequestAbandon()
                 end
                 return
             end
-            if quest.questGiverFaction ~= "Neutral" and quest.questGiverFaction ~= PlayerFaction() then return end
+            if not isPvP and quest.questGiverFaction ~= "Neutral" and quest.questGiverFaction ~= PlayerFaction() then return end
             if not Tracking.Accept(quest, debugMode) then return end
             Refresh()
             print("|cffffd27fClassic Questboard:|r Accepted \"" .. quest.title .. "\". Open /cq to view your objective.")
@@ -1201,7 +1260,7 @@ CreateBoard = function()
         card.abandon:SetPoint("BOTTOM", 0, 44)
         card.abandon:SetText("Abandon Quest")
         card.abandon:SetScript("OnClick", function()
-            local quest = db.displayedQuests[offerIndex]
+            local quest = isPvP and db.pvpQuest or db.displayedQuests[offerIndex]
             if not quest or not db.activeQuest or quest.id ~= db.activeQuest.id then return end
             RequestAbandon()
         end)
@@ -1211,6 +1270,16 @@ CreateBoard = function()
     board.status = Text(board, "GameFontNormal")
     board.status:SetPoint("TOPLEFT", 24, -489)
     board.status:SetSize(350, 22)
+    board.pvpAbandon = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
+    board.pvpAbandon:SetSize(145, 24)
+    board.pvpAbandon:SetPoint("TOPLEFT", 365, -488)
+    board.pvpAbandon:SetText("Abandon PvP Quest")
+    board.pvpAbandon:SetScript("OnClick", function()
+        if db.activeQuest and db.activeQuest.tracking and db.activeQuest.tracking.kind == "pvp_honor" then
+            RequestAbandon()
+        end
+    end)
+    board.pvpAbandon:Hide()
     board.note = Text(board, "GameFontHighlightSmall", {0.65, 0.65, 0.65})
     board.note:SetPoint("TOPLEFT", 24, -523)
     board.note:SetSize(790, 38)
@@ -1378,8 +1447,16 @@ Refresh = function()
     board.subtitle:SetText("Generated " .. SelectedZone().name .. " adventures.")
     local resting = Tracking.IsResting()
     local locationAllowed = debugMode or resting
+    local pvpFlagged = IsPvPFlagged()
+    if pvpFlagged and not ValidQuest(db.pvpQuest) then db.pvpQuest = NewPvPQuest() end
+    local width = pvpFlagged and 1108 or 840
+    board:SetWidth(width)
+    board:SetScale(math.min(1, UIParent:GetWidth() / (width + 40), UIParent:GetHeight() / (debugMode and 650 or 610)))
+    board.note:SetWidth(width - 50)
     for index, card in ipairs(cards) do
-        local quest = db.displayedQuests[index]
+        local isPvP = index == 4
+        card:SetShown(not isPvP or pvpFlagged)
+        local quest = isPvP and db.pvpQuest or db.displayedQuests[index]
         local accepted = quest and db.activeQuest and db.activeQuest.id == quest.id
         if accepted then quest = db.activeQuest end
         local ready = accepted and quest.state == "Ready to Turn In"
@@ -1393,7 +1470,7 @@ Refresh = function()
         card.objective:SetText(quest and ("Your objective\n|cffffffff" .. objectiveText .. "|r") or "")
         card.progress:SetText(accepted and Tracking.ProgressText(quest) or (quest and not trackable and "Automatic tracking is unavailable for this objective on this client." or ""))
         card.button:SetText(not quest and "Unavailable" or (ready and "Turn In Quest" or (accepted and "Abandon Quest" or (db.activeQuest and "Unavailable" or (not trackable and "Tracking unavailable" or "Accept Quest")))))
-        card.button:SetEnabled(quest ~= nil and ((accepted and (not ready or locationAllowed)) or (not db.activeQuest and locationAllowed and trackable and (quest.questGiverFaction == "Neutral" or quest.questGiverFaction == PlayerFaction()))))
+        card.button:SetEnabled(quest ~= nil and ((accepted and (not ready or locationAllowed)) or (not db.activeQuest and locationAllowed and trackable and (isPvP or quest.questGiverFaction == "Neutral" or quest.questGiverFaction == PlayerFaction()))))
         card.abandon:SetShown(not not ready)
         card.marker:SetText("")
         card:SetBackdropBorderColor(accepted and 0.9 or 0.36, accepted and 0.3 or 0.3, accepted and 0.16 or 0.16, 1)
@@ -1418,13 +1495,18 @@ Refresh = function()
     board.status:SetText(active and (active.state .. ": " .. active.title) or (#db.displayedQuests == 0 and
         (hasFriendlyGiver and ("No " .. SelectedZone().name .. " objectives match your level and professions.") or
         "No friendly quest givers are available for your faction in this zone.") or "Choose one notice to begin your adventure."))
+    board.pvpAbandon:SetShown(not pvpFlagged and active ~= nil and active.tracking
+        and active.tracking.kind == "pvp_honor")
     board.reroll:SetEnabled(active == nil)
     local notice = debugMode and "Debug Mode: accept and turn-in location requirements are bypassed."
         or resting and "Rest area: you can accept quests and turn in finished objectives here."
         or "Visit an inn, city, or other rest area to accept or turn in quests. Progress still tracks outside rest areas."
     local last = db.completedQuests and db.completedQuests[#db.completedQuests]
-    local activeElsewhere = active and QuestZone(active) ~= SelectedZone()
-    board.note:SetText(notice .. (activeElsewhere and ("\nYour active quest is in " .. (active.zone or "another zone") .. ". Select that zone above to view or turn it in.")
+    local hiddenPvP = active and active.tracking and active.tracking.kind == "pvp_honor" and not pvpFlagged
+    local activeElsewhere = active and not (active.tracking and active.tracking.kind == "pvp_honor")
+        and QuestZone(active) ~= SelectedZone()
+    board.note:SetText(notice .. (hiddenPvP and "\nYour PvP quest is saved. Flag for PvP again to view or turn it in."
+        or activeElsewhere and ("\nYour active quest is in " .. (active.zone or "another zone") .. ". Select that zone above to view or turn it in.")
         or last and ("\nLast completed: " .. last.title) or ""))
 end
 
@@ -1496,7 +1578,9 @@ events:SetScript("OnEvent", function(self, event, loaded)
         else db.zoneOffers[id] = nil end
     end
     Tracking.Initialize(db, ResolveTracking, Refresh)
-    if db.activeQuest then
+    if db.activeQuest and db.activeQuest.tracking and db.activeQuest.tracking.kind == "pvp_honor" then
+        db.pvpQuest = db.activeQuest
+    elseif db.activeQuest then
         local activeZone = QuestZone(db.activeQuest) or SelectedZone()
         local activeOffers = db.zoneOffers[activeZone.id]
         local found
@@ -1519,6 +1603,14 @@ events:SetScript("OnEvent", function(self, event, loaded)
     if db.selectedZone then db.zoneOffers[db.selectedZone] = db.displayedQuests end
     CreateMinimapButton()
     self:UnregisterEvent("ADDON_LOADED")
+end)
+
+local flagEvents = CreateFrame("Frame")
+for _, event in ipairs({"UNIT_FLAGS", "PLAYER_FLAGS_CHANGED", "PLAYER_ENTERING_WORLD"}) do
+    flagEvents:RegisterEvent(event)
+end
+flagEvents:SetScript("OnEvent", function(_, event, unit)
+    if event == "PLAYER_ENTERING_WORLD" or unit == "player" then Refresh() end
 end)
 
 SLASH_WOWFOREVERQUESTBOARD1 = "/cq"

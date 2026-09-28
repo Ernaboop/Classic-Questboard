@@ -12,7 +12,7 @@ local names, loot, gathering, merchant = {}, nil, nil, nil
 local killEvidence = {}
 local pendingLoot = {}
 local ACTIVE, READY, COMPLETED = "Active", "Ready to Turn In", "Completed"
-local statisticCategories = {Kill = true, ["Supply"] = true, Hunt = true, Gather = true}
+local statisticCategories = {Kill = true, ["Supply"] = true, Hunt = true, Gather = true, PvP = true}
 local function Refresh() if changed then changed() end end
 local function ItemID(link) return link and tonumber(link:match("item:(%d+)")) end
 local function Count(id)
@@ -73,7 +73,9 @@ local function ResetTransient()
     pendingLoot = {}
 end
 local function UpdateState(q)
-    local amount = q.tracking.kind == "supply" and q.progress.sold or q.progress.count
+    local amount = q.tracking.kind == "supply" and q.progress.sold
+        or q.tracking.kind == "mining_workorder" and (q.tracking.handoff == "sale" and q.progress.sold or q.progress.smelted)
+        or q.progress.count
     if amount >= q.amount and q.state == ACTIVE then
         q.state = READY
         print('|cffffd27fClassic Questboard:|r "' .. q.title .. '" is Ready to Turn In. Visit a rested location and open /cq.')
@@ -85,7 +87,7 @@ local function Normalize(q)
     q.tracking = resolve(q)
     q.state = q.state == READY and READY or ACTIVE
     q.progress = type(q.progress) == "table" and q.progress or {}
-    for _, field in ipairs({"count", "collected", "sold"}) do
+    for _, field in ipairs({"count", "collected", "sold", "mined", "smelted"}) do
         -- Debug target reductions must not discard previously earned progress.
         q.progress[field] = math.max(0, math.min(1000, tonumber(q.progress[field]) or 0))
     end
@@ -97,7 +99,9 @@ local function Normalize(q)
     end
     -- Older quests have no progress; preserve their target and rolled amount.
     if q.tracking then
-        local count = q.tracking.kind == "supply" and q.progress.sold or q.progress.count
+        local count = q.tracking.kind == "supply" and q.progress.sold
+            or q.tracking.kind == "mining_workorder" and (q.tracking.handoff == "sale" and q.progress.sold or q.progress.smelted)
+            or q.progress.count
         q.state = count >= q.amount and READY or ACTIVE
     else
         q.state = ACTIVE
@@ -180,6 +184,11 @@ function Tracking.ProgressText(q)
     if q.tracking.kind == "supply" then
         return q.state .. "\nCollected: " .. p.collected .. "/" .. q.amount .. "   Sold: " .. p.sold .. "/" .. q.amount
     end
+    if q.tracking.kind == "mining_workorder" then
+        local result = q.state .. "\nMined: " .. p.mined .. "/" .. q.amount .. "   Smelted: " .. p.smelted .. "/" .. q.amount
+        if q.tracking.handoff == "sale" then result = result .. "   Sold: " .. p.sold .. "/" .. q.amount end
+        return result
+    end
     return q.state .. "\nProgress: " .. p.count .. "/" .. q.amount
 end
 function Tracking.DebugAddProgress(enabled)
@@ -188,7 +197,13 @@ function Tracking.DebugAddProgress(enabled)
     if q.tracking.kind == "supply" then
         local field = q.progress.collected < q.amount and "collected" or "sold"
         q.progress[field] = math.min(q.amount, q.progress[field] + 1)
-    elseif q.tracking.kind == "kill" or q.tracking.kind == "gather" or q.tracking.kind == "nodes" then
+    elseif q.tracking.kind == "mining_workorder" then
+        local p = q.progress
+        if p.mined < q.amount then p.mined = p.mined + 1
+        elseif p.smelted < q.amount then p.smelted = p.smelted + 1
+        elseif q.tracking.handoff == "sale" then p.sold = math.min(q.amount, p.sold + 1)
+        else return false end
+    elseif q.tracking.kind == "kill" or q.tracking.kind == "gather" or q.tracking.kind == "nodes" or q.tracking.kind == "pvp_honor" then
         q.progress.count = math.min(q.amount, q.progress.count + 1)
     else
         return false
@@ -206,7 +221,9 @@ function Tracking.DebugSetAmount(enabled, amount, expected)
         return false
     end
     q.amount = amount
-    local count = q.tracking.kind == "supply" and q.progress.sold or q.progress.count
+    local count = q.tracking.kind == "supply" and q.progress.sold
+        or q.tracking.kind == "mining_workorder" and (q.tracking.handoff == "sale" and q.progress.sold or q.progress.smelted)
+        or q.progress.count
     if count < amount then q.state = ACTIVE end
     UpdateState(q)
     return true
@@ -215,6 +232,7 @@ end
 function Tracking.TooltipText(unit)
     local q = db and db.activeQuest
     if not q or not q.tracking or not Public(unit) or type(unit) ~= "string" then return nil end
+    if q.tracking.kind == "mining_workorder" then return nil end
     local name = Read(UnitName, unit)
     if type(name) ~= "string" or Read(UnitPlayerControlled, unit) ~= false then return nil end
     if not TargetMatches(q.tracking, name, Read(UnitGUID, unit)) then return nil end
@@ -328,6 +346,14 @@ function Tracking.PollKills()
     ObserveKill("target")
     ObserveKill("mouseover")
 end
+local function HonorKill(unit)
+    local q = Working()
+    -- Forever sends this only for honorable enemy-player kill credit. Do not
+    -- infer honor from combat-log deaths, which can include trivial targets.
+    if not q or q.tracking.kind ~= "pvp_honor" or unit ~= "player" then return end
+    q.progress.count = math.min(q.amount, q.progress.count + 1)
+    UpdateState(q)
+end
 local function HealthEvent(unit)
     if not Public(unit) or type(unit) ~= "string" then return end
     for _, watched in ipairs({"target", "mouseover"}) do
@@ -354,6 +380,23 @@ local function Cast(event, unit, castGUID, spellID)
         Observe("target")
         Observe("mouseover")
     end
+end
+local function Crafted(result)
+    local q = Working()
+    if not q or q.tracking.kind ~= "mining_workorder" or type(result) ~= "table" then return end
+    local itemID, quantity = result.itemID, tonumber(result.quantity)
+    if itemID ~= q.tracking.itemID then return end
+    if not quantity or quantity < 1 or quantity ~= math.floor(quantity) then return end
+    local p = q.progress
+    local credited = math.min(quantity, q.amount - p.smelted, p.mined - p.smelted)
+    if credited <= 0 then return end
+    p.smelted = p.smelted + credited
+    if q.tracking.handoff == "sale" then
+        p.held[itemID] = (p.held[itemID] or 0) + credited
+        -- Keep the pre-update count; a later bag increase is not a loss.
+        p.inventory[itemID] = Count(itemID)
+    end
+    UpdateState(q)
 end
 local function EligibleSources(q, slot, context)
     if not GetLootSourceInfo then return {} end
@@ -388,7 +431,8 @@ local function CaptureLoot()
         local id = ItemID(GetLootSlotLink(slot))
         if id and not loot.slots[slot] then
             local sources = EligibleSources(q, slot, loot.gathering)
-            if #sources > 0 and (not q.tracking.itemID or id == q.tracking.itemID) then
+            local wanted = q.tracking.kind == "mining_workorder" and q.tracking.oreItemID or q.tracking.itemID
+            if #sources > 0 and (not wanted or id == wanted) then
                 loot.slots[slot] = {id = id, sources = sources}
                 loot.baseline[id] = loot.baseline[id] or Count(id)
                 -- Request item data now; sale value is checked again on receipt.
@@ -413,6 +457,8 @@ local function SettleLoot(session)
                             q.progress.collected = math.max(q.progress.collected, math.min(q.amount, q.progress.collected + received))
                             q.progress.held[entry.id] = (q.progress.held[entry.id] or 0) + received
                             q.progress.inventory[entry.id] = Count(entry.id)
+                        elseif q.tracking.kind == "mining_workorder" then
+                            q.progress.mined = math.min(q.amount, q.progress.mined + received)
                         elseif q.tracking.kind == "nodes" then
                             if not q.progress.seen[source.guid] then
                                 q.progress.seen[source.guid] = true
@@ -494,7 +540,8 @@ local function InteractingMerchantID()
 end
 local function StartMerchant()
     local q = Working()
-    if not q or q.tracking.kind ~= "supply" then return end
+    if not q or (q.tracking.kind ~= "supply"
+        and not (q.tracking.kind == "mining_workorder" and q.tracking.handoff == "sale")) then return end
     if not q.tracking.vendorID or InteractingMerchantID() ~= q.tracking.vendorID then
         merchant = nil
         return
@@ -548,7 +595,8 @@ local function SaleIntent(bag, slot)
 end
 local function ReconcileHeld()
     local q = Working()
-    if q and q.tracking.kind == "supply" then
+    if q and (q.tracking.kind == "supply" or
+        (q.tracking.kind == "mining_workorder" and q.tracking.handoff == "sale")) then
         for id, count in pairs(q.progress.held) do
             local current = Count(id)
             local previous = tonumber(q.progress.inventory[id]) or current
@@ -583,10 +631,13 @@ function Tracking.Initialize(saved, resolver, callback)
     end
     -- These are standalone GUID events in Forever, not combat-log subevents.
     -- Older clients may lack them; watched-unit death polling remains usable.
-    for _, event in ipairs({"PARTY_KILL", "UNIT_DIED"}) do
+    for _, event in ipairs({"PARTY_KILL", "UNIT_DIED", "TRADE_SKILL_ITEM_CRAFTED_RESULT"}) do
         if not C_EventUtils or not C_EventUtils.IsEventValid or C_EventUtils.IsEventValid(event) then
             pcall(events.RegisterEvent, events, event)
         end
+    end
+    if not C_EventUtils or not C_EventUtils.IsEventValid or C_EventUtils.IsEventValid("PLAYER_PVP_KILLS_CHANGED") then
+        pcall(events.RegisterEvent, events, "PLAYER_PVP_KILLS_CHANGED")
     end
     if not Tracking.hooked and hooksecurefunc then
         if C_Container and C_Container.UseContainerItem then hooksecurefunc(C_Container, "UseContainerItem", SaleIntent) end
@@ -600,6 +651,7 @@ function Tracking.OnEvent(event, ...)
     if event == "CHAT_MSG_LOOT" then LootReceipt(...)
     elseif event == "UNIT_DIED" then DeathEvent(event, ...)
     elseif event == "PARTY_KILL" then local _, victim = ...; DeathEvent(event, victim)
+    elseif event == "PLAYER_PVP_KILLS_CHANGED" then HonorKill(...)
     elseif event == "UNIT_HEALTH" then HealthEvent(...)
     elseif event == "PLAYER_REGEN_ENABLED" then Tracking.PollKills()
     elseif event == "PLAYER_UPDATE_RESTING" then Refresh()
@@ -607,6 +659,7 @@ function Tracking.OnEvent(event, ...)
     elseif event == "PLAYER_TARGET_CHANGED" then Observe("target"); ObserveKill("target")
     elseif event == "UPDATE_MOUSEOVER_UNIT" then Observe("mouseover"); ObserveKill("mouseover")
     elseif event == "UNIT_SPELLCAST_SUCCEEDED" or event == "UNIT_SPELLCAST_CHANNEL_START" then Cast(event, ...)
+    elseif event == "TRADE_SKILL_ITEM_CRAFTED_RESULT" then Crafted(...)
     elseif event == "LOOT_READY" or event == "LOOT_OPENED" then CaptureLoot()
     elseif event == "LOOT_SLOT_CLEARED" then
         local slot = ...

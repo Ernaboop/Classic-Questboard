@@ -2,38 +2,37 @@ local _, ns = ...
 local Database = ns.Database
 
 -- Darkshore: Auberdine's notice writers and actual Alliance merchants.
--- Innkeeper Shaussiy has no merchant inventory, so is not a Supply vendor.
+-- Innkeeper Shaussiy has no merchant inventory, so has no vendor tag.
 for _, giver in ipairs({
-    {id = "ds_cerellean", name = "Cerellean Whiteclaw", npcID = 3644, location = "Auberdine docks", categories = {"kill", "hunt"}},
-    {id = "ds_thundris", name = "Thundris Windweaver", npcID = 3649, location = "Auberdine", categories = {"kill", "hunt", "gather"}},
-    {id = "ds_barithras", name = "Barithras Moonshade", npcID = 3583, location = "Auberdine", categories = {"kill", "hunt"}},
-    {id = "ds_glynda", name = "Sentinel Glynda Nal'Shea", npcID = 2930, location = "Auberdine", categories = {"kill", "hunt"}},
-    {id = "ds_shaussiy", name = "Innkeeper Shaussiy", npcID = 6737, location = "Auberdine inn", categories = {"gather"}},
-    {id = "ds_dalmond", name = "Dalmond", npcID = 4182, location = "Auberdine", categories = {"supply", "gather"}, vendor = true},
-    {id = "ds_gorbold", name = "Gorbold Steelhand", npcID = 6301, location = "Auberdine", categories = {"supply", "gather"}, vendor = true},
-    {id = "ds_laird", name = "Laird", npcID = 4200, location = "Auberdine inn", categories = {"supply", "gather"}, vendor = true},
+    {id = "ds_cerellean", name = "Cerellean Whiteclaw", npcID = 3644, location = "Auberdine docks", tags = {"questgiver", "resident"}},
+    {id = "ds_thundris", name = "Thundris Windweaver", npcID = 3649, location = "Auberdine", tags = {"questgiver", "collector", "resident"}},
+    {id = "ds_barithras", name = "Barithras Moonshade", npcID = 3583, location = "Auberdine", tags = {"questgiver", "resident"}},
+    {id = "ds_glynda", name = "Sentinel Glynda Nal'Shea", npcID = 2930, location = "Auberdine", tags = {"questgiver", "guard"}},
+    {id = "ds_shaussiy", name = "Innkeeper Shaussiy", npcID = 6737, location = "Auberdine inn", tags = {"collector", "innkeeper"}},
+    {id = "ds_dalmond", name = "Dalmond", npcID = 4182, location = "Auberdine", tags = {"vendor", "collector"}},
+    {id = "ds_gorbold", name = "Gorbold Steelhand", npcID = 6301, location = "Auberdine", tags = {"vendor", "collector"}},
+    {id = "ds_laird", name = "Laird", npcID = 4200, location = "Auberdine inn", tags = {"vendor", "collector", "fisherman"}},
+    {id = "ds_elisa", name = "Elisa Steelhand", npcID = 6300, location = "Auberdine forge", tags = {"vendor", "blacksmith", "collector"}},
 }) do
     giver.zone, giver.faction = "darkshore", "Alliance"
-    giver.vendor = giver.vendor or false
     Database:RegisterQuestGiver(giver)
 end
 
--- Westfall NPCs; merchant flags identify actual friendly vendor windows.
+-- Westfall NPCs; the vendor tag identifies actual merchant windows.
 for _, giver in ipairs({
-    {id = "wf_gryan", name = "Gryan Stoutmantle", npcID = 234, location = "Sentinel Hill tower", faction = "Alliance", categories = {"kill", "hunt"}},
-    {id = "wf_grayson", name = "Captain Grayson", npcID = 392, location = "Westfall Lighthouse", faction = "Neutral", categories = {"kill", "hunt"}},
-    {id = "wf_saldean", name = "Farmer Saldean", npcID = 233, location = "Saldean's Farm", faction = "Alliance", categories = {"kill", "gather", "supply"}, vendor = true},
-    {id = "wf_heather", name = "Innkeeper Heather", npcID = 8931, location = "Sentinel Hill inn", faction = "Alliance", categories = {"gather", "supply"}, vendor = true},
-    {id = "wf_lewis", name = "Quartermaster Lewis", npcID = 491, location = "Sentinel Hill tower", faction = "Alliance", categories = {"supply"}, vendor = true},
-    {id = "wf_macgregor", name = "William MacGregor", npcID = 1668, location = "Sentinel Hill", faction = "Alliance", categories = {"supply"}, vendor = true},
-    {id = "wf_profiteer", name = "Defias Profiteer", npcID = 1669, location = "upper floor of the Moonbrook inn", faction = "Neutral", categories = {"supply"}, vendor = true},
+    {id = "wf_gryan", name = "Gryan Stoutmantle", npcID = 234, location = "Sentinel Hill tower", faction = "Alliance", tags = {"questgiver", "guard"}},
+    {id = "wf_grayson", name = "Captain Grayson", npcID = 392, location = "Westfall Lighthouse", faction = "Neutral", tags = {"questgiver", "scout"}},
+    {id = "wf_saldean", name = "Farmer Saldean", npcID = 233, location = "Saldean's Farm", faction = "Alliance", tags = {"questgiver", "collector", "vendor", "farmer"}},
+    {id = "wf_heather", name = "Innkeeper Heather", npcID = 8931, location = "Sentinel Hill inn", faction = "Alliance", tags = {"collector", "vendor", "innkeeper"}},
+    {id = "wf_lewis", name = "Quartermaster Lewis", npcID = 491, location = "Sentinel Hill tower", faction = "Alliance", tags = {"vendor", "quartermaster"}},
+    {id = "wf_macgregor", name = "William MacGregor", npcID = 1668, location = "Sentinel Hill", faction = "Alliance", tags = {"vendor"}},
+    {id = "wf_profiteer", name = "Defias Profiteer", npcID = 1669, location = "upper floor of the Moonbrook inn", faction = "Neutral", tags = {"vendor"}},
 }) do
     giver.zone = "westfall"
-    giver.vendor = giver.vendor or false
     Database:RegisterQuestGiver(giver)
 end
 
--- Stable IDs refer to real NPCs; categories control which notices they post.
+-- Stable IDs refer to real NPCs. Objective tag requirements select providers.
 
 Database:RegisterQuestGiver({
     id = "npc_240",
@@ -42,8 +41,7 @@ Database:RegisterQuestGiver({
     zone = "elwynn",
     location = "Goldshire",
     faction = "Alliance",
-    categories = {"kill", "hunt"},
-    vendor = false,
+    tags = {"questgiver", "guard"},
 })
 
 Database:RegisterQuestGiver({
@@ -53,8 +51,7 @@ Database:RegisterQuestGiver({
     zone = "elwynn",
     location = "Northshire Abbey",
     faction = "Alliance",
-    categories = {"kill", "hunt"},
-    vendor = false,
+    tags = {"questgiver", "guard"},
 })
 
 Database:RegisterQuestGiver({
@@ -64,8 +61,7 @@ Database:RegisterQuestGiver({
     zone = "elwynn",
     location = "Northshire Valley",
     faction = "Alliance",
-    categories = {"kill", "hunt"},
-    vendor = false,
+    tags = {"questgiver", "guard"},
 })
 
 Database:RegisterQuestGiver({
@@ -75,8 +71,7 @@ Database:RegisterQuestGiver({
     zone = "elwynn",
     location = "Eastvale road",
     faction = "Alliance",
-    categories = {"kill", "hunt"},
-    vendor = false,
+    tags = {"questgiver", "guard"},
 })
 
 Database:RegisterQuestGiver({
@@ -86,8 +81,7 @@ Database:RegisterQuestGiver({
     zone = "elwynn",
     location = "Goldshire",
     faction = "Alliance",
-    categories = {"hunt"},
-    vendor = false,
+    tags = {"questgiver", "scout"},
 })
 
 Database:RegisterQuestGiver({
@@ -97,8 +91,7 @@ Database:RegisterQuestGiver({
     zone = "elwynn",
     location = "Goldshire",
     faction = "Alliance",
-    categories = {"supply", "gather"},
-    vendor = true,
+    tags = {"vendor", "collector", "innkeeper"},
 })
 
 Database:RegisterQuestGiver({
@@ -108,8 +101,7 @@ Database:RegisterQuestGiver({
     zone = "elwynn",
     location = "Stonefield Farm",
     faction = "Alliance",
-    categories = {"gather"},
-    vendor = false,
+    tags = {"collector", "farmer"},
 })
 
 Database:RegisterQuestGiver({
@@ -119,8 +111,7 @@ Database:RegisterQuestGiver({
     zone = "elwynn",
     location = "Maclure Vineyards",
     faction = "Alliance",
-    categories = {"gather"},
-    vendor = false,
+    tags = {"collector", "farmer"},
 })
 
 Database:RegisterQuestGiver({
@@ -130,8 +121,7 @@ Database:RegisterQuestGiver({
     zone = "elwynn",
     location = "Goldshire",
     faction = "Alliance",
-    categories = {"gather"},
-    vendor = false,
+    tags = {"collector", "blacksmith", "trainer"},
 })
 
 Database:RegisterQuestGiver({
@@ -141,8 +131,7 @@ Database:RegisterQuestGiver({
     zone = "elwynn",
     location = "Goldshire",
     faction = "Alliance",
-    categories = {"supply"},
-    vendor = true,
+    tags = {"vendor"},
 })
 
 Database:RegisterQuestGiver({
@@ -152,8 +141,7 @@ Database:RegisterQuestGiver({
     zone = "elwynn",
     location = "Eastvale Logging Camp",
     faction = "Alliance",
-    categories = {"supply"},
-    vendor = true,
+    tags = {"vendor"},
 })
 
 Database:RegisterQuestGiver({
@@ -163,8 +151,7 @@ Database:RegisterQuestGiver({
     zone = "elwynn",
     location = "Northshire Abbey",
     faction = "Alliance",
-    categories = {"supply"},
-    vendor = true,
+    tags = {"vendor"},
 })
 
 Database:RegisterQuestGiver({
@@ -174,8 +161,7 @@ Database:RegisterQuestGiver({
     zone = "dun_morogh",
     location = "Coldridge Valley",
     faction = "Alliance",
-    categories = {"kill", "hunt"},
-    vendor = false,
+    tags = {"questgiver", "guard"},
 })
 
 Database:RegisterQuestGiver({
@@ -185,8 +171,7 @@ Database:RegisterQuestGiver({
     zone = "dun_morogh",
     location = "Coldridge Valley",
     faction = "Alliance",
-    categories = {"kill", "hunt"},
-    vendor = false,
+    tags = {"questgiver", "guard"},
 })
 
 Database:RegisterQuestGiver({
@@ -196,8 +181,7 @@ Database:RegisterQuestGiver({
     zone = "dun_morogh",
     location = "Coldridge Valley",
     faction = "Alliance",
-    categories = {"kill", "hunt"},
-    vendor = false,
+    tags = {"questgiver", "resident"},
 })
 
 Database:RegisterQuestGiver({
@@ -207,8 +191,7 @@ Database:RegisterQuestGiver({
     zone = "dun_morogh",
     location = "Coldridge Valley",
     faction = "Alliance",
-    categories = {"kill", "hunt"},
-    vendor = false,
+    tags = {"questgiver", "scout"},
 })
 
 Database:RegisterQuestGiver({
@@ -218,8 +201,7 @@ Database:RegisterQuestGiver({
     zone = "dun_morogh",
     location = "Kharanos",
     faction = "Alliance",
-    categories = {"kill", "hunt"},
-    vendor = false,
+    tags = {"questgiver", "scout"},
 })
 
 Database:RegisterQuestGiver({
@@ -229,8 +211,7 @@ Database:RegisterQuestGiver({
     zone = "dun_morogh",
     location = "Amberstill Ranch",
     faction = "Alliance",
-    categories = {"kill", "hunt"},
-    vendor = false,
+    tags = {"questgiver", "guard"},
 })
 
 Database:RegisterQuestGiver({
@@ -240,8 +221,7 @@ Database:RegisterQuestGiver({
     zone = "dun_morogh",
     location = "Kharanos",
     faction = "Alliance",
-    categories = {"supply", "gather"},
-    vendor = true,
+    tags = {"vendor", "collector", "innkeeper"},
 })
 
 Database:RegisterQuestGiver({
@@ -251,8 +231,7 @@ Database:RegisterQuestGiver({
     zone = "dun_morogh",
     location = "Kharanos",
     faction = "Alliance",
-    categories = {"gather"},
-    vendor = false,
+    tags = {"collector", "resident"},
 })
 
 Database:RegisterQuestGiver({
@@ -262,8 +241,7 @@ Database:RegisterQuestGiver({
     zone = "dun_morogh",
     location = "Steelgrill's Depot",
     faction = "Alliance",
-    categories = {"gather"},
-    vendor = false,
+    tags = {"collector", "engineer"},
 })
 
 Database:RegisterQuestGiver({
@@ -273,8 +251,7 @@ Database:RegisterQuestGiver({
     zone = "dun_morogh",
     location = "Steelgrill's Depot",
     faction = "Alliance",
-    categories = {"gather"},
-    vendor = false,
+    tags = {"collector", "engineer"},
 })
 
 Database:RegisterQuestGiver({
@@ -284,8 +261,7 @@ Database:RegisterQuestGiver({
     zone = "dun_morogh",
     location = "Coldridge Valley",
     faction = "Alliance",
-    categories = {"supply"},
-    vendor = true,
+    tags = {"vendor"},
 })
 
 Database:RegisterQuestGiver({
@@ -295,8 +271,7 @@ Database:RegisterQuestGiver({
     zone = "dun_morogh",
     location = "Kharanos",
     faction = "Alliance",
-    categories = {"supply"},
-    vendor = true,
+    tags = {"vendor"},
 })
 
 Database:RegisterQuestGiver({
@@ -306,6 +281,15 @@ Database:RegisterQuestGiver({
     zone = "dun_morogh",
     location = "south of Kharanos",
     faction = "Alliance",
-    categories = {"supply"},
-    vendor = true,
+    tags = {"vendor"},
+})
+
+Database:RegisterQuestGiver({
+    id = "npc_1690",
+    name = "Thrawn Boltar",
+    npcID = 1690,
+    zone = "dun_morogh",
+    location = "Kharanos",
+    faction = "Alliance",
+    tags = {"vendor", "blacksmith", "collector"},
 })

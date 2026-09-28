@@ -6,7 +6,8 @@ local objectives = {}
 local function Add(id, name, category, level, first, last, low, high, location, extra)
     local entry = {id = "ds_" .. id, name = name, category = category, level = level,
         minPlayerLevel = first, maxPlayerLevel = last, minAmount = low,
-        maxAmount = high, location = location}
+        maxAmount = high, location = location,
+        requiredNPCTags = {category == "supply" and "vendor" or category == "gather" and "collector" or "questgiver"}}
     for key, value in pairs(extra) do entry[key] = value end
     objectives[#objectives + 1] = entry
 end
@@ -85,6 +86,15 @@ Gather("moonstalker_leather", "Light Leather from Moonstalkers", "skinning", "Sk
 Gather("strider_leather", "Light Leather from Giant Foreststriders", "skinning", "Skinning 1", 17, 22, 3, 5, "Mathystra's northern woods", 2318, {"Giant Foreststrider"})
 Gather("rainbow_albacore", "Raw Rainbow Fin Albacore", "fishing", "Fishing 50", 10, 19, 4, 7, "Darkshore waters", 6361)
 Gather("oily_blackmouth", "Oily Blackmouth", "fishing", "Fishing 50", 14, 22, 2, 4, "Darkshore coastal waters", 6358)
+
+-- Mining work orders use the same staged tracker as the other zones.
+Add("copper_bar_workorder", "Copper Bar Work Order", "gather", "Mining 1", 10, 18, 4, 7, "rocky hills",
+    {profession = "mining", target = "Copper Bar", trackingKind = "mining_workorder", oreItemID = 2770, oreName = "Copper Ore", itemID = 2840, smeltSpellID = 2657})
+Add("tin_bar_workorder", "Tin Bar Work Order", "gather", "Mining 65", 13, 22, 3, 6, "northern rocky hills",
+    {profession = "mining", target = "Tin Bar", minProfessionSkill = 65, trackingKind = "mining_workorder", oreItemID = 2771, oreName = "Tin Ore", itemID = 3576, smeltSpellID = 3304})
+Add("copper_bar_blacksmith", "Copper Bars for Auberdine", "gather", "Mining 1", 12, 22, 3, 5, "rocky hills",
+    {profession = "mining", target = "Copper Bar", trackingKind = "mining_workorder", oreItemID = 2770, oreName = "Copper Ore", itemID = 2840, smeltSpellID = 2657,
+        requiredNPCTags = {"blacksmith", "vendor"}, handoff = "sale"})
 
 ns.Database:RegisterZone({
     id = "darkshore", name = "Darkshore", minLevel = 10, maxLevel = 22, order = 4,

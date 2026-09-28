@@ -8,7 +8,6 @@ local views = {
     {id = "zones", label = "Zones", kind = "zones"},
     {id = "objectives", label = "Objectives", kind = "objectives"},
     {id = "questGivers", label = "Quest Givers", kind = "questGivers"},
-    {id = "vendors", label = "Vendors", kind = "questGivers"},
     {id = "flavourText", label = "Flavour Text", kind = "flavourText"},
 }
 local RenderForm, RefreshList, ReadForm
@@ -178,12 +177,11 @@ RefreshList = function()
     local count = 0
     for _, entry in ipairs(Database:List(state.kind, true)) do
         local inZone = not state.zone or entry.zone == state.zone or (state.kind == "zones" and entry.id == state.zone)
+        local requiredTag = state.category == "supply" and "vendor"
+            or state.category == "gather" and "collector" or "questgiver"
         local inCategory = not state.category or entry.category == state.category
-            or (state.kind == "questGivers" and (function()
-                for _, id in ipairs(entry.categories) do if id == state.category then return true end end
-            end)())
-        if inZone and inCategory and (not state.profession or entry.profession == state.profession)
-            and (state.view ~= "vendors" or entry.vendor) then
+            or (state.kind == "questGivers" and Database.HasTags(entry, {requiredTag}))
+        if inZone and inCategory and (not state.profession or entry.profession == state.profession) then
             count = count + 1
             local selected = entry
             local row = frame.rows[count]
@@ -219,9 +217,10 @@ function Editor.New()
         state.draft.minPlayerLevel, state.draft.maxPlayerLevel = 1, 12
         state.draft.minAmount, state.draft.maxAmount = 1, 1
         state.draft.profession = state.profession
+        state.draft.requiredNPCTags = {state.draft.category == "supply" and "vendor"
+            or state.draft.category == "gather" and "collector" or "questgiver"}
     elseif state.kind == "questGivers" then
-        state.draft = {zone = state.zone, faction = "Alliance", vendor = state.view == "vendors",
-            categories = {state.view == "vendors" and "supply" or "kill"}}
+        state.draft = {zone = state.zone, faction = "Alliance", tags = {"questgiver"}}
     end
     RenderForm(); frame.formScroll:SetVerticalScroll(0)
     Message("New entry: use a unique permanent ID. Required fields are marked *.")

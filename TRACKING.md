@@ -76,3 +76,9 @@ In-game smoke test:
 11. With a Kill or Hunt quest active, watch one target before engaging it. Confirm your own tag, a party member's tag, and a pet tag count after death. Confirm an idle target, an NPC-fought target, a grey/other-player tag, and a target that reset do not count. Repeat with the `PARTY_KILL` event unavailable or with the target cleared just before death to check the public threat/death fallback. If an eligible group kill is missed on the Forever client, inspect whether `UnitThreatSituation` is readable for player/party/pet while the mob is alive; the addon does not read restricted combat-log data.
 
 API events were checked against Blizzard's extracted [Classic loot documentation](https://github.com/Gethe/wow-ui-source/blob/classic/Interface/AddOns/Blizzard_APIDocumentationGenerated/LootDocumentation.lua) and [merchant documentation](https://github.com/Gethe/wow-ui-source/blob/classic/Interface/AddOns/Blizzard_APIDocumentationGenerated/MerchantFrameDocumentation.lua).
+
+## Mining work orders and PvP card — Alpha 0.13.0
+
+A Mining work order counts ore received from a local vein after a Mining action, then counts matching bars produced by smelting. Bar production cannot exceed the ore credited to that quest. Orders that name a blacksmith merchant require a final sale of those newly made bars to that exact NPC; the usual bag, buyback, and money checks apply. Tin orders require Mining skill 65 to appear. Existing ore and bars, purchases, and sales to another vendor do not count.
+
+A fourth card appears only while the player is PvP flagged. It is separate from the three saved zone notices and rolls an amount from 1 to 5. Only WoW's `PLAYER_PVP_KILLS_CHANGED` credit for the player advances it; raw deaths or non-honorable kills do not. It shares the one-active-quest and manual rested turn-in rules. If the PvP flag ends while this quest is active, the card is hidden until the flag returns, but its progress stays saved.

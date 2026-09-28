@@ -6,8 +6,8 @@ local function check(value, message)
     assert(value, message)
     passed = passed + 1
 end
-local clock, timers, resting, zone, bags, money, buybacks, lootItems, combat, level, faction
-local professionSlots, professionLines = {}, {}
+local clock, timers, resting, zone, bags, money, buybacks, lootItems, combat, level, faction, pvpFlagged
+local professionSlots, professionLines, professionSkills = {}, {}, {}
 local units, hooks, frames = {}, {}, {}
 local function object(name, parent)
     local o = {scripts = {}, registered = {}, shown = true, parent = parent, name = name, width = 32, height = 32}
@@ -35,6 +35,13 @@ local function object(name, parent)
     function o:SetSize(w, h) self.width, self.height = w, h end
     function o:SetHeight(h) self.height = h end
     function o:SetWidth(w) self.width = w end
+    function o:SetScrollChild(child) self.scrollChild = child end
+    function o:GetVerticalScroll() return rawget(self, 'verticalScroll') or 0 end
+    function o:GetVerticalScrollRange()
+        local child = rawget(self, 'scrollChild')
+        return math.max(0, (child and child.height or 0) - 276)
+    end
+    function o:SetVerticalScroll(value) self.verticalScroll = value end
     function o:GetWidth() return self.width end
     function o:GetHeight() return self.height end
     function o:SetEnabled(v) self.enabled = not not v end
@@ -104,6 +111,7 @@ function UnitGUID(unit) return units[unit] and units[unit].guid end
 function UnitName(unit) return units[unit] and units[unit].name end
 function UnitLevel() return level end
 function UnitFactionGroup() return faction end
+function UnitIsPVP() return pvpFlagged end
 function UnitExists(unit) return units[unit] ~= nil end
 function UnitIsDead(unit) return units[unit] and units[unit].dead end
 function UnitPlayerControlled(unit) return units[unit] and units[unit].controlled end
@@ -115,7 +123,7 @@ function UnitThreatSituation(actor, unit)
 end
 function UnitIsUnit(a, b) return units[a] ~= nil and units[b] ~= nil and units[a].guid == units[b].guid end
 function GetProfessions() return unpack(professionSlots) end
-function GetProfessionInfo(index) return nil, nil, nil, nil, nil, nil, professionLines[index] end
+function GetProfessionInfo(index) return nil, nil, professionSkills[index] or 1, nil, nil, nil, professionLines[index] end
 function GetMoney() return money end
 function CombatLogGetCurrentEventInfo() return unpack(combat, 1, 11) end
 function GetNumLootItems() return #lootItems end
@@ -178,10 +186,10 @@ assert(loadstring(tracking_source))('Classic Questboard', ns)
 local T = ns.Tracking
 local saved
 local function fresh()
-    clock, timers, resting, zone, bags, money, buybacks, lootItems, level, faction = 0, {}, true, 'Elwynn Forest', {}, 100, {}, {}, 6, 'Alliance'
+    clock, timers, resting, zone, bags, money, buybacks, lootItems, level, faction, pvpFlagged = 0, {}, true, 'Elwynn Forest', {}, 100, {}, {}, 6, 'Alliance', false
     units = {player = {guid = 'Player-1', name = 'Tester'}, pet = {guid = 'Pet-1', name = 'Pet'},
         npc = {guid = 'Creature-0-1-0-0-295-123', name = 'Innkeeper Farley'}}
-    professionSlots, professionLines = {}, {}
+    professionSlots, professionLines, professionSkills = {}, {}, {}
     saved = {}
     T.Initialize(saved, function(q) return q.tracking end, function() end)
     T.OnEvent('PLAYER_ENTERING_WORLD')
@@ -312,6 +320,46 @@ for _, guid in ipairs({'GameObject-copper1', 'GameObject-copper1', 'GameObject-c
     lootStart(2770, 4, guid); receive(2770, 4)
 end
 check(q.progress.count == 2, 'veins counted by distinct source, not ore stack size')
+fresh(); q = quest({kind = 'mining_workorder', profession = 'mining', oreItemID = 2770,
+    itemID = 2840, smeltSpellID = 2657, handoff = 'sale', vendorID = 295}, 2); T.Accept(q)
+T.OnEvent('TRADE_SKILL_ITEM_CRAFTED_RESULT', {itemID = 2840, quantity = 2})
+check(q.progress.smelted == 0, 'work order ignores bars made before mining quest ore')
+lootStart(2770, 2, 'GameObject-copper-unapproved'); receive(2770, 2)
+check(q.progress.mined == 0, 'work order requires a mining action and node source')
+T.OnEvent('UNIT_SPELLCAST_SUCCEEDED', 'player', 'cast', 2575)
+lootStart(2770, 2, 'GameObject-copper-approved'); receive(2770, 2)
+check(q.progress.mined == 2 and q.progress.smelted == 0, 'work order credits newly mined ore only')
+T.OnEvent('TRADE_SKILL_ITEM_CRAFTED_RESULT', {itemID = 9999, quantity = 2})
+check(q.progress.smelted == 0, 'wrong crafted item cannot advance a work order')
+T.OnEvent('TRADE_SKILL_ITEM_CRAFTED_RESULT', {itemID = 2840, quantity = 2})
+bags[2840] = 2; T.OnEvent('BAG_UPDATE_DELAYED')
+check(q.progress.smelted == 2 and q.state == 'Active', 'smelting advances before assigned-vendor handoff')
+units.npc = {guid = 'Creature-0-1-0-0-66-wrong', name = 'Other merchant'}
+T.OnEvent('MERCHANT_SHOW'); bags[2840] = 1; money = money + 10
+buybacks = {{id = 2840, quantity = 1}}
+T.OnEvent('BAG_UPDATE_DELAYED'); T.OnEvent('MERCHANT_CLOSED'); advance(1)
+check(q.progress.sold == 0, 'work order rejects sale to another vendor')
+units.npc = {guid = 'Creature-0-1-0-0-295-correct', name = 'Assigned merchant'}
+buybacks = {}; T.OnEvent('MERCHANT_SHOW'); bags[2840] = 0; money = money + 10
+buybacks = {{id = 2840, quantity = 1}}
+T.OnEvent('BAG_UPDATE_DELAYED'); T.OnEvent('MERCHANT_CLOSED'); advance(1)
+check(q.progress.sold == 1 and q.state == 'Active', 'one eligible bar sale advances once')
+T.DebugAddProgress(true)
+check(q.progress.sold == 2 and q.state == 'Ready to Turn In', 'debug progress advances final work-order stage')
+fresh(); q = quest({kind = 'mining_workorder', profession = 'mining', oreItemID = 2770,
+    itemID = 2840, smeltSpellID = 2657}, 1); T.Accept(q)
+T.OnEvent('UNIT_SPELLCAST_SUCCEEDED', 'player', 'cast', 2575)
+lootStart(2770, 1, 'GameObject-copper-simple'); receive(2770, 1)
+T.OnEvent('TRADE_SKILL_ITEM_CRAFTED_RESULT', {itemID = 2840, quantity = 1})
+check(q.state == 'Ready to Turn In' and q.progress.smelted == 1, 'mine-and-smelt order completes without vendor sale')
+fresh(); q = quest({kind = 'pvp_honor'}, 2); T.Accept(q)
+T.OnEvent('UNIT_DIED', 'Player-enemy')
+T.OnEvent('PLAYER_PVP_KILLS_CHANGED', 'party1')
+check(q.progress.count == 0, 'PvP progress ignores raw deaths and other units')
+T.OnEvent('PLAYER_PVP_KILLS_CHANGED', 'player')
+check(q.progress.count == 1 and q.state == 'Active', 'player honorable-kill event advances PvP quest')
+T.OnEvent('PLAYER_PVP_KILLS_CHANGED', 'player')
+check(q.progress.count == 2 and q.state == 'Ready to Turn In', 'PvP quest becomes ready after required honor kills')
 fresh(); q = quest({kind = 'kill', targets = {'Hogger'}}, 1); saved.activeQuest = q
 T.Initialize(saved, function(v) return v.tracking end, function() end)
 check(q.state == 'Active' and q.progress.count == 0 and q.amount == 1, 'legacy active quest upgraded without changing amount')
@@ -488,7 +536,7 @@ board.statistics.scripts.OnClick()
 check(not statsWindow:IsShown(), 'statistics button toggles window closed')
 board.help.scripts.OnClick()
 check(WoWForeverHelp:IsShown(), 'help button opens help window')
-check(#realNS.RecentUpdates == 3, 'in-game changelog has exactly three recent releases')
+check(#realNS.RecentUpdates == 41, 'in-game changelog includes every recorded release')
 WoWForeverHelp.changelog.scripts.OnClick()
 local changelog = WoWForeverChangelog
 check(changelog:IsShown() and changelog.point[2] == WoWForeverHelp and changelog.point[3] == 'BOTTOMLEFT',
@@ -498,6 +546,14 @@ for index, release in ipairs(realNS.RecentUpdates) do
         and changelog.entries[index].summary.text == release.text,
         'in-game changelog renders release ' .. index)
 end
+check(changelog.scroll.scrollChild == changelog.content and changelog.content.height > changelog.height,
+    'full-history changelog uses a compact scroll frame')
+changelog.scroll.scripts.OnMouseWheel(changelog.scroll, -1)
+check(changelog.scroll.verticalScroll == 40, 'mouse wheel scrolls update history')
+changelog.scroll:SetVerticalScroll(changelog.scroll:GetVerticalScrollRange())
+changelog.scroll.scripts.OnMouseWheel(changelog.scroll, -1)
+check(changelog.scroll.verticalScroll == changelog.scroll:GetVerticalScrollRange(),
+    'update history scrolling clamps at the bottom')
 WoWForeverHelp.changelog.scripts.OnClick()
 check(not changelog:IsShown() and WoWForeverHelp:IsShown(), 'changelog button toggles only its own window')
 WoWForeverHelp.changelog.scripts.OnClick()
@@ -586,7 +642,21 @@ assert(loadstring(binding_source))()
 check(not board:IsShown(), 'configured binding closes an open board')
 assert(loadstring(binding_source))()
 check(board:IsShown(), 'configured binding opens a closed board')
-check(#WoWForeverDB.displayedQuests == 3 and #cs == 3, 'three offers and three cards')
+check(#WoWForeverDB.displayedQuests == 3 and #cs == 4 and not cs[4]:IsShown(),
+    'three zone offers and a hidden fourth PvP card')
+pvpFlagged = true
+for _, frame in ipairs(frames) do
+    if frame.registered.UNIT_FLAGS then frame.scripts.OnEvent(frame, 'UNIT_FLAGS', 'player') end
+end
+check(cs[4]:IsShown() and board:GetWidth() == 1108 and WoWForeverDB.pvpQuest.amount >= 1
+    and WoWForeverDB.pvpQuest.amount <= 5 and #WoWForeverDB.displayedQuests == 3,
+    'PvP flag expands the board with a separate one-to-five-kill card')
+pvpFlagged = false
+for _, frame in ipairs(frames) do
+    if frame.registered.UNIT_FLAGS then frame.scripts.OnEvent(frame, 'UNIT_FLAGS', 'player') end
+end
+check(not cs[4]:IsShown() and board:GetWidth() == 840,
+    'losing the PvP flag hides the extra card and restores board width')
 local seen = {}
 for _, offer in ipairs(WoWForeverDB.displayedQuests) do
     check(not seen[offer.selectionId], 'unique objective offers'); seen[offer.selectionId] = true
@@ -1013,11 +1083,11 @@ do
         elwynn = {[240]=true,[197]=true,[823]=true,[261]=true,[241]=true,[295]=true,[244]=true,[251]=true,[514]=true,
             [66]=true,[1250]=true,[152]=true},
         dun_morogh = {[658]=true,[713]=true,[786]=true,[714]=true,[1252]=true,[1265]=true,[1247]=true,[1267]=true,
-            [1378]=true,[1269]=true,[829]=true,[1691]=true,[1692]=true},
+            [1378]=true,[1269]=true,[829]=true,[1691]=true,[1692]=true,[1690]=true},
     }
     local verifiedVendors = {
         elwynn = {[295]=true,[66]=true,[1250]=true,[152]=true},
-        dun_morogh = {[1247]=true,[829]=true,[1691]=true,[1692]=true},
+        dun_morogh = {[1247]=true,[829]=true,[1691]=true,[1692]=true,[1690]=true},
     }
     local function checkNarrative(offer)
         check(verifiedGivers[offer.zoneId][offer.questGiverID] and offer.questGiverFaction == 'Alliance',
@@ -1071,8 +1141,8 @@ do
         end
         check(reachedEnd, 'Dun Morogh pool enumeration terminates without duplicates')
     end
-    check(counts.Kill == 20 and counts['Supply'] == 11 and counts.Hunt == 7 and counts.Gather == 11,
-        'Dun Morogh has 49 objectives across every category')
+    check(counts.Kill == 20 and counts['Supply'] == 11 and counts.Hunt == 7 and counts.Gather == 13,
+        'Dun Morogh includes two Mining work orders across every category')
     local flavorCount, giverCount = 0, 0
     for _ in pairs(miningFlavors) do flavorCount = flavorCount + 1 end
     for _ in pairs(miningGivers) do giverCount = giverCount + 1 end
@@ -1286,9 +1356,18 @@ TestEnvironment = {
     zone = function(value) zone = value end,
     level = function(value) level = value end,
     faction = function(value) faction = value end,
-    professions = function(lines)
-        professionSlots, professionLines = {}, {}
-        for index, skillLine in ipairs(lines) do professionSlots[index] = index; professionLines[index] = skillLine end
+    flag = function(value)
+        pvpFlagged = value
+        for _, frame in ipairs(frames) do
+            if frame.registered.UNIT_FLAGS then frame.scripts.OnEvent(frame, 'UNIT_FLAGS', 'player') end
+        end
+    end,
+    professions = function(lines, skills)
+        professionSlots, professionLines, professionSkills = {}, {}, {}
+        for index, skillLine in ipairs(lines) do
+            professionSlots[index], professionLines[index] = index, skillLine
+            professionSkills[index] = skills and skills[index] or 1
+        end
     end,
     unit = function(token, value) units[token] = value end,
     frames = frames,
