@@ -151,6 +151,17 @@ function Tracking.GetStatistics()
     return result
 end
 
+function Tracking.DebugResetStatistics(enabled)
+    if not enabled or not db then return false end
+    for _, key in ipairs({"accepted", "handedIn", "abandoned"}) do db.statistics[key] = 0 end
+    for _, field in ipairs({"acceptedByCategory", "completedByCategory", "abandonedByCategory"}) do
+        db.statistics[field] = {}
+        for category in pairs(statisticCategories) do db.statistics[field][category] = 0 end
+    end
+    Refresh()
+    return true
+end
+
 function Tracking.ProgressText(q)
     if not q.tracking then return "Tracking unavailable for this legacy objective. You may abandon it." end
     local p = q.progress

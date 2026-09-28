@@ -6,7 +6,7 @@ local function check(value, message)
     assert(value, message)
     passed = passed + 1
 end
-local clock, timers, resting, zone, bags, money, buybacks, lootItems, combat, level
+local clock, timers, resting, zone, bags, money, buybacks, lootItems, combat, level, faction
 local professionSlots, professionLines = {}, {}
 local units, hooks, frames = {}, {}, {}
 local function object(name, parent)
@@ -103,6 +103,7 @@ function GetRealZoneText() return zone end
 function UnitGUID(unit) return units[unit] and units[unit].guid end
 function UnitName(unit) return units[unit] and units[unit].name end
 function UnitLevel() return level end
+function UnitFactionGroup() return faction end
 function UnitExists(unit) return units[unit] ~= nil end
 function UnitIsDead(unit) return units[unit] and units[unit].dead end
 function UnitPlayerControlled(unit) return units[unit] and units[unit].controlled end
@@ -161,7 +162,7 @@ assert(loadstring(tracking_source))('Classic Questbook', ns)
 local T = ns.Tracking
 local saved
 local function fresh()
-    clock, timers, resting, zone, bags, money, buybacks, lootItems, level = 0, {}, true, 'Elwynn Forest', {}, 100, {}, {}, 6
+    clock, timers, resting, zone, bags, money, buybacks, lootItems, level, faction = 0, {}, true, 'Elwynn Forest', {}, 100, {}, {}, 6, 'Alliance'
     units = {player = {guid = 'Player-1', name = 'Tester'}, pet = {guid = 'Pet-1', name = 'Pet'}}
     professionSlots, professionLines = {}, {}
     saved = {}
@@ -957,15 +958,32 @@ do
         return result
     end
     local elwynnOffers = WoWForeverDB.displayedQuests
+    local verifiedGivers = {
+        elwynn = {[240]=true,[197]=true,[823]=true,[261]=true,[241]=true,[295]=true,[244]=true,[251]=true,[514]=true},
+        dun_morogh = {[658]=true,[713]=true,[786]=true,[714]=true,[1252]=true,[1265]=true,[1247]=true,[1267]=true,[1378]=true,[1269]=true},
+    }
+    local function checkNarrative(offer)
+        check(verifiedGivers[offer.zoneId][offer.questGiverID] and offer.questGiverFaction == 'Alliance',
+            'quest giver is verified in the zone and friendly to Alliance')
+        check(type(offer.flavorText) == 'string' and #offer.flavorText > 40
+            and offer.description:find(offer.flavorText, 1, true)
+            and offer.description:find(offer.questGiverLocation, 1, true),
+            'quest carries a specific saved flavour line and giver location')
+    end
+    for _, offer in ipairs(elwynnOffers) do checkNarrative(offer) end
     chooseZone('Dun Morogh')
     local dunOffers = WoWForeverDB.displayedQuests
     check(#dunOffers == 3 and dunOffers ~= elwynnOffers, 'first visit generates a separate Dun Morogh board')
-    for _, offer in ipairs(dunOffers) do check(offer.zone == 'Dun Morogh', 'Dun Morogh board contains only local objectives') end
+    for _, offer in ipairs(dunOffers) do
+        check(offer.zone == 'Dun Morogh', 'Dun Morogh board contains only local objectives')
+        checkNarrative(offer)
+    end
     chooseZone('Elwynn Forest')
     check(WoWForeverDB.displayedQuests == elwynnOffers, 'switching back preserves all Elwynn offers')
     chooseZone('Dun Morogh')
     check(WoWForeverDB.displayedQuests == dunOffers, 'switching back preserves all Dun Morogh offers')
     local pool, counts = {}, {Kill = 0, ['Collect & Sell'] = 0, Hunt = 0, Gather = 0}
+    local miningFlavors, miningGivers = {}, {}
     professionSlots, professionLines = {1, 2, 3, 4}, {[1] = 182, [2] = 186, [3] = 393, [4] = 356}
     for testLevel = 1, 12 do
         local excluded, reachedEnd = {}, false
@@ -973,6 +991,10 @@ do
             local offer = addon.GenerateQuestForLevel(testLevel, false, excluded)
             if not offer then reachedEnd = true; break end
             check(offer.zoneId == 'dun_morogh' and offer.zone == 'Dun Morogh', 'all generated data belongs to selected zone')
+            checkNarrative(offer)
+            if offer.professionId == 'mining' then
+                miningFlavors[offer.flavorText], miningGivers[offer.questGiverID] = true, true
+            end
             check(not excluded[offer.selectionId] and addon.Tracking.CanTrack(offer), 'Dun Morogh objectives unique and trackable')
             check(offer.amount >= 1 and offer.minPlayerLevel <= testLevel, 'objective eligibility never advances low-level characters')
             excluded[offer.selectionId] = true
@@ -988,6 +1010,10 @@ do
     end
     check(counts.Kill == 20 and counts['Collect & Sell'] == 11 and counts.Hunt == 7 and counts.Gather == 11,
         'Dun Morogh has 49 objectives across every category')
+    local flavorCount, giverCount = 0, 0
+    for _ in pairs(miningFlavors) do flavorCount = flavorCount + 1 end
+    for _ in pairs(miningGivers) do giverCount = giverCount + 1 end
+    check(flavorCount > 1 and giverCount > 1, 'mining notices vary both flavour and local giver')
     check(pool.dm_copper_vein_prospecting.tracking.kind == 'nodes'
         and pool.dm_copper_vein_prospecting.objective:find('Dun Morogh'), 'Dun Morogh prospecting counts nodes and names correct zone')
     check(pool.dm_boar_leather.tracking.targets[1] == 'Crag Boar', 'skinning uses Dun Morogh creature sources')
@@ -1006,6 +1032,9 @@ do
     end
     professionSlots, professionLines = {}, {}
     check(not addon.GenerateQuestForLevel(12, true, nil, 'gather'), 'Dun Morogh preserves profession gating')
+    faction = 'Horde'
+    check(not addon.GenerateQuestForLevel(12, true), 'Alliance-zone notices do not assign hostile NPCs to Horde characters')
+    faction = 'Alliance'
     level = 60
     for _ = 1, 20 do
         ui.reroll.scripts.OnClick()
@@ -1053,9 +1082,12 @@ do
     check(active.progress.count == 2, 'Classic Dun Morogh child map ancestry counts without English zone text')
     C_Map = nil
     local preserved = clone(WoWForeverDB)
+    local savedGiver, savedFlavor = preserved.activeQuest.questGiverID, preserved.activeQuest.flavorText
     addon, ui = loadZoneBoard(preserved); T = addon.Tracking
     check(WoWForeverDB.selectedZone == 'elwynn' and WoWForeverDB.activeQuest.progress.count == 2,
         'reload retains selected zone and active quest in another zone')
+    check(WoWForeverDB.activeQuest.questGiverID == savedGiver and WoWForeverDB.activeQuest.flavorText == savedFlavor,
+        'reload keeps the accepted quest giver and flavour text')
     chooseZone('Dun Morogh')
     active = WoWForeverDB.activeQuest
     check(WoWForeverDB.displayedQuests[2] == active and active.tracking.targets[1] == 'Crag Boar',
@@ -1095,10 +1127,18 @@ do
     -- A legacy board upgrades without rerolling, even with malformed new settings.
     local legacy = {generatorDataVersion = '0.5.0', displayedQuests = clone(elwynnOffers),
         selectedZone = 'invalid', zoneOffers = 'bad'}
+    for _, offer in ipairs(legacy.displayedQuests) do
+        offer.questGiverID, offer.questGiverFaction, offer.questGiverLocation, offer.flavorText = nil, nil, nil, nil
+        offer.description, offer.source = 'Mining supplies are needed.', 'A gathering commission'
+    end
     addon, ui = loadZoneBoard(legacy)
     check(WoWForeverDB.selectedZone == 'elwynn' and WoWForeverDB.zoneOffers.elwynn == legacy.displayedQuests,
         'legacy offers migrate and invalid zone settings are repaired')
-    for i = 1, 3 do check(legacy.displayedQuests[i].id == elwynnOffers[i].id, 'migration keeps old generated IDs and amounts') end
+    for i = 1, 3 do
+        check(legacy.displayedQuests[i].id == elwynnOffers[i].id and legacy.displayedQuests[i].amount == elwynnOffers[i].amount,
+            'migration keeps old generated IDs and amounts')
+        checkNarrative(legacy.displayedQuests[i])
+    end
     -- Hunt wording is shared by both zones, including multiple-target elites.
     local hunt = addon.GenerateQuestForLevel(5, false, nil, 'hunt')
     for _ = 1, 100 do
@@ -1107,6 +1147,25 @@ do
     end
     check(hunt.objectiveId == 'mine_spider' and hunt.objective:find(tostring(hunt.amount))
         and not hunt.objective:lower():find('elite'), 'multi-target Hunt retains count but omits elite wording')
+    WoWForeverDB.statistics.accepted, WoWForeverDB.statistics.handedIn, WoWForeverDB.statistics.abandoned = 7, 3, 2
+    WoWForeverDB.statistics.acceptedByCategory.Kill = 4
+    WoWForeverDB.statistics.completedByCategory.Hunt = 2
+    WoWForeverDB.statistics.abandonedByCategory.Gather = 1
+    ui.statistics.scripts.OnClick()
+    local statsUI = WoWForeverStatistics
+    check(not statsUI.reset:IsShown(), 'reset stats is hidden outside Debug Mode')
+    statsUI.reset.scripts.OnClick()
+    check(WoWForeverDB.statistics.accepted == 7, 'hidden reset handler cannot clear statistics outside Debug Mode')
+    WoWForeverDebugModeButton.scripts.OnClick()
+    check(statsUI.reset:IsShown(), 'reset stats appears when Debug Mode is enabled')
+    statsUI.reset.scripts.OnClick()
+    local cleared = addon.Tracking.GetStatistics()
+    check(cleared.accepted == 0 and cleared.handedIn == 0 and cleared.abandoned == 0
+        and cleared.acceptedByCategory.Kill == 0 and cleared.completedByCategory.Hunt == 0
+        and cleared.abandonedByCategory.Gather == 0 and statsUI.values.accepted.text == '0',
+        'debug reset clears all totals and category breakdowns immediately')
+    WoWForeverDebugModeButton.scripts.OnClick()
+    check(not statsUI.reset:IsShown(), 'reset stats hides immediately when Debug Mode is disabled')
     T = previousT
 end
 print('PASS: ' .. passed .. ' tracking and UI assertions (Lua 5.1)')

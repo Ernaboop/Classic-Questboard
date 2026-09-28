@@ -226,8 +226,31 @@ local dunMoroghData = {
 }
 
 local zones = {
-    elwynn = {id = "elwynn", name = "Elwynn Forest", maxLevel = 12, data = database},
-    dun_morogh = {id = "dun_morogh", name = "Dun Morogh", maxLevel = 12, data = dunMoroghData},
+    elwynn = {id = "elwynn", name = "Elwynn Forest", maxLevel = 12, data = database,
+        questGivers = {
+            {id = 240, name = "Marshal Dughan", location = "Goldshire", faction = "Alliance", roles = {kill = true, hunt = true}},
+            {id = 197, name = "Marshal McBride", location = "Northshire Abbey", faction = "Alliance", roles = {kill = true, hunt = true}},
+            {id = 823, name = "Deputy Willem", location = "Northshire Valley", faction = "Alliance", roles = {kill = true, hunt = true}},
+            {id = 261, name = "Guard Thomas", location = "Eastvale road", faction = "Alliance", roles = {kill = true, hunt = true}},
+            {id = 241, name = 'Remy "Two Times"', location = "Goldshire", faction = "Alliance", roles = {collect_sell = true, hunt = true}},
+            {id = 295, name = "Innkeeper Farley", location = "Goldshire", faction = "Alliance", roles = {collect_sell = true, gather = true}},
+            {id = 244, name = "Ma Stonefield", location = "Stonefield Farm", faction = "Alliance", roles = {collect_sell = true, gather = true}},
+            {id = 251, name = "Maybell Maclure", location = "Maclure Vineyards", faction = "Alliance", roles = {collect_sell = true, gather = true}},
+            {id = 514, name = "Smith Argus", location = "Goldshire", faction = "Alliance", roles = {collect_sell = true, gather = true}},
+        }},
+    dun_morogh = {id = "dun_morogh", name = "Dun Morogh", maxLevel = 12, data = dunMoroghData,
+        questGivers = {
+            {id = 658, name = "Sten Stoutarm", location = "Coldridge Valley", faction = "Alliance", roles = {kill = true, hunt = true}},
+            {id = 713, name = "Balir Frosthammer", location = "Coldridge Valley", faction = "Alliance", roles = {kill = true, hunt = true}},
+            {id = 786, name = "Grelin Whitebeard", location = "Coldridge Valley", faction = "Alliance", roles = {kill = true, hunt = true}},
+            {id = 714, name = "Talin Keeneye", location = "Coldridge Valley", faction = "Alliance", roles = {kill = true, hunt = true}},
+            {id = 1252, name = "Senir Whitebeard", location = "Kharanos", faction = "Alliance", roles = {kill = true, hunt = true}},
+            {id = 1265, name = "Rudra Amberstill", location = "Amberstill Ranch", faction = "Alliance", roles = {kill = true, hunt = true, collect_sell = true}},
+            {id = 1247, name = "Innkeeper Belm", location = "Kharanos", faction = "Alliance", roles = {collect_sell = true, gather = true}},
+            {id = 1267, name = "Ragnar Thunderbrew", location = "Kharanos", faction = "Alliance", roles = {collect_sell = true, gather = true}},
+            {id = 1378, name = "Pilot Bellowfiz", location = "Steelgrill's Depot", faction = "Alliance", roles = {collect_sell = true, gather = true}},
+            {id = 1269, name = "Razzle Sprysprocket", location = "Steelgrill's Depot", faction = "Alliance", roles = {collect_sell = true, gather = true}},
+        }},
 }
 local zoneOrder = {"elwynn", "dun_morogh"}
 for id, zone in pairs(zones) do
@@ -310,6 +333,92 @@ end
 local function RandomFrom(list)
     if not list or #list == 0 then return nil end
     return list[math.random(#list)]
+end
+
+-- These are original notice-board lines, not NPC dialogue from the game.
+local flavorLines = {
+    kill = {
+        "The roads have grown dangerous; give the locals a reason to travel again.",
+        "Another traveler came in shaken. See that the trouble does not follow them home.",
+        "The watch is stretched thin, and someone must deal with the threat beyond the lamps.",
+        "Farmers are keeping their doors barred. Clear the danger before the next supply run.",
+    },
+    collect_sell = {
+        "A trader will pay for useful spoils, but someone has to brave the wilds first.",
+        "The market shelves are bare. Bring back what you can and turn it into coin.",
+        "Even the scraps left by troublemakers have value to a careful merchant.",
+        "A local buyer has asked for fresh stock; gather it before another caravan does.",
+    },
+    hunt = {
+        "Whispers of a dangerous creature have reached the inn. Find the truth behind them.",
+        "The watch has a name, a trail, and too few hands to follow it.",
+        "Something formidable is stalking the outskirts. End the tale before it claims another victim.",
+        "A reward has been promised to anyone bold enough to face this menace.",
+    },
+    herbalism = {
+        "The apothecary's jars are nearly empty; fresh herbs could spare a long journey.",
+        "A healer needs plants gathered before the morning dew gives way to frost.",
+        "The local remedies are running low. Search the wilds for the next batch.",
+        "Some leaves are worth more than silver when a sick neighbor needs them.",
+    },
+    mining = {
+        "The forge burns bright, but its ore bins are almost bare. Bring back a fresh haul.",
+        "A smith has a stack of repairs and scarcely enough metal for a horseshoe.",
+        "The next caravan needs sound fittings; the miners must keep the anvils ringing.",
+        "Pickaxes are wanted in the hills. The smith will put every usable stone to work.",
+    },
+    skinning = {
+        "The leatherworker has orders to fill and more empty racks than hides.",
+        "Boots and packs wear thin on these roads; sturdy leather will keep travelers moving.",
+        "A tanner is waiting on fresh hides before the next caravan departs.",
+        "The town's straps and saddles need mending. Bring in hides fit for the work.",
+    },
+    fishing = {
+        "The inn's supper pot is hungry, and the fish have yet to volunteer.",
+        "A cook has promised a feast with nothing left in the fish basket.",
+        "The morning catch was meager. Cast a line before the guests notice.",
+        "Fresh fish would be welcome at the table after a long day on the road.",
+    },
+}
+
+local function PlayerFaction()
+    if type(UnitFactionGroup) ~= "function" then return nil end
+    local faction = UnitFactionGroup("player")
+    if faction == "Alliance" or faction == "Horde" then return faction end
+end
+
+local function QuestCategoryId(quest)
+    if quest.professionId then return "gather" end
+    if quest.categoryName == "Kill" then return "kill" end
+    if quest.categoryName == "Collect & Sell" then return "collect_sell" end
+    if quest.categoryName == "Hunt" then return "hunt" end
+end
+
+local function EligibleGivers(zone, categoryId)
+    local result, faction = {}, PlayerFaction()
+    if not faction then return result end
+    for _, giver in ipairs(zone.questGivers or {}) do
+        if giver.faction == faction and giver.roles[categoryId] then result[#result + 1] = giver end
+    end
+    return result
+end
+
+local function AssignNarrative(quest, zone, categoryId)
+    local giver
+    for _, candidate in ipairs(EligibleGivers(zone, categoryId)) do
+        if candidate.id == quest.questGiverID then giver = candidate; break end
+    end
+    giver = giver or RandomFrom(EligibleGivers(zone, categoryId))
+    if not giver then return false end
+    local lines = flavorLines[quest.professionId or categoryId]
+    if not lines then return false end
+    if not quest.flavorText or quest.questGiverID ~= giver.id then quest.flavorText = RandomFrom(lines) end
+    quest.questGiverID = giver.id
+    quest.questGiverFaction = giver.faction
+    quest.questGiverLocation = giver.location
+    quest.source = giver.name
+    quest.description = "From " .. giver.location .. ": " .. quest.flavorText
+    return true
 end
 
 local function AmountOptions(objective)
@@ -460,26 +569,30 @@ local function ObjectiveOptions(category, branch, playerLevel, outleveled)
     return EligibleObjectives(objectives, effectiveLevel)
 end
 
+local function ObjectiveText(category, objective, amount, zone)
+    local target = objective.target or objective.name
+    local location = objective.location and (" at " .. objective.location) or (" in " .. zone.name)
+    if category.id == "kill" then
+        return "Travel to " .. objective.location .. " and defeat " .. amount .. " " .. target .. "."
+    elseif category.id == "collect_sell" then
+        return "Collect " .. amount .. " " .. (objective.item or "vendor-value item") .. (amount == 1 and "" or "s") .. " from " .. target .. " near " .. objective.location .. ", then sell them to a vendor."
+    elseif category.id == "hunt" then
+        return "Find and defeat " .. (amount > 1 and (amount .. " ") or "") .. target .. location .. "."
+    elseif objective.trackingKind == "nodes" or objective.id == "copper_vein_prospecting" then
+        return "Mine " .. amount .. " different Copper Veins in " .. zone.name .. " and loot their ore."
+    elseif category.profession then
+        return "Gather " .. amount .. " " .. target .. " " .. location .. "."
+    end
+end
+
 local function BuildQuest(category, branch, objective, amount)
     if not category or not objective then return nil end
     local zone = zones[category.zoneId] or SelectedZone()
     amount = amount or RollAmount(objective)
     local kind = category.baseName or category.name
-    local target = objective.target or objective.name
-    local location = objective.location and (" at " .. objective.location) or (" in " .. zone.name)
-    local action
-    if category.id == "kill" then
-        action = "Travel to " .. objective.location .. " and defeat " .. amount .. " " .. target .. "."
-    elseif category.id == "collect_sell" then
-        action = "Collect " .. amount .. " " .. (objective.item or "vendor-value item") .. (amount == 1 and "" or "s") .. " from " .. target .. " near " .. objective.location .. ", then sell them to a vendor."
-    elseif category.id == "hunt" then
-        action = "Find and defeat " .. (amount > 1 and (amount .. " ") or "") .. target .. location .. "."
-    elseif objective.trackingKind == "nodes" or objective.id == "copper_vein_prospecting" then
-        action = "Mine " .. amount .. " different Copper Veins in " .. zone.name .. " and loot their ore."
-    elseif category.profession then
-        action = "Gather " .. amount .. " " .. target .. " " .. location .. "."
-    end
-    return {
+    local categoryId = category.profession and "gather" or category.id
+    if #EligibleGivers(zone, categoryId) == 0 then return nil end
+    local quest = {
         id = table.concat({category.id, branch and branch.id or "", objective.id, tostring(amount)}, ":"),
         selectionId = table.concat({category.id, branch and branch.id or "", objective.id}, ":"),
         title = objective.name,
@@ -488,12 +601,7 @@ local function BuildQuest(category, branch, objective, amount)
         zone = zone.name,
         zoneId = zone.id,
         level = objective.level,
-        source = category.source,
-        description = (category.profession and (category.profession.name .. " supplies are needed.") or
-            (category.id == "hunt" and "A dangerous target has been reported in the area." or
-            (category.id == "kill" and "Local residents need help dealing with a threat." or
-            "A local request has been posted on the questboard."))),
-        objective = action,
+        objective = ObjectiveText(category, objective, amount, zone),
         prompt = category.id == "hunt" and "Gather what is known about the target before you set out; bring back one detail for the story." or
             "Ask the quest giver what makes this request important to them before you leave.",
         tracking = TrackingSpec(category.id, objective, category.profession and category.profession.id),
@@ -504,6 +612,8 @@ local function BuildQuest(category, branch, objective, amount)
         minPlayerLevel = objective.minPlayerLevel,
         maxPlayerLevel = objective.maxPlayerLevel,
     }
+    if not AssignNarrative(quest, zone, categoryId) then return nil end
+    return quest
 end
 
 local function UpdatedObjectiveText(quest)
@@ -513,12 +623,12 @@ local function UpdatedObjectiveText(quest)
         if category.branches then
             for _, branch in ipairs(category.branches) do
                 for _, objective in ipairs(branch.objectives) do
-                    if objective.id == quest.objectiveId then return BuildQuest(category, branch, objective, quest.amount).objective end
+                    if objective.id == quest.objectiveId then return ObjectiveText(category, objective, quest.amount, zone) end
                 end
             end
         else
             for _, objective in ipairs(category.profession and category.profession.objectives or category.objectives) do
-                if objective.id == quest.objectiveId then return BuildQuest(category, nil, objective, quest.amount).objective end
+                if objective.id == quest.objectiveId then return ObjectiveText(category, objective, quest.amount, zone) end
             end
         end
     end
@@ -562,14 +672,17 @@ local function GenerateQuest(playerLevel, outleveled, excluded, forcedCategory)
     end
     local categories = {}
     for _, candidate in ipairs(CategoryOptions(false)) do
-        if candidate.id == "hunt" then
-            local hasEligible = false
-            for _, branchOption in ipairs(candidate.branches) do
-                if #Options(candidate, branchOption) > 0 then hasEligible = true; break end
+        local categoryId = candidate.profession and "gather" or candidate.id
+        if #EligibleGivers(SelectedZone(), categoryId) > 0 then
+            if candidate.id == "hunt" then
+                local hasEligible = false
+                for _, branchOption in ipairs(candidate.branches) do
+                    if #Options(candidate, branchOption) > 0 then hasEligible = true; break end
+                end
+                if hasEligible then categories[#categories + 1] = candidate end
+            elseif #Options(candidate, nil) > 0 then
+                categories[#categories + 1] = candidate
             end
-            if hasEligible then categories[#categories + 1] = candidate end
-        elseif #Options(candidate, nil) > 0 then
-            categories[#categories + 1] = candidate
         end
     end
     local category = WeightedCategory(categories)
@@ -851,7 +964,8 @@ RefreshQuestBrowser = function()
         row.amount:SetText(objective.minAmount == objective.maxAmount and ("(" .. objective.minAmount .. ")") or ("(" .. objective.minAmount .. "–" .. objective.maxAmount .. ")"))
         row:SetScript("OnClick", function()
             local preview = BuildQuest(category, branch, objective, RollAmount(objective))
-            questBrowser.preview:SetText(preview.title .. " — " .. preview.kind .. " — " .. preview.amount .. "\n" .. preview.objective)
+            questBrowser.preview:SetText(preview and (preview.title .. " — " .. preview.kind .. " — " .. preview.amount .. "\n" .. preview.objective)
+                or "No friendly quest giver is available for this category in this zone.")
         end)
         row:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -1019,6 +1133,7 @@ end
 
 local function RefreshStatistics()
     if not statisticsWindow then return end
+    statisticsWindow.reset:SetShown(debugMode)
     local stats = Tracking.GetStatistics()
     for _, definition in ipairs(statisticSections) do
         local section = statisticsWindow.sections[definition.key]
@@ -1038,6 +1153,14 @@ local function ToggleStatistics()
     if not statisticsWindow then
         statisticsWindow = SecondaryWindow("WoWForeverStatistics", "Classic Questbook Statistics", 440, 260)
         statisticsWindow.values, statisticsWindow.sections = {}, {}
+        statisticsWindow.reset = CreateFrame("Button", nil, statisticsWindow, "UIPanelButtonTemplate")
+        statisticsWindow.reset:SetSize(102, 24)
+        statisticsWindow.reset:SetPoint("BOTTOMRIGHT", -28, 20)
+        statisticsWindow.reset:SetText("Reset Stats")
+        statisticsWindow.reset:SetScript("OnClick", function()
+            if not debugMode then return end
+            Tracking.DebugResetStatistics(true)
+        end)
         for _, definition in ipairs(statisticSections) do
             local section = CreateFrame("Frame", nil, statisticsWindow)
             section:SetWidth(392)
@@ -1071,7 +1194,7 @@ local function ToggleStatistics()
         end
         local note = Text(statisticsWindow, "GameFontHighlightSmall", {0.65, 0.65, 0.65})
         note:SetPoint("BOTTOMLEFT", 28, 20)
-        note:SetSize(380, 50)
+        note:SetSize(260, 50)
         note:SetText("Per character; includes Debug Mode actions.\nEarlier totals without category records are unclassified.")
     end
     RefreshStatistics()
@@ -1180,7 +1303,7 @@ CreateBoard = function()
     title:SetText("Classic Questbook")
     local version = Text(board, "GameFontHighlightSmall")
     version:SetPoint("TOPLEFT", 54, -31)
-    version:SetText("Alpha V0.7.1")
+    version:SetText("Alpha V0.8.0")
     board.zoneDropdown = CreateFrame("Frame", "WoWForeverZoneDropdown", board, "UIDropDownMenuTemplate")
     board.zoneDropdown:SetPoint("TOP", board, "TOP", 0, -8)
     UIDropDownMenu_SetWidth(board.zoneDropdown, 190)
@@ -1280,6 +1403,7 @@ CreateBoard = function()
                 end
                 return
             end
+            if quest.questGiverFaction ~= PlayerFaction() then return end
             if not Tracking.Accept(quest, debugMode) then return end
             Refresh()
             print("|cffffd27fClassic Questbook:|r Accepted \"" .. quest.title .. "\". Open /cq to view your objective.")
@@ -1483,7 +1607,7 @@ Refresh = function()
         card.objective:SetText(quest and ("Your objective\n|cffffffff" .. objectiveText .. "|r") or "")
         card.prompt:SetText(accepted and Tracking.ProgressText(quest) or (quest and not trackable and "Automatic tracking is unavailable for this objective on this client." or (quest and ("Roleplay prompt\n|cffffffff" .. quest.prompt .. "|r") or "")))
         card.button:SetText(not quest and "Unavailable" or (ready and "Turn In Quest" or (accepted and "Abandon Quest" or (db.activeQuest and "Unavailable" or (not trackable and "Tracking unavailable" or "Accept Quest")))))
-        card.button:SetEnabled(quest ~= nil and ((accepted and (not ready or locationAllowed)) or (not db.activeQuest and locationAllowed and trackable)))
+        card.button:SetEnabled(quest ~= nil and ((accepted and (not ready or locationAllowed)) or (not db.activeQuest and locationAllowed and trackable and quest.questGiverFaction == PlayerFaction())))
         card.abandon:SetShown(not not ready)
         card.marker:SetText("")
         card:SetBackdropBorderColor(accepted and 0.9 or 0.36, accepted and 0.3 or 0.3, accepted and 0.16 or 0.16, 1)
@@ -1504,7 +1628,10 @@ Refresh = function()
     board.debugProgress:SetShown(debugMode)
     board.debugProgress:SetEnabled(debugMode and active ~= nil and Tracking.CanTrack(active) and active.state == "Active")
     if abandonDialog and abandonDialog:IsShown() and abandonDialog.quest ~= active then abandonDialog:Hide() end
-    board.status:SetText(active and (active.state .. ": " .. active.title) or (#db.displayedQuests == 0 and "No " .. SelectedZone().name .. " objectives match your level and professions." or "Choose one notice to begin your adventure."))
+    local hasFriendlyGiver = #EligibleGivers(SelectedZone(), "kill") > 0
+    board.status:SetText(active and (active.state .. ": " .. active.title) or (#db.displayedQuests == 0 and
+        (hasFriendlyGiver and ("No " .. SelectedZone().name .. " objectives match your level and professions.") or
+        "No friendly quest givers are available for your faction in this zone.") or "Choose one notice to begin your adventure."))
     board.reroll:SetEnabled(active == nil)
     local notice = debugMode and "Debug Mode: accept and turn-in location requirements are bypassed."
         or resting and "Rest area: you can accept quests and turn in finished objectives here."
@@ -1544,6 +1671,17 @@ events:SetScript("OnEvent", function(self, event, loaded)
     if oldZone and ValidZoneOffers(oldOffers, oldZone) then db.zoneOffers[oldZone.id] = oldOffers end
     if not zones[db.selectedZone] then db.selectedZone = oldZone and oldZone.id or "elwynn" end
     Tracking.Initialize(db, ResolveTracking, Refresh)
+    -- Enrich saved notices in place: do not reroll their objective, amount, or progress.
+    local function EnrichSaved(quest)
+        if not quest or quest.questGiverID then return end
+        local zone = QuestZone(quest)
+        local categoryId = QuestCategoryId(quest)
+        if zone and categoryId then AssignNarrative(quest, zone, categoryId) end
+    end
+    EnrichSaved(db.activeQuest)
+    for _, offers in pairs(db.zoneOffers) do
+        for _, quest in ipairs(offers) do EnrichSaved(quest) end
+    end
     if db.activeQuest then
         local activeZone = QuestZone(db.activeQuest) or zones.elwynn
         local activeOffers = db.zoneOffers[activeZone.id]

@@ -2,6 +2,19 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.8.0] - 2026-09-28
+
+### Added
+
+- Elwynn Forest and Dun Morogh each have a verified pool of local Alliance-friendly NPC quest givers, assigned by quest category. Generated notices now show a named giver and their location. See QUEST_GIVERS.md for the roster and sources.
+- Each quest category has four original flavour-text alternatives. Gathering has separate alternatives for Herbalism, Mining, Skinning, and Fishing; the bland supply-request line is replaced.
+- A Reset Stats button appears on the Statistics page only in Debug Mode. It clears accepted, handed-in, and abandoned totals and each category breakdown.
+
+### Changed
+
+- Giver and flavour text are saved with each offer and accepted quest, so they do not change on reload or UI refresh. Existing notices gain a giver and new story in place, without rerolling their objectives, amounts, or progress.
+- Generation requires a friendly NPC for the player's faction in the selected zone. The two current zones have verified Alliance giver pools only; a Horde character is shown an explanatory empty-board message rather than a hostile giver.
+
 ## [0.7.1] - 2026-09-28
 
 ### Fixed
