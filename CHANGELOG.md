@@ -2,6 +2,15 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.9.0] - 2026-09-28
+
+### Changed
+
+- Collect & Sell quests are now offered only by friendly, verified merchants in the selected zone. The card names the exact merchant and location where the collected items must be sold.
+- Sales count only when the merchant window belongs to that quest's assigned NPC. Existing sale evidence checks still apply; selling to another vendor consumes the eligible items without advancing the quest. Previously generated Collect & Sell notices are assigned a real vendor in place, preserving objective, amount, and progress.
+- Quest Browser objective rows now show eligible character level ranges. Hovering or clicking reveals the objective's amount range.
+- Quest cards no longer show the roleplay prompt. Active quest progress remains visible, with more room for the objective text.
+
 ## [0.8.0] - 2026-09-28
 
 ### Added

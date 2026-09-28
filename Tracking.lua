@@ -476,15 +476,25 @@ local function BagSlots()
     end
     return slots
 end
+local function InteractingMerchantID()
+    local guid = UnitGUID and UnitGUID("npc")
+    if not Public(guid) or type(guid) ~= "string" then return nil end
+    -- Creature-0-server-instance-zone-NPCID-spawnID.
+    return tonumber(guid:match("^Creature%-[^%-]+%-[^%-]+%-[^%-]+%-[^%-]+%-(%d+)%-"))
+end
 local function StartMerchant()
     local q = Working()
     if not q or q.tracking.kind ~= "collect_sell" then return end
+    if not q.tracking.vendorID or InteractingMerchantID() ~= q.tracking.vendorID then
+        merchant = nil
+        return
+    end
     merchant = {quest = q, counts = {}, buyback = Buyback(), money = GetMoney(), slots = BagSlots(), intents = {}}
     for id in pairs(q.progress.held) do merchant.counts[id] = Count(id) end
 end
 local function SettleMerchant(session)
     local q = Working()
-    if not session or not q or session.quest ~= q then return end
+    if not session or session ~= merchant or not q or session.quest ~= q then return end
     local merchant = session
     local now, money = Buyback(), GetMoney()
     local budget = math.max(0, money - merchant.money)

@@ -3,7 +3,7 @@
 ## IconTexture: Interface\Icons\INV_Misc_Map_01
 ## Notes: A small roleplay adventure board. Open with /cq.
 ## Author: Spinkler
-## Version: 0.8.0
+## Version: 0.9.0
 ## SavedVariablesPerCharacter: WoWForeverDB
 
 Tracking.lua

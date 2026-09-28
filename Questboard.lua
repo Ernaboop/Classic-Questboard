@@ -232,11 +232,14 @@ local zones = {
             {id = 197, name = "Marshal McBride", location = "Northshire Abbey", faction = "Alliance", roles = {kill = true, hunt = true}},
             {id = 823, name = "Deputy Willem", location = "Northshire Valley", faction = "Alliance", roles = {kill = true, hunt = true}},
             {id = 261, name = "Guard Thomas", location = "Eastvale road", faction = "Alliance", roles = {kill = true, hunt = true}},
-            {id = 241, name = 'Remy "Two Times"', location = "Goldshire", faction = "Alliance", roles = {collect_sell = true, hunt = true}},
+            {id = 241, name = 'Remy "Two Times"', location = "Goldshire", faction = "Alliance", roles = {hunt = true}},
             {id = 295, name = "Innkeeper Farley", location = "Goldshire", faction = "Alliance", roles = {collect_sell = true, gather = true}},
-            {id = 244, name = "Ma Stonefield", location = "Stonefield Farm", faction = "Alliance", roles = {collect_sell = true, gather = true}},
-            {id = 251, name = "Maybell Maclure", location = "Maclure Vineyards", faction = "Alliance", roles = {collect_sell = true, gather = true}},
-            {id = 514, name = "Smith Argus", location = "Goldshire", faction = "Alliance", roles = {collect_sell = true, gather = true}},
+            {id = 244, name = "Ma Stonefield", location = "Stonefield Farm", faction = "Alliance", roles = {gather = true}},
+            {id = 251, name = "Maybell Maclure", location = "Maclure Vineyards", faction = "Alliance", roles = {gather = true}},
+            {id = 514, name = "Smith Argus", location = "Goldshire", faction = "Alliance", roles = {gather = true}},
+            {id = 66, name = "Tharynn Bouden", location = "Goldshire", faction = "Alliance", roles = {collect_sell = true}},
+            {id = 1250, name = "Drake Lindgren", location = "Eastvale Logging Camp", faction = "Alliance", roles = {collect_sell = true}},
+            {id = 152, name = "Brother Danil", location = "Northshire Abbey", faction = "Alliance", roles = {collect_sell = true}},
         }},
     dun_morogh = {id = "dun_morogh", name = "Dun Morogh", maxLevel = 12, data = dunMoroghData,
         questGivers = {
@@ -245,11 +248,14 @@ local zones = {
             {id = 786, name = "Grelin Whitebeard", location = "Coldridge Valley", faction = "Alliance", roles = {kill = true, hunt = true}},
             {id = 714, name = "Talin Keeneye", location = "Coldridge Valley", faction = "Alliance", roles = {kill = true, hunt = true}},
             {id = 1252, name = "Senir Whitebeard", location = "Kharanos", faction = "Alliance", roles = {kill = true, hunt = true}},
-            {id = 1265, name = "Rudra Amberstill", location = "Amberstill Ranch", faction = "Alliance", roles = {kill = true, hunt = true, collect_sell = true}},
+            {id = 1265, name = "Rudra Amberstill", location = "Amberstill Ranch", faction = "Alliance", roles = {kill = true, hunt = true}},
             {id = 1247, name = "Innkeeper Belm", location = "Kharanos", faction = "Alliance", roles = {collect_sell = true, gather = true}},
-            {id = 1267, name = "Ragnar Thunderbrew", location = "Kharanos", faction = "Alliance", roles = {collect_sell = true, gather = true}},
-            {id = 1378, name = "Pilot Bellowfiz", location = "Steelgrill's Depot", faction = "Alliance", roles = {collect_sell = true, gather = true}},
-            {id = 1269, name = "Razzle Sprysprocket", location = "Steelgrill's Depot", faction = "Alliance", roles = {collect_sell = true, gather = true}},
+            {id = 1267, name = "Ragnar Thunderbrew", location = "Kharanos", faction = "Alliance", roles = {gather = true}},
+            {id = 1378, name = "Pilot Bellowfiz", location = "Steelgrill's Depot", faction = "Alliance", roles = {gather = true}},
+            {id = 1269, name = "Razzle Sprysprocket", location = "Steelgrill's Depot", faction = "Alliance", roles = {gather = true}},
+            {id = 829, name = "Adlin Pridedrift", location = "Coldridge Valley", faction = "Alliance", roles = {collect_sell = true}},
+            {id = 1691, name = "Kreg Bilmn", location = "Kharanos", faction = "Alliance", roles = {collect_sell = true}},
+            {id = 1692, name = "Golorn Frostbeard", location = "south of Kharanos", faction = "Alliance", roles = {collect_sell = true}},
         }},
 }
 local zoneOrder = {"elwynn", "dun_morogh"}
@@ -296,11 +302,11 @@ local skinSources = {
     stonefield_light_leather = {"Stonetusk Boar"},
     eastern_light_leather = {"Gray Forest Wolf", "Young Forest Bear", "Prowler"},
 }
-local function TrackingSpec(categoryId, objective, profession)
+local function TrackingSpec(categoryId, objective, profession, vendorID)
     if categoryId == "kill" or categoryId == "hunt" then
         return {kind = "kill", targets = {objective.name}}
     elseif categoryId == "collect_sell" then
-        return {kind = "collect_sell", targets = objective.targets or collectSources[objective.id], itemID = objective.itemID or trackedItems[objective.id]}
+        return {kind = "collect_sell", targets = objective.targets or collectSources[objective.id], itemID = objective.itemID or trackedItems[objective.id], vendorID = vendorID}
     elseif profession then
         return {kind = objective.trackingKind or (objective.id == "copper_vein_prospecting" and "nodes" or "gather"),
             profession = profession, itemID = objective.itemID or trackedItems[objective.id], targets = objective.targets or skinSources[objective.id]}
@@ -314,12 +320,12 @@ local function ResolveTracking(quest)
         if category.branches then
             for _, branch in ipairs(category.branches) do
                 for _, objective in ipairs(branch.objectives) do
-                    if objective.id == quest.objectiveId then return TrackingSpec(category.id, objective) end
+                    if objective.id == quest.objectiveId then return TrackingSpec(category.id, objective, nil, quest.questGiverID) end
                 end
             end
         else
             for _, objective in ipairs(category.objectives) do
-                if objective.id == quest.objectiveId then return TrackingSpec(category.id, objective) end
+                if objective.id == quest.objectiveId then return TrackingSpec(category.id, objective, nil, quest.questGiverID) end
             end
         end
     end
@@ -569,13 +575,15 @@ local function ObjectiveOptions(category, branch, playerLevel, outleveled)
     return EligibleObjectives(objectives, effectiveLevel)
 end
 
-local function ObjectiveText(category, objective, amount, zone)
+local function ObjectiveText(category, objective, amount, zone, quest)
     local target = objective.target or objective.name
     local location = objective.location and (" at " .. objective.location) or (" in " .. zone.name)
     if category.id == "kill" then
         return "Travel to " .. objective.location .. " and defeat " .. amount .. " " .. target .. "."
     elseif category.id == "collect_sell" then
-        return "Collect " .. amount .. " " .. (objective.item or "vendor-value item") .. (amount == 1 and "" or "s") .. " from " .. target .. " near " .. objective.location .. ", then sell them to a vendor."
+        local vendor = quest and quest.source or "the named vendor"
+        local vendorLocation = quest and quest.questGiverLocation or zone.name
+        return "Collect " .. amount .. " " .. (objective.item or "vendor-value item") .. (amount == 1 and "" or "s") .. " from " .. target .. " near " .. objective.location .. ", then sell them to " .. vendor .. " in " .. vendorLocation .. "."
     elseif category.id == "hunt" then
         return "Find and defeat " .. (amount > 1 and (amount .. " ") or "") .. target .. location .. "."
     elseif objective.trackingKind == "nodes" or objective.id == "copper_vein_prospecting" then
@@ -601,10 +609,8 @@ local function BuildQuest(category, branch, objective, amount)
         zone = zone.name,
         zoneId = zone.id,
         level = objective.level,
-        objective = ObjectiveText(category, objective, amount, zone),
         prompt = category.id == "hunt" and "Gather what is known about the target before you set out; bring back one detail for the story." or
             "Ask the quest giver what makes this request important to them before you leave.",
-        tracking = TrackingSpec(category.id, objective, category.profession and category.profession.id),
         objectiveId = objective.id,
         branchId = branch and branch.id,
         professionId = category.profession and category.profession.id,
@@ -613,6 +619,8 @@ local function BuildQuest(category, branch, objective, amount)
         maxPlayerLevel = objective.maxPlayerLevel,
     }
     if not AssignNarrative(quest, zone, categoryId) then return nil end
+    quest.objective = ObjectiveText(category, objective, amount, zone, quest)
+    quest.tracking = TrackingSpec(category.id, objective, category.profession and category.profession.id, quest.questGiverID)
     return quest
 end
 
@@ -623,12 +631,12 @@ local function UpdatedObjectiveText(quest)
         if category.branches then
             for _, branch in ipairs(category.branches) do
                 for _, objective in ipairs(branch.objectives) do
-                    if objective.id == quest.objectiveId then return ObjectiveText(category, objective, quest.amount, zone) end
+                    if objective.id == quest.objectiveId then return ObjectiveText(category, objective, quest.amount, zone, quest) end
                 end
             end
         else
             for _, objective in ipairs(category.profession and category.profession.objectives or category.objectives) do
-                if objective.id == quest.objectiveId then return ObjectiveText(category, objective, quest.amount, zone) end
+                if objective.id == quest.objectiveId then return ObjectiveText(category, objective, quest.amount, zone, quest) end
             end
         end
     end
@@ -961,10 +969,10 @@ RefreshQuestBrowser = function()
         row:SetPoint("TOPLEFT", questBrowser.content, "TOPLEFT", 8, y)
         row:SetSize(570, 26)
         row.title:SetText(objective.name)
-        row.amount:SetText(objective.minAmount == objective.maxAmount and ("(" .. objective.minAmount .. ")") or ("(" .. objective.minAmount .. "–" .. objective.maxAmount .. ")"))
+        row.amount:SetText("Level " .. objective.minPlayerLevel .. "–" .. objective.maxPlayerLevel)
         row:SetScript("OnClick", function()
             local preview = BuildQuest(category, branch, objective, RollAmount(objective))
-            questBrowser.preview:SetText(preview and (preview.title .. " — " .. preview.kind .. " — " .. preview.amount .. "\n" .. preview.objective)
+            questBrowser.preview:SetText(preview and (preview.title .. " — " .. preview.kind .. " — Amount range " .. objective.minAmount .. "–" .. objective.maxAmount .. "\n" .. preview.objective)
                 or "No friendly quest giver is available for this category in this zone.")
         end)
         row:SetScript("OnEnter", function(self)
@@ -972,6 +980,7 @@ RefreshQuestBrowser = function()
             GameTooltip:AddLine(objective.name)
             GameTooltip:AddLine("Creature/resource level or skill: " .. objective.level, 1, 1, 1)
             GameTooltip:AddLine("Eligible character levels: " .. objective.minPlayerLevel .. "-" .. objective.maxPlayerLevel, 1, 1, 1)
+            GameTooltip:AddLine("Amount range: " .. objective.minAmount .. "-" .. objective.maxAmount, 1, 1, 1)
             GameTooltip:AddLine("Location: " .. objective.location, 0.8, 0.8, 0.8)
             GameTooltip:Show()
         end)
@@ -1303,7 +1312,7 @@ CreateBoard = function()
     title:SetText("Classic Questbook")
     local version = Text(board, "GameFontHighlightSmall")
     version:SetPoint("TOPLEFT", 54, -31)
-    version:SetText("Alpha V0.8.0")
+    version:SetText("Alpha V0.9.0")
     board.zoneDropdown = CreateFrame("Frame", "WoWForeverZoneDropdown", board, "UIDropDownMenuTemplate")
     board.zoneDropdown:SetPoint("TOP", board, "TOP", 0, -8)
     UIDropDownMenu_SetWidth(board.zoneDropdown, 190)
@@ -1382,10 +1391,10 @@ CreateBoard = function()
         card.story:SetSize(228, 88)
         card.objective = Text(card, "GameFontNormal")
         card.objective:SetPoint("TOPLEFT", 14, -202)
-        card.objective:SetSize(228, 72)
-        card.prompt = Text(card, "GameFontNormalSmall")
-        card.prompt:SetPoint("TOPLEFT", 14, -282)
-        card.prompt:SetSize(228, 48)
+        card.objective:SetSize(228, 92)
+        card.progress = Text(card, "GameFontNormalSmall")
+        card.progress:SetPoint("TOPLEFT", 14, -302)
+        card.progress:SetSize(228, 36)
         card.marker = Text(card, "GameFontNormalSmall", {0.5, 0.9, 0.5})
         card.marker:SetPoint("BOTTOM", 0, 43)
         card.button = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
@@ -1605,7 +1614,7 @@ Refresh = function()
         card.meta:SetText(quest and (quest.kind .. "  |  " .. quest.zone .. "\n" .. (hunt and "" or ("Level or skill: " .. quest.level .. "  |  ")) .. quest.source) or SelectedZone().name)
         card.story:SetText(quest and quest.description or "No objectives match your current level and known professions.")
         card.objective:SetText(quest and ("Your objective\n|cffffffff" .. objectiveText .. "|r") or "")
-        card.prompt:SetText(accepted and Tracking.ProgressText(quest) or (quest and not trackable and "Automatic tracking is unavailable for this objective on this client." or (quest and ("Roleplay prompt\n|cffffffff" .. quest.prompt .. "|r") or "")))
+        card.progress:SetText(accepted and Tracking.ProgressText(quest) or (quest and not trackable and "Automatic tracking is unavailable for this objective on this client." or ""))
         card.button:SetText(not quest and "Unavailable" or (ready and "Turn In Quest" or (accepted and "Abandon Quest" or (db.activeQuest and "Unavailable" or (not trackable and "Tracking unavailable" or "Accept Quest")))))
         card.button:SetEnabled(quest ~= nil and ((accepted and (not ready or locationAllowed)) or (not db.activeQuest and locationAllowed and trackable and quest.questGiverFaction == PlayerFaction())))
         card.abandon:SetShown(not not ready)
@@ -1670,18 +1679,24 @@ events:SetScript("OnEvent", function(self, event, loaded)
     local oldZone = type(oldOffers) == "table" and type(oldOffers[1]) == "table" and QuestZone(oldOffers[1])
     if oldZone and ValidZoneOffers(oldOffers, oldZone) then db.zoneOffers[oldZone.id] = oldOffers end
     if not zones[db.selectedZone] then db.selectedZone = oldZone and oldZone.id or "elwynn" end
-    Tracking.Initialize(db, ResolveTracking, Refresh)
-    -- Enrich saved notices in place: do not reroll their objective, amount, or progress.
+    -- Enrich saved notices in place before tracking resolves the vendor ID.
+    -- Older Collect & Sell notices may have a non-vendor giver; assign an
+    -- actual merchant without changing their objective, amount, or progress.
     local function EnrichSaved(quest)
-        if not quest or quest.questGiverID then return end
+        if not quest then return end
         local zone = QuestZone(quest)
         local categoryId = QuestCategoryId(quest)
-        if zone and categoryId then AssignNarrative(quest, zone, categoryId) end
+        if zone and categoryId and (not quest.questGiverID or categoryId == "collect_sell")
+            and AssignNarrative(quest, zone, categoryId) and categoryId == "collect_sell" then
+            quest.objective = UpdatedObjectiveText(quest)
+            quest.tracking = ResolveTracking(quest)
+        end
     end
     EnrichSaved(db.activeQuest)
     for _, offers in pairs(db.zoneOffers) do
         for _, quest in ipairs(offers) do EnrichSaved(quest) end
     end
+    Tracking.Initialize(db, ResolveTracking, Refresh)
     if db.activeQuest then
         local activeZone = QuestZone(db.activeQuest) or zones.elwynn
         local activeOffers = db.zoneOffers[activeZone.id]

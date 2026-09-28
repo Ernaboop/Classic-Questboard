@@ -163,13 +163,15 @@ local T = ns.Tracking
 local saved
 local function fresh()
     clock, timers, resting, zone, bags, money, buybacks, lootItems, level, faction = 0, {}, true, 'Elwynn Forest', {}, 100, {}, {}, 6, 'Alliance'
-    units = {player = {guid = 'Player-1', name = 'Tester'}, pet = {guid = 'Pet-1', name = 'Pet'}}
+    units = {player = {guid = 'Player-1', name = 'Tester'}, pet = {guid = 'Pet-1', name = 'Pet'},
+        npc = {guid = 'Creature-0-1-0-0-295-123', name = 'Innkeeper Farley'}}
     professionSlots, professionLines = {}, {}
     saved = {}
     T.Initialize(saved, function(q) return q.tracking end, function() end)
     T.OnEvent('PLAYER_ENTERING_WORLD')
 end
 local function quest(spec, amount)
+    if spec.kind == 'collect_sell' and not spec.vendorID then spec.vendorID = 295 end
     return {id = 'test', title = 'Test', zone = 'Elwynn Forest', amount = amount or 2, tracking = spec}
 end
 local function killGUID(guid) return 'Creature-0-1-0-0-40-' .. guid:gsub('%W', '') end
@@ -242,6 +244,24 @@ T.OnEvent('BAG_UPDATE_DELAYED') -- client can deliver bag changes before money/b
 money = money + 20; buybacks = {{id = 2672, quantity = 2}}
 T.OnEvent('MERCHANT_UPDATE'); T.OnEvent('MERCHANT_CLOSED'); advance(1)
 check(q.progress.sold == 2 and q.state == 'Ready to Turn In', 'sale requires bag, buyback, and money evidence, including close race')
+
+fresh(); q = quest({kind = 'collect_sell', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
+lootStart(2672, 2, 'Creature-wolf', 'Young Wolf'); receive(2672, 2)
+units.npc = {guid = 'Creature-0-1-0-0-66-321', name = 'Innkeeper Farley'}
+T.OnEvent('MERCHANT_SHOW'); bags[2672] = 1; money = money + 10; buybacks = {{id = 2672, quantity = 1}}
+T.OnEvent('BAG_UPDATE_DELAYED'); T.OnEvent('MERCHANT_CLOSED'); advance(1)
+check(q.progress.sold == 0 and q.progress.held[2672] == 1 and q.state == 'Active',
+    'selling to a different vendor never counts, even when the shown name matches')
+units.npc = nil
+T.OnEvent('MERCHANT_SHOW'); T.OnEvent('MERCHANT_CLOSED'); advance(1)
+check(q.progress.sold == 0, 'missing interacting NPC identity fails closed')
+lootStart(2672, 1, 'Creature-wolf-new', 'Young Wolf'); receive(2672, 1)
+units.npc = {guid = 'Creature-0-1-0-0-295-456', name = 'Innkeeper Farley'}
+buybacks = {}
+T.OnEvent('MERCHANT_SHOW'); bags[2672] = 0; money = money + 20
+buybacks = {{id = 2672, quantity = 2}}
+T.OnEvent('BAG_UPDATE_DELAYED'); T.OnEvent('MERCHANT_CLOSED'); advance(1)
+check(q.progress.sold == 2 and q.state == 'Ready to Turn In', 'selling replacement gathered items to the assigned vendor counts')
 
 fresh(); q = quest({kind = 'collect_sell', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
 lootStart(2672, 2, 'Creature-wolf', 'Young Wolf'); receive(2672, 2)
@@ -431,6 +451,8 @@ local function cards()
     return result
 end
 local cs = cards()
+check(cs[1].progress.text == '' and not rawget(cs[1], 'prompt'),
+    'unaccepted quest cards omit the roleplay prompt while keeping a progress field')
 board.statistics.scripts.OnClick()
 local statsWindow = WoWForeverStatistics
 check(statsWindow:IsShown() and statsWindow.values.accepted.text == '0', 'statistics window opens with starting totals')
@@ -624,7 +646,7 @@ local reloadedCard
 for _, frame in ipairs(frames) do
     if frame.parent == WoWForeverQuestboard and rawget(frame, 'heading') and frame.heading.text == persistent.title then reloadedCard = frame end
 end
-check(reloadedCard and reloadedCard.prompt.text:find('Active'), 'reloaded active card renders authoritative saved state')
+check(reloadedCard and reloadedCard.progress.text:find('Active'), 'reloaded active card renders authoritative saved state')
 check(not WoWForeverDB.settings.showAbandonConfirmation, 'disabled confirmation survives saved-variable reload')
 -- All card positions, including separate active/offer tables after reload.
 local reloadedCards = {}
@@ -959,8 +981,14 @@ do
     end
     local elwynnOffers = WoWForeverDB.displayedQuests
     local verifiedGivers = {
-        elwynn = {[240]=true,[197]=true,[823]=true,[261]=true,[241]=true,[295]=true,[244]=true,[251]=true,[514]=true},
-        dun_morogh = {[658]=true,[713]=true,[786]=true,[714]=true,[1252]=true,[1265]=true,[1247]=true,[1267]=true,[1378]=true,[1269]=true},
+        elwynn = {[240]=true,[197]=true,[823]=true,[261]=true,[241]=true,[295]=true,[244]=true,[251]=true,[514]=true,
+            [66]=true,[1250]=true,[152]=true},
+        dun_morogh = {[658]=true,[713]=true,[786]=true,[714]=true,[1252]=true,[1265]=true,[1247]=true,[1267]=true,
+            [1378]=true,[1269]=true,[829]=true,[1691]=true,[1692]=true},
+    }
+    local verifiedVendors = {
+        elwynn = {[295]=true,[66]=true,[1250]=true,[152]=true},
+        dun_morogh = {[1247]=true,[829]=true,[1691]=true,[1692]=true},
     }
     local function checkNarrative(offer)
         check(verifiedGivers[offer.zoneId][offer.questGiverID] and offer.questGiverFaction == 'Alliance',
@@ -969,6 +997,12 @@ do
             and offer.description:find(offer.flavorText, 1, true)
             and offer.description:find(offer.questGiverLocation, 1, true),
             'quest carries a specific saved flavour line and giver location')
+        if offer.categoryName == 'Collect & Sell' then
+            check(verifiedVendors[offer.zoneId][offer.questGiverID]
+                and offer.tracking.vendorID == offer.questGiverID
+                and offer.objective:find(offer.source, 1, true),
+                'Collect & Sell names and tracks only its assigned local vendor')
+        end
     end
     for _, offer in ipairs(elwynnOffers) do checkNarrative(offer) end
     chooseZone('Dun Morogh')
@@ -1057,7 +1091,17 @@ do
     local n = 0
     for _, row in ipairs(browser.objectiveRows) do if row:IsShown() then n = n + 1 end end
     check(n == 20 and browser.levelLabel.text:find('Dun Morogh'), 'all-level browser shows selected zone and all 20 Kill objectives')
-    browser.objectiveRows[1].scripts.OnClick()
+    local firstRow = browser.objectiveRows[1]
+    check(firstRow.amount.text:find('Level %d+–%d+') and not firstRow.amount.text:find('%('),
+        'Quest Browser row displays eligible character level range instead of amount')
+    firstRow.scripts.OnEnter(firstRow)
+    local amountTooltip = false
+    for i = math.max(1, #tooltipLines - 4), #tooltipLines do
+        if tooltipLines[i].text:find('Amount range:', 1, true) then amountTooltip = true end
+    end
+    check(amountTooltip, 'Quest Browser hover shows objective amount range')
+    firstRow.scripts.OnClick()
+    check(browser.preview.text:find('Amount range', 1, true), 'Quest Browser click preview shows amount range')
     chooseZone('Elwynn Forest')
     check(browser.preview.text == '' and browser.levelLabel.text:find('Elwynn Forest'), 'zone switch refreshes browser and clears stale preview')
     chooseZone('Dun Morogh')
@@ -1147,6 +1191,20 @@ do
     end
     check(hunt.objectiveId == 'mine_spider' and hunt.objective:find(tostring(hunt.amount))
         and not hunt.objective:lower():find('elite'), 'multi-target Hunt retains count but omits elite wording')
+    local oldSaleQuest = clone(pool.dm_coldridge_trogg_spoils)
+    oldSaleQuest.questGiverID, oldSaleQuest.questGiverLocation = 1265, 'Amberstill Ranch'
+    oldSaleQuest.source, oldSaleQuest.flavorText = 'Rudra Amberstill', 'The market shelves are bare.'
+    oldSaleQuest.tracking.vendorID = nil
+    oldSaleQuest.state, oldSaleQuest.progress = 'Active', {count = 0, collected = 1, sold = 0, held = {}, inventory = {}, seen = {}}
+    local previousAmount, previousObjectiveID = oldSaleQuest.amount, oldSaleQuest.objectiveId
+    addon, ui = loadZoneBoard({generatorDataVersion = '0.5.0', selectedZone = 'dun_morogh',
+        activeQuest = oldSaleQuest, displayedQuests = {oldSaleQuest}})
+    local migratedSale = WoWForeverDB.activeQuest
+    check(migratedSale.amount == previousAmount and migratedSale.objectiveId == previousObjectiveID
+        and migratedSale.progress.collected == 1 and verifiedVendors.dun_morogh[migratedSale.questGiverID]
+        and migratedSale.tracking.vendorID == migratedSale.questGiverID
+        and migratedSale.objective:find(migratedSale.source, 1, true),
+        'accepted old Collect & Sell quest gains a real vendor without losing amount or progress')
     WoWForeverDB.statistics.accepted, WoWForeverDB.statistics.handedIn, WoWForeverDB.statistics.abandoned = 7, 3, 2
     WoWForeverDB.statistics.acceptedByCategory.Kill = 4
     WoWForeverDB.statistics.completedByCategory.Hunt = 2
