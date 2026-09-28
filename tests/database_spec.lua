@@ -9,8 +9,8 @@ local D = newDatabase()
 local saved = {}
 check(D:Initialize(saved), 'all built-in content validates')
 local base = D:GetBase()
-check(#D:List('zones') == 3 and #D:List('objectives') == 150, 'all three zones and objectives validate')
-check(#D:List('questGivers') == 32 and #D:List('flavourText') == 38, 'all givers and flavour validate')
+check(#D:List('zones') == 4 and #D:List('objectives') == 200, 'all four zones and objectives validate')
+check(#D:List('questGivers') == 40 and #D:List('flavourText') == 48, 'all givers and flavour validate')
 for _, objective in pairs(base.objectives) do
     check(base.zones[objective.zone] and objective.minAmount and objective.maxAmount, 'every objective uses shared schema')
 end
@@ -65,7 +65,7 @@ check(D:Get('questGivers', giver.id).name == giver.name and D:Get('flavourText',
 check(D:GetBase().objectives.kobold_vermin.minAmount == 8, 'reload does not alter base')
 local broken = {databaseOverrides = {version = 1, objectives = {custom = {entry = {id = 'custom'}}}}}
 check(not D:Initialize(broken), 'invalid saved edit reported safely')
-check(broken.databaseOverrideBackup.objectives.custom and #D:List('objectives') == 150, 'broken edits backed up and base restored')
+check(broken.databaseOverrideBackup.objectives.custom and #D:List('objectives') == 200, 'broken edits backed up and base restored')
 local duplicate = newDatabase()
 check(not duplicate:RegisterObjective(base.objectives.kobold_vermin), 'registration duplicate rejected')
 check(not duplicate:Initialize({}), 'registration error reported at load')
@@ -82,7 +82,7 @@ local function registerTestZone(db)
 end
 local addon, board = TestEnvironment.load(nil, registerTestZone)
 D = addon.Database
-check(#D.zoneOrder == 4 and #D.errors == 0, 'new zone registered solely through data')
+check(#D.zoneOrder == 5 and #D.errors == 0, 'new zone registered solely through data')
 TestEnvironment.select(board.zoneDropdown, 'Test Zone')
 local q = addon.GenerateQuestForLevel(6, false, nil, 'kill')
 check(q and q.objectiveId == 'test_kill' and q.zoneMapIDs[1] == 999999 and q.tracking.npcID == 999999, 'new zone generator and tracking identifiers')
@@ -294,4 +294,86 @@ check(WoWForeverDB.statistics.acceptedByCategory.Supply == 5
     'old statistics merge into Supply without losing counts')
 check(WoWForeverDB.databaseOverrides.objectives[objective.id].entry.category == 'supply',
     'saved override is rewritten to the stable new identifier')
+-- Darkshore uses the same data-driven generation and tracking path.
+addon, board = TestEnvironment.load(nil)
+D = addon.Database
+TestEnvironment.zone('Darkshore')
+TestEnvironment.level(16)
+TestEnvironment.professions({182, 186, 393, 356})
+TestEnvironment.select(board.zoneDropdown, 'Darkshore')
+local darkCounts = {kill = 0, supply = 0, hunt = 0, gather = 0}
+local darkProfessions = {herbalism = 0, mining = 0, skinning = 0, fishing = 0}
+for _, entry in ipairs(D:List('objectives')) do
+    if entry.zone == 'darkshore' then
+        darkCounts[entry.category] = darkCounts[entry.category] + 1
+        if entry.profession then darkProfessions[entry.profession] = darkProfessions[entry.profession] + 1 end
+        check(entry.minPlayerLevel < entry.maxPlayerLevel and entry.minAmount <= entry.maxAmount,
+            'Darkshore objective has a usable multi-level band and amount range')
+        if entry.category == 'hunt' then
+            check(entry.minAmount == 1 and entry.maxAmount == 1
+                and entry.minPlayerLevel == tonumber(entry.level) - 2,
+                'Darkshore rare Hunt is one kill and unlocks two levels early')
+        end
+    end
+end
+check(darkCounts.kill == 20 and darkCounts.supply == 11 and darkCounts.hunt == 7
+    and darkCounts.gather == 12, 'Darkshore has 50 balanced objectives')
+check(darkProfessions.herbalism == 4 and darkProfessions.mining == 3
+    and darkProfessions.skinning == 3 and darkProfessions.fishing == 2,
+    'Darkshore covers all four gathering professions')
+check(#WoWForeverDB.displayedQuests == 3 and WoWForeverDB.selectedZone == 'darkshore',
+    'Darkshore fills three cards through the registered zone dropdown')
+local darkSeen = {}
+for _, offer in ipairs(WoWForeverDB.displayedQuests) do
+    check(offer.zoneId == 'darkshore' and not darkSeen[offer.selectionId],
+        'Darkshore cards stay local and do not duplicate objectives')
+    darkSeen[offer.selectionId] = true
+end
+for _, testLevel in ipairs({10, 16, 22}) do
+    local excluded, found = {}, 0
+    for _ = 1, 60 do
+        local offer = addon.GenerateQuestForLevel(testLevel, false, excluded)
+        if not offer then break end
+        check(offer.zoneId == 'darkshore' and offer.minPlayerLevel <= testLevel
+            and offer.maxPlayerLevel >= testLevel and not excluded[offer.selectionId],
+            'Darkshore level filtering uses each objective player band')
+        excluded[offer.selectionId] = true
+        found = found + 1
+    end
+    check(found >= 3, 'Darkshore has three or more objectives at early, middle, and late levels')
+end
+local darkKill = addon.GenerateQuestForLevel(16, false, nil, 'kill')
+check(darkKill and addon.Tracking.Accept(darkKill), 'Darkshore Kill accepts through normal tracking')
+local darkEnemy = {guid = 'Creature-0-1-0-0-2207-darkshore', name = darkKill.tracking.targets[1],
+    dead = false, controlled = false, denied = false, inCombat = true, tagger = 'player'}
+TestEnvironment.unit('target', darkEnemy)
+addon.Tracking.OnEvent('PLAYER_TARGET_CHANGED')
+darkEnemy.dead = true; addon.Tracking.OnEvent('UNIT_DIED', darkEnemy.guid)
+check(darkKill.progress.count == 1, 'tagged Darkshore kill advances the active quest')
+addon.Tracking.Abandon()
+local darkSupply = addon.GenerateQuestForLevel(16, false, nil, 'supply')
+check(darkSupply and darkSupply.tracking.vendorID == darkSupply.questGiverID
+    and darkSupply.tracking.kind == 'supply', 'Darkshore Supply locks to an actual assigned merchant')
+TestEnvironment.professions({})
+check(not addon.GenerateQuestForLevel(16, false, nil, 'gather'),
+    'Darkshore Gather still requires a learned profession')
+TestEnvironment.professions({182, 186, 393, 356})
+local darkGather = addon.GenerateQuestForLevel(16, false, nil, 'gather')
+check(darkGather and darkGather.professionId and darkGather.zoneId == 'darkshore',
+    'Darkshore learned profession generates local resources')
+local darkHunt = addon.GenerateQuestForLevel(16, false, nil, 'hunt')
+check(darkHunt and darkHunt.amount == 1 and darkHunt.tracking.npcID,
+    'Darkshore named rare uses one tracked creature ID')
+WoWForeverDebugModeButton.scripts.OnClick()
+board.debugButton.scripts.OnClick()
+local darkBrowser = WoWForeverQuestBrowser
+check(darkBrowser.zoneDropdown.text == 'Darkshore', 'Quest Browser opens on the registered Darkshore zone')
+for index, expected in ipairs({20, 11, 7, 12}) do
+    check(darkBrowser.tabs[index].objectiveCount == expected,
+        'Quest Browser tab counts Darkshore objectives in each category')
+end
+TestEnvironment.select(darkBrowser.zoneDropdown, 'Elwynn Forest')
+check(darkBrowser.zoneDropdown.text == 'Elwynn Forest' and WoWForeverDB.selectedZone == 'darkshore'
+    and darkBrowser.tabs[4].objectiveCount == 13,
+    'Quest Browser can inspect another zone without changing the Darkshore board')
 print('PASS: ' .. count .. ' database, override, editor and new-zone assertions (Lua 5.1)')

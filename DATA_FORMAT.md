@@ -1,4 +1,4 @@
-# Classic Questboard data format — Alpha 0.11.2
+# Classic Questboard data format — Alpha 0.12.0
 
 ## Files and load order
 
@@ -11,7 +11,8 @@ Classic Questboard/
 │  └─ Zones/
 │     ├─ ElwynnForest.lua
 │     ├─ DunMorogh.lua
-│     └─ Westfall.lua
+│     ├─ Westfall.lua
+│     └─ Darkshore.lua
 ├─ DatabaseEditor.lua      # form fields read the shared schema
 ├─ Questboard.lua          # generation and main/browser UI
 ├─ Tracking.lua            # gameplay evidence and quest lifecycle

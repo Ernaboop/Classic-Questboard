@@ -1,6 +1,22 @@
 local _, ns = ...
 local Database = ns.Database
 
+for _, line in ipairs({
+    {id = "ds_story_kill_1", category = "kill", text = "The road lamps are lit, but the shadows keep moving. Clear a path before the next caravan leaves Auberdine."},
+    {id = "ds_story_kill_2", category = "kill", text = "The coast sends back fewer travelers each evening. Give the watch one stretch of shore it can trust."},
+    {id = "ds_story_supply_1", category = "supply", text = "Every hull that reaches Auberdine carries less than we ordered. Salvage what the wilds surrender and bring it to my counter."},
+    {id = "ds_story_supply_2", category = "supply", text = "The sea takes its share of our stock. Find something worth trading and I will make sure it feeds the town."},
+    {id = "ds_story_hunt_1", category = "hunt", text = "The sentinels have a name for the shape stalking the treeline. They would rather speak it in the past tense."},
+    {id = "ds_story_hunt_2", category = "hunt", text = "Ordinary patrols have turned back. Follow the tracks they left untouched and finish the work."},
+    {id = "ds_story_herbalism", category = "gather", profession = "herbalism", text = "The healers have exhausted their satchels. Search the damp woods for what the soil still offers."},
+    {id = "ds_story_mining", category = "gather", profession = "mining", text = "Salt air has eaten through our fittings. Bring back ore before the next boat finds a loose mooring."},
+    {id = "ds_story_skinning", category = "gather", profession = "skinning", text = "The sentinels' cloaks are wearing thin. Good hides will keep the night watch warm."},
+    {id = "ds_story_fishing", category = "gather", profession = "fishing", text = "The boats have returned with empty nets. A patient line may yet put supper on the table."},
+}) do
+    line.zone = "darkshore"
+    Database:RegisterFlavour(line)
+end
+
 -- Westfall stories are original addon prose keyed to the same categories.
 for _, line in ipairs({
     {id = "wf_story_kill_1", category = "kill", text = "The militia is stretched thin. One quiet road tonight would mean a great deal to the families still here."},

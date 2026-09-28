@@ -1,6 +1,23 @@
 local _, ns = ...
 local Database = ns.Database
 
+-- Darkshore: Auberdine's notice writers and actual Alliance merchants.
+-- Innkeeper Shaussiy has no merchant inventory, so is not a Supply vendor.
+for _, giver in ipairs({
+    {id = "ds_cerellean", name = "Cerellean Whiteclaw", npcID = 3644, location = "Auberdine docks", categories = {"kill", "hunt"}},
+    {id = "ds_thundris", name = "Thundris Windweaver", npcID = 3649, location = "Auberdine", categories = {"kill", "hunt", "gather"}},
+    {id = "ds_barithras", name = "Barithras Moonshade", npcID = 3583, location = "Auberdine", categories = {"kill", "hunt"}},
+    {id = "ds_glynda", name = "Sentinel Glynda Nal'Shea", npcID = 2930, location = "Auberdine", categories = {"kill", "hunt"}},
+    {id = "ds_shaussiy", name = "Innkeeper Shaussiy", npcID = 6737, location = "Auberdine inn", categories = {"gather"}},
+    {id = "ds_dalmond", name = "Dalmond", npcID = 4182, location = "Auberdine", categories = {"supply", "gather"}, vendor = true},
+    {id = "ds_gorbold", name = "Gorbold Steelhand", npcID = 6301, location = "Auberdine", categories = {"supply", "gather"}, vendor = true},
+    {id = "ds_laird", name = "Laird", npcID = 4200, location = "Auberdine inn", categories = {"supply", "gather"}, vendor = true},
+}) do
+    giver.zone, giver.faction = "darkshore", "Alliance"
+    giver.vendor = giver.vendor or false
+    Database:RegisterQuestGiver(giver)
+end
+
 -- Westfall NPCs; merchant flags identify actual friendly vendor windows.
 for _, giver in ipairs({
     {id = "wf_gryan", name = "Gryan Stoutmantle", npcID = 234, location = "Sentinel Hill tower", faction = "Alliance", categories = {"kill", "hunt"}},

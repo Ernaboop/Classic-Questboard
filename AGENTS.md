@@ -7,7 +7,7 @@ This repository contains the Classic Questboard roleplay questboard addon. Keep 
 ## Semantic versioning
 
 - Treat the Version field in Classic Questboard.toc as the authoritative release version and always use Semantic Versioning 2.0.0: MAJOR.MINOR.PATCH.
-- The current release is 0.11.3. Keep the first component at 0 throughout Alpha; use 1.0.0 for the full release, or another first-component change only when the user explicitly requests it.
+- The current release is 0.12.0. Keep the first component at 0 throughout Alpha; use 1.0.0 for the full release, or another first-component change only when the user explicitly requests it.
 - Increase the second component for major feature updates such as a new zone. Increase the third component for bug fixes and minor updates. The Westfall/Supply update is 0.11.0; follow-up fixes or small changes become 0.11.1, 0.11.2, and so on. The user may explicitly specify a different version.
 - Use SemVer prerelease identifiers such as 0.2.0-alpha.1 when a prerelease version is needed. Do not put labels such as Alpha into the TOC version field.
 - Keep user-facing labels, such as the version shown in the questboard window, consistent with the TOC release. A display label may be friendlier (for example, Alpha V0.1) but must not replace the SemVer release value.

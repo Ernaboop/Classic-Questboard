@@ -954,9 +954,9 @@ end
 
 -- Keep these three plain-language summaries aligned with the newest CHANGELOG.md entries.
 local recentUpdates = {
+    {version = "0.12.0", text = "Darkshore joins the board with 50 new notices. More quests remain available across nearby levels."},
     {version = "0.11.3", text = "Extra windows now stay readable and on screen when the Questboard is near an edge."},
     {version = "0.11.2", text = "You can now open a short changelog from Help to see the three latest updates."},
-    {version = "0.11.1", text = "The addon is now called Classic Questboard. Your quests and keybinds can carry over with your saved file."},
 }
 ns.RecentUpdates = recentUpdates
 
@@ -1089,7 +1089,7 @@ CreateBoard = function()
     title:SetText("Classic Questboard")
     local version = Text(board, "GameFontHighlightSmall")
     version:SetPoint("TOPLEFT", 54, -31)
-    version:SetText("Alpha V0.11.3")
+    version:SetText("Alpha V0.12.0")
     board.zoneDropdown = CreateFrame("Frame", "WoWForeverZoneDropdown", board, "UIDropDownMenuTemplate")
     board.zoneDropdown:SetPoint("TOP", board, "TOP", 0, -8)
     UIDropDownMenu_SetWidth(board.zoneDropdown, 190)

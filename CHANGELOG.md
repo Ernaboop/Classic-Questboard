@@ -2,6 +2,16 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.12.0] - 2026-09-29
+
+### Added
+
+- Darkshore as a registered zone with 20 Kill, 11 Supply, 7 Hunt, and 12 profession-gated Gather objectives (50 total), plus Auberdine quest givers, friendly merchant vendors, and original local flavour text.
+
+### Changed
+
+- Broadened narrowly defined Elwynn Forest and Dun Morogh player eligibility bands so ordinary objectives remain available for several nearby levels. Creature levels, amounts, targets, and the two-level-early Hunt unlocks stay the same.
+
 ## [0.11.3] - 2026-09-29
 
 ### Fixed

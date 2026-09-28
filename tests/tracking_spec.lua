@@ -995,7 +995,7 @@ do
         menuEntries = {}
         local dropdown = ui.zoneDropdown
         dropdown.initialize(dropdown, 1)
-        check(#menuEntries == 3, 'zone dropdown lists all registered zones')
+        check(#menuEntries == 4, 'zone dropdown lists all registered zones')
         for _, entry in ipairs(menuEntries) do
             if entry.text == name then entry.func(); check(dropdown.text == name, 'zone selection updates label'); return end
         end
