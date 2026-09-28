@@ -2,6 +2,48 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.11.2] - 2026-09-28
+
+### Added
+
+- A Changelog button in Help opens a toggleable window with the three newest updates in plain language. Closing Help also closes its changelog window.
+
+## [0.11.1] - 2026-09-28
+
+### Changed
+
+- Renamed the installation folder, TOC manifest, and visible addon branding from Classic Questbook to Classic Questboard, including the Questboard windows, options, keybinding label, chat messages, tooltip text, and current documentation.
+- Kept the existing SavedVariables and keybinding identifiers so quest progress and assigned keys remain compatible. Updated the saved-file migration instructions for the new folder name.
+
+## [0.11.0] - 2026-09-28
+
+### Added
+
+- Westfall as a registered zone with 20 Kill, 11 Supply, 7 Hunt, and 12 Gather objectives (50 total), plus local quest givers, verified friendly vendors, and original Westfall flavour text.
+- An independent Quest Browser zone dropdown and preview level. The category tabs show all objective counts for the browser's selected zone.
+- A blue thank-you to Spinkler in Help for Alpha and Pre-Alpha testing and help, while retaining the existing Help message.
+
+### Changed
+
+- Renamed Collect & Sell to Supply throughout the current addon, data, statistics, editor, browser, debug controls, and tests. Existing saved quests, statistics, and database overrides migrate to the new identifier while keeping vendor-specific sale tracking.
+- Quest Browser preview generation uses its own selected zone and level without changing the main board's selected zone or debug generation level.
+
+## [0.10.0] - 2026-09-28
+
+### Added
+
+- A common, documented database schema with readable zone, objective, quest giver, and flavour files. All 100 objectives, 25 givers, and 28 flavour lines are preserved from 0.9.0.
+- An Options → Database Editor window with Zones, Objectives, Quest Givers, Vendors, and Flavour Text tabs; zone/category/profession filters; editable fields; Add, Save, Cancel, and confirmed Delete actions.
+- Per-character SavedVariables overrides for edits, custom entries, and disabled built-in entries. Shared validation reports the affected zone, category, ID, and name; invalid saved overrides are backed up before falling back to validated built-in data.
+- DATA_FORMAT.md documents the schema, tracking identifiers, examples for every objective type, override format, and a blank zone template.
+- Database/editor integration tests and a data-only test zone, alongside the original tracking/UI regression suite and 0.9.0 objective manifest.
+
+### Changed
+
+- Generation, tracking map lookup, zone selection, and the Quest Browser consume registered data. Future zones need a data file and TOC load entry, without zone-specific logic.
+- Generated quests retain their objective, tracking, giver/story, and zone snapshots when database entries change or are disabled. Existing saved quests migrate without rerolling or losing progress and statistics.
+- Secondary windows continue below the previous window instead of opening to its left across the main Questboard. Nested windows fit the remaining screen space where possible.
+
 ## [0.9.0] - 2026-09-28
 
 ### Changed

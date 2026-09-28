@@ -1,0 +1,13 @@
+package-as: "Classic Questboard"
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+ignore:
+  - AGENTS.md
+  - DATA_FORMAT.md
+  - QUEST_GIVERS.md
+  - TRACKING.md
+  - ZONE_DATA.md
+  - tests

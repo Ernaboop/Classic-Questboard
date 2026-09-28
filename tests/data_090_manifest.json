@@ -1,0 +1,1597 @@
+{
+  "kobold_vermin": {
+    "location": "Northshire Valley",
+    "maxPlayerLevel": 3,
+    "name": "Kobold Vermin",
+    "maxAmount": 12,
+    "id": "kobold_vermin",
+    "level": "1-2",
+    "minPlayerLevel": 1,
+    "minAmount": 8,
+    "category": "kill",
+    "targets": [
+      "Kobold Vermin"
+    ],
+    "zone": "elwynn"
+  },
+  "young_wolf": {
+    "location": "Northshire and the western woods",
+    "maxPlayerLevel": 3,
+    "name": "Young Wolf",
+    "maxAmount": 12,
+    "id": "young_wolf",
+    "level": "1",
+    "minPlayerLevel": 1,
+    "minAmount": 8,
+    "category": "kill",
+    "targets": [
+      "Young Wolf"
+    ],
+    "zone": "elwynn"
+  },
+  "timber_wolf": {
+    "location": "Northshire and the western woods",
+    "maxPlayerLevel": 3,
+    "name": "Timber Wolf",
+    "maxAmount": 10,
+    "id": "timber_wolf",
+    "level": "2",
+    "minPlayerLevel": 1,
+    "minAmount": 7,
+    "category": "kill",
+    "targets": [
+      "Timber Wolf"
+    ],
+    "zone": "elwynn"
+  },
+  "defias_thug": {
+    "location": "the vineyards north of Goldshire",
+    "maxPlayerLevel": 4,
+    "name": "Defias Thug",
+    "maxAmount": 9,
+    "id": "defias_thug",
+    "level": "3-4",
+    "minPlayerLevel": 2,
+    "minAmount": 6,
+    "category": "kill",
+    "targets": [
+      "Defias Thug"
+    ],
+    "zone": "elwynn"
+  },
+  "kobold_laborer": {
+    "location": "the kobold camps north of Goldshire",
+    "maxPlayerLevel": 4,
+    "name": "Kobold Laborer",
+    "maxAmount": 9,
+    "id": "kobold_laborer",
+    "level": "3-4",
+    "minPlayerLevel": 2,
+    "minAmount": 6,
+    "category": "kill",
+    "targets": [
+      "Kobold Laborer"
+    ],
+    "zone": "elwynn"
+  },
+  "forest_spider": {
+    "location": "the woods around Goldshire",
+    "maxPlayerLevel": 6,
+    "name": "Forest Spider",
+    "maxAmount": 9,
+    "id": "forest_spider",
+    "level": "5-6",
+    "minPlayerLevel": 4,
+    "minAmount": 6,
+    "category": "kill",
+    "targets": [
+      "Forest Spider"
+    ],
+    "zone": "elwynn"
+  },
+  "kobold_tunneler": {
+    "location": "Fargodeep Mine",
+    "maxPlayerLevel": 7,
+    "name": "Kobold Tunneler",
+    "maxAmount": 12,
+    "id": "kobold_tunneler",
+    "level": "5-6",
+    "minPlayerLevel": 4,
+    "minAmount": 8,
+    "category": "kill",
+    "targets": [
+      "Kobold Tunneler"
+    ],
+    "zone": "elwynn"
+  },
+  "kobold_miner": {
+    "location": "Fargodeep Mine",
+    "maxPlayerLevel": 7,
+    "name": "Kobold Miner",
+    "maxAmount": 10,
+    "id": "kobold_miner",
+    "level": "6-7",
+    "minPlayerLevel": 5,
+    "minAmount": 7,
+    "category": "kill",
+    "targets": [
+      "Kobold Miner"
+    ],
+    "zone": "elwynn"
+  },
+  "stonetusk_boar": {
+    "location": "Stonefield and Maclure farms",
+    "maxPlayerLevel": 7,
+    "name": "Stonetusk Boar",
+    "maxAmount": 9,
+    "id": "stonetusk_boar",
+    "level": "5-6",
+    "minPlayerLevel": 4,
+    "minAmount": 6,
+    "category": "kill",
+    "targets": [
+      "Stonetusk Boar"
+    ],
+    "zone": "elwynn"
+  },
+  "defias_cutpurse": {
+    "location": "the roads east of Goldshire",
+    "maxPlayerLevel": 7,
+    "name": "Defias Cutpurse",
+    "maxAmount": 9,
+    "id": "defias_cutpurse",
+    "level": "5-6",
+    "minPlayerLevel": 4,
+    "minAmount": 6,
+    "category": "kill",
+    "targets": [
+      "Defias Cutpurse"
+    ],
+    "zone": "elwynn"
+  },
+  "murloc_streamrunner": {
+    "location": "Crystal Lake",
+    "maxPlayerLevel": 7,
+    "name": "Murloc Streamrunner",
+    "maxAmount": 11,
+    "id": "murloc_streamrunner",
+    "level": "6-7",
+    "minPlayerLevel": 5,
+    "minAmount": 7,
+    "category": "kill",
+    "targets": [
+      "Murloc Streamrunner"
+    ],
+    "zone": "elwynn"
+  },
+  "gray_forest_wolf": {
+    "location": "the eastern woods",
+    "maxPlayerLevel": 9,
+    "name": "Gray Forest Wolf",
+    "maxAmount": 8,
+    "id": "gray_forest_wolf",
+    "level": "7-8",
+    "minPlayerLevel": 6,
+    "minAmount": 5,
+    "category": "kill",
+    "targets": [
+      "Gray Forest Wolf"
+    ],
+    "zone": "elwynn"
+  },
+  "riverpaw_runt": {
+    "location": "the Hogger camp",
+    "maxPlayerLevel": 10,
+    "name": "Riverpaw Runt",
+    "maxAmount": 8,
+    "id": "riverpaw_runt",
+    "level": "8-9",
+    "minPlayerLevel": 7,
+    "minAmount": 5,
+    "category": "kill",
+    "targets": [
+      "Riverpaw Runt"
+    ],
+    "zone": "elwynn"
+  },
+  "young_forest_bear": {
+    "location": "the eastern woods",
+    "maxPlayerLevel": 10,
+    "name": "Young Forest Bear",
+    "maxAmount": 8,
+    "id": "young_forest_bear",
+    "level": "8-9",
+    "minPlayerLevel": 7,
+    "minAmount": 5,
+    "category": "kill",
+    "targets": [
+      "Young Forest Bear"
+    ],
+    "zone": "elwynn"
+  },
+  "murloc_lurker": {
+    "location": "the eastern shore of Crystal Lake",
+    "maxPlayerLevel": 10,
+    "name": "Murloc Lurker",
+    "maxAmount": 8,
+    "id": "murloc_lurker",
+    "level": "9-10",
+    "minPlayerLevel": 7,
+    "minAmount": 5,
+    "category": "kill",
+    "targets": [
+      "Murloc Lurker"
+    ],
+    "zone": "elwynn"
+  },
+  "murloc_forager": {
+    "location": "Crystal Lake",
+    "maxPlayerLevel": 10,
+    "name": "Murloc Forager",
+    "maxAmount": 8,
+    "id": "murloc_forager",
+    "level": "9-10",
+    "minPlayerLevel": 7,
+    "minAmount": 5,
+    "category": "kill",
+    "targets": [
+      "Murloc Forager"
+    ],
+    "zone": "elwynn"
+  },
+  "prowler": {
+    "location": "the eastern woods",
+    "maxPlayerLevel": 10,
+    "name": "Prowler",
+    "maxAmount": 7,
+    "id": "prowler",
+    "level": "9-10",
+    "minPlayerLevel": 7,
+    "minAmount": 4,
+    "category": "kill",
+    "targets": [
+      "Prowler"
+    ],
+    "zone": "elwynn"
+  },
+  "riverpaw_outrunner": {
+    "location": "south of Eastvale",
+    "maxPlayerLevel": 10,
+    "name": "Riverpaw Outrunner",
+    "maxAmount": 8,
+    "id": "riverpaw_outrunner",
+    "level": "9-10",
+    "minPlayerLevel": 7,
+    "minAmount": 5,
+    "category": "kill",
+    "targets": [
+      "Riverpaw Outrunner"
+    ],
+    "zone": "elwynn"
+  },
+  "defias_bandit": {
+    "location": "Brackwell Pumpkin Patch",
+    "maxPlayerLevel": 10,
+    "name": "Defias Bandit",
+    "maxAmount": 8,
+    "id": "defias_bandit",
+    "level": "8-9",
+    "minPlayerLevel": 7,
+    "minAmount": 5,
+    "category": "kill",
+    "targets": [
+      "Defias Bandit"
+    ],
+    "zone": "elwynn"
+  },
+  "defias_rogue_wizard": {
+    "location": "Jasperlode Mine",
+    "maxPlayerLevel": 10,
+    "name": "Defias Rogue Wizard",
+    "maxAmount": 7,
+    "id": "defias_rogue_wizard",
+    "level": "9-10",
+    "minPlayerLevel": 7,
+    "minAmount": 4,
+    "category": "kill",
+    "targets": [
+      "Defias Rogue Wizard"
+    ],
+    "zone": "elwynn"
+  },
+  "northshire_kobold_loot": {
+    "id": "northshire_kobold_loot",
+    "minAmount": 3,
+    "maxPlayerLevel": 3,
+    "name": "Kobold Camp Loot",
+    "location": "Northshire Valley",
+    "target": "Kobold Vermin and Laborers",
+    "level": "1-4",
+    "minPlayerLevel": 1,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "targets": [
+      "Kobold Vermin",
+      "Kobold Laborer"
+    ],
+    "lootMode": "any_vendor_item",
+    "zone": "elwynn"
+  },
+  "young_wolf_meat": {
+    "id": "young_wolf_meat",
+    "minAmount": 3,
+    "location": "Northshire and the western woods",
+    "maxPlayerLevel": 3,
+    "name": "Meat from the Western Woods",
+    "maxAmount": 5,
+    "target": "Young Wolves and Timber Wolves",
+    "level": "1-2",
+    "minPlayerLevel": 1,
+    "item": "Tough Wolf Meat",
+    "category": "collect_sell",
+    "targets": [
+      "Young Wolf",
+      "Timber Wolf"
+    ],
+    "itemID": 2672,
+    "lootMode": "item",
+    "zone": "elwynn"
+  },
+  "defias_thug_loot": {
+    "id": "defias_thug_loot",
+    "minAmount": 3,
+    "maxPlayerLevel": 4,
+    "name": "Thieves' Pockets",
+    "location": "the vineyards north of Goldshire",
+    "target": "Defias Thugs",
+    "level": "3-4",
+    "minPlayerLevel": 2,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "targets": [
+      "Defias Thug"
+    ],
+    "lootMode": "any_vendor_item",
+    "zone": "elwynn"
+  },
+  "fargodeep_kobold_loot": {
+    "id": "fargodeep_kobold_loot",
+    "minAmount": 4,
+    "maxPlayerLevel": 7,
+    "name": "Fargodeep Mine Spoils",
+    "location": "Fargodeep Mine",
+    "target": "Kobold Tunnelers and Miners",
+    "level": "5-7",
+    "minPlayerLevel": 4,
+    "maxAmount": 6,
+    "category": "collect_sell",
+    "targets": [
+      "Kobold Tunneler",
+      "Kobold Miner"
+    ],
+    "lootMode": "any_vendor_item",
+    "zone": "elwynn"
+  },
+  "stonetusk_boar_meat": {
+    "id": "stonetusk_boar_meat",
+    "minAmount": 4,
+    "location": "Stonefield and Maclure farms",
+    "maxPlayerLevel": 7,
+    "name": "Boar Meat for the Market",
+    "maxAmount": 7,
+    "target": "Stonetusk Boars",
+    "level": "5-6",
+    "minPlayerLevel": 4,
+    "item": "Chunk of Boar Meat",
+    "category": "collect_sell",
+    "targets": [
+      "Stonetusk Boar"
+    ],
+    "itemID": 769,
+    "lootMode": "item",
+    "zone": "elwynn"
+  },
+  "crystal_lake_murloc_loot": {
+    "id": "crystal_lake_murloc_loot",
+    "minAmount": 3,
+    "maxPlayerLevel": 7,
+    "name": "Crystal Lake Salvage",
+    "location": "Crystal Lake",
+    "target": "Murlocs and Streamrunners",
+    "level": "6-7",
+    "minPlayerLevel": 5,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "targets": [
+      "Murloc",
+      "Murloc Streamrunner"
+    ],
+    "lootMode": "any_vendor_item",
+    "zone": "elwynn"
+  },
+  "eastern_wolf_loot": {
+    "id": "eastern_wolf_loot",
+    "minAmount": 3,
+    "maxPlayerLevel": 10,
+    "name": "Eastern Wolf Pelts",
+    "location": "the eastern woods",
+    "target": "Gray Forest Wolves and Young Forest Bears",
+    "level": "7-9",
+    "minPlayerLevel": 6,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "targets": [
+      "Gray Forest Wolf",
+      "Young Forest Bear"
+    ],
+    "lootMode": "any_vendor_item",
+    "zone": "elwynn"
+  },
+  "riverpaw_runt_loot": {
+    "id": "riverpaw_runt_loot",
+    "minAmount": 3,
+    "maxPlayerLevel": 10,
+    "name": "Hogger Camp Spoils",
+    "location": "the Hogger camp",
+    "target": "Riverpaw Runts",
+    "level": "8-9",
+    "minPlayerLevel": 7,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "targets": [
+      "Riverpaw Runt"
+    ],
+    "lootMode": "any_vendor_item",
+    "zone": "elwynn"
+  },
+  "murloc_forager_loot": {
+    "id": "murloc_forager_loot",
+    "minAmount": 3,
+    "maxPlayerLevel": 10,
+    "name": "Murloc Forager Supplies",
+    "location": "Crystal Lake",
+    "target": "Murloc Foragers and Lurkers",
+    "level": "9-10",
+    "minPlayerLevel": 7,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "targets": [
+      "Murloc Forager",
+      "Murloc Lurker"
+    ],
+    "lootMode": "any_vendor_item",
+    "zone": "elwynn"
+  },
+  "brackwell_defias_loot": {
+    "id": "brackwell_defias_loot",
+    "minAmount": 3,
+    "maxPlayerLevel": 10,
+    "name": "Brackwell Salvage",
+    "location": "Brackwell Pumpkin Patch",
+    "target": "Defias Bandits",
+    "level": "8-9",
+    "minPlayerLevel": 7,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "targets": [
+      "Defias Bandit"
+    ],
+    "lootMode": "any_vendor_item",
+    "zone": "elwynn"
+  },
+  "riverpaw_outrunner_loot": {
+    "id": "riverpaw_outrunner_loot",
+    "minAmount": 3,
+    "maxPlayerLevel": 10,
+    "name": "Eastern Road Spoils",
+    "location": "south of Eastvale",
+    "target": "Riverpaw Outrunners",
+    "level": "9-10",
+    "minPlayerLevel": 7,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "targets": [
+      "Riverpaw Outrunner"
+    ],
+    "lootMode": "any_vendor_item",
+    "zone": "elwynn"
+  },
+  "narg": {
+    "id": "narg",
+    "minAmount": 1,
+    "maxPlayerLevel": 10,
+    "name": "Narg the Taskmaster",
+    "location": "outside Fargodeep Mine",
+    "level": "10",
+    "minPlayerLevel": 8,
+    "maxAmount": 1,
+    "category": "hunt",
+    "classification": "rare",
+    "targets": [
+      "Narg the Taskmaster"
+    ],
+    "zone": "elwynn"
+  },
+  "morgaine": {
+    "id": "morgaine",
+    "minAmount": 1,
+    "maxPlayerLevel": 10,
+    "name": "Morgaine the Sly",
+    "location": "near the river to Westfall",
+    "level": "10",
+    "minPlayerLevel": 8,
+    "maxAmount": 1,
+    "category": "hunt",
+    "classification": "rare",
+    "targets": [
+      "Morgaine the Sly"
+    ],
+    "zone": "elwynn"
+  },
+  "fedfennel": {
+    "id": "fedfennel",
+    "minAmount": 1,
+    "maxPlayerLevel": 12,
+    "name": "Fedfennel",
+    "location": "Stone Cairn Lake",
+    "level": "12",
+    "minPlayerLevel": 10,
+    "maxAmount": 1,
+    "category": "hunt",
+    "classification": "rare",
+    "targets": [
+      "Fedfennel"
+    ],
+    "zone": "elwynn"
+  },
+  "gruff_swiftbite": {
+    "id": "gruff_swiftbite",
+    "minAmount": 1,
+    "maxPlayerLevel": 12,
+    "name": "Gruff Swiftbite",
+    "location": "the Hogger camp",
+    "level": "12",
+    "minPlayerLevel": 10,
+    "maxAmount": 1,
+    "category": "hunt",
+    "classification": "rare",
+    "targets": [
+      "Gruff Swiftbite"
+    ],
+    "zone": "elwynn"
+  },
+  "mine_spider": {
+    "id": "mine_spider",
+    "minAmount": 3,
+    "maxPlayerLevel": 9,
+    "name": "Mine Spider",
+    "location": "Jasperlode Mine",
+    "level": "7-9",
+    "minPlayerLevel": 5,
+    "maxAmount": 5,
+    "category": "hunt",
+    "classification": "elite",
+    "targets": [
+      "Mine Spider"
+    ],
+    "zone": "elwynn"
+  },
+  "mother_fang": {
+    "id": "mother_fang",
+    "minAmount": 1,
+    "maxPlayerLevel": 10,
+    "name": "Mother Fang",
+    "location": "Jasperlode Mine",
+    "level": "7-10",
+    "minPlayerLevel": 5,
+    "maxAmount": 1,
+    "category": "hunt",
+    "classification": "elite",
+    "targets": [
+      "Mother Fang"
+    ],
+    "zone": "elwynn"
+  },
+  "hogger": {
+    "id": "hogger",
+    "minAmount": 1,
+    "maxPlayerLevel": 12,
+    "name": "Hogger",
+    "location": "the Hogger camp",
+    "level": "11",
+    "minPlayerLevel": 9,
+    "maxAmount": 1,
+    "category": "hunt",
+    "classification": "elite",
+    "targets": [
+      "Hogger"
+    ],
+    "zone": "elwynn"
+  },
+  "peacebloom": {
+    "location": "throughout Elwynn Forest",
+    "maxPlayerLevel": 5,
+    "name": "Peacebloom",
+    "maxAmount": 8,
+    "id": "peacebloom",
+    "level": "Herbalism 1",
+    "minPlayerLevel": 1,
+    "minAmount": 4,
+    "category": "gather",
+    "profession": "herbalism",
+    "itemID": 2447,
+    "trackingKind": "gather",
+    "zone": "elwynn"
+  },
+  "silverleaf": {
+    "location": "near trees and shaded areas",
+    "maxPlayerLevel": 7,
+    "name": "Silverleaf",
+    "maxAmount": 8,
+    "id": "silverleaf",
+    "level": "Herbalism 1",
+    "minPlayerLevel": 1,
+    "minAmount": 4,
+    "category": "gather",
+    "profession": "herbalism",
+    "itemID": 765,
+    "trackingKind": "gather",
+    "zone": "elwynn"
+  },
+  "earthroot": {
+    "location": "hillsides and rocky ground",
+    "maxPlayerLevel": 9,
+    "name": "Earthroot",
+    "maxAmount": 5,
+    "id": "earthroot",
+    "level": "Herbalism 15",
+    "minPlayerLevel": 3,
+    "minAmount": 3,
+    "category": "gather",
+    "profession": "herbalism",
+    "itemID": 2449,
+    "trackingKind": "gather",
+    "zone": "elwynn"
+  },
+  "mageroyal": {
+    "location": "the more open eastern fields",
+    "maxPlayerLevel": 12,
+    "name": "Mageroyal",
+    "maxAmount": 4,
+    "id": "mageroyal",
+    "level": "Herbalism 50",
+    "minPlayerLevel": 6,
+    "minAmount": 2,
+    "category": "gather",
+    "profession": "herbalism",
+    "itemID": 785,
+    "trackingKind": "gather",
+    "zone": "elwynn"
+  },
+  "copper_ore": {
+    "location": "Copper Veins throughout Elwynn Forest",
+    "maxPlayerLevel": 12,
+    "name": "Copper Ore",
+    "maxAmount": 9,
+    "id": "copper_ore",
+    "level": "Mining 1",
+    "minPlayerLevel": 1,
+    "minAmount": 5,
+    "category": "gather",
+    "profession": "mining",
+    "itemID": 2770,
+    "trackingKind": "gather",
+    "zone": "elwynn"
+  },
+  "rough_stone": {
+    "location": "from Copper Veins throughout Elwynn Forest",
+    "maxPlayerLevel": 12,
+    "name": "Rough Stone",
+    "maxAmount": 9,
+    "id": "rough_stone",
+    "level": "Mining 1",
+    "minPlayerLevel": 1,
+    "minAmount": 5,
+    "category": "gather",
+    "profession": "mining",
+    "itemID": 2835,
+    "trackingKind": "gather",
+    "zone": "elwynn"
+  },
+  "copper_vein_prospecting": {
+    "id": "copper_vein_prospecting",
+    "minAmount": 3,
+    "maxPlayerLevel": 12,
+    "name": "Copper Vein Prospecting",
+    "target": "Copper Veins",
+    "location": "Copper Veins throughout Elwynn Forest",
+    "level": "Mining 1",
+    "minPlayerLevel": 1,
+    "maxAmount": 5,
+    "category": "gather",
+    "profession": "mining",
+    "itemID": 2770,
+    "trackingKind": "nodes",
+    "zone": "elwynn"
+  },
+  "ruined_leather_scraps": {
+    "location": "skinnable low-level creatures in western Elwynn",
+    "maxPlayerLevel": 5,
+    "name": "Ruined Leather Scraps",
+    "maxAmount": 8,
+    "id": "ruined_leather_scraps",
+    "level": "Skinning 1",
+    "minPlayerLevel": 1,
+    "minAmount": 4,
+    "category": "gather",
+    "profession": "skinning",
+    "itemID": 2934,
+    "trackingKind": "gather",
+    "zone": "elwynn"
+  },
+  "stonefield_light_leather": {
+    "location": "Stonetusk Boars at Stonefield and Maclure farms",
+    "maxPlayerLevel": 8,
+    "name": "Light Leather from Boars",
+    "maxAmount": 5,
+    "id": "stonefield_light_leather",
+    "level": "Skinning 1",
+    "minPlayerLevel": 4,
+    "minAmount": 3,
+    "category": "gather",
+    "profession": "skinning",
+    "itemID": 2318,
+    "targets": [
+      "Stonetusk Boar"
+    ],
+    "trackingKind": "gather",
+    "zone": "elwynn"
+  },
+  "eastern_light_leather": {
+    "location": "wolves, bears, and prowlers in eastern Elwynn",
+    "maxPlayerLevel": 10,
+    "name": "Light Leather from Forest Beasts",
+    "maxAmount": 5,
+    "id": "eastern_light_leather",
+    "level": "Skinning 1",
+    "minPlayerLevel": 7,
+    "minAmount": 3,
+    "category": "gather",
+    "profession": "skinning",
+    "itemID": 2318,
+    "targets": [
+      "Gray Forest Wolf",
+      "Young Forest Bear",
+      "Prowler"
+    ],
+    "trackingKind": "gather",
+    "zone": "elwynn"
+  },
+  "brilliant_smallfish": {
+    "location": "lakes and rivers",
+    "maxPlayerLevel": 5,
+    "name": "Raw Brilliant Smallfish",
+    "maxAmount": 9,
+    "id": "brilliant_smallfish",
+    "level": "Fishing 1",
+    "minPlayerLevel": 1,
+    "minAmount": 5,
+    "category": "gather",
+    "profession": "fishing",
+    "itemID": 6291,
+    "trackingKind": "gather",
+    "zone": "elwynn"
+  },
+  "longjaw_mud_snapper": {
+    "location": "lakes and rivers",
+    "maxPlayerLevel": 8,
+    "name": "Raw Longjaw Mud Snapper",
+    "maxAmount": 8,
+    "id": "longjaw_mud_snapper",
+    "level": "Fishing 50",
+    "minPlayerLevel": 4,
+    "minAmount": 4,
+    "category": "gather",
+    "profession": "fishing",
+    "itemID": 6289,
+    "trackingKind": "gather",
+    "zone": "elwynn"
+  },
+  "bristle_whisker_catfish": {
+    "location": "Wildbend River",
+    "maxPlayerLevel": 12,
+    "name": "Raw Bristle Whisker Catfish",
+    "maxAmount": 4,
+    "id": "bristle_whisker_catfish",
+    "level": "Fishing 100",
+    "minPlayerLevel": 7,
+    "minAmount": 2,
+    "category": "gather",
+    "profession": "fishing",
+    "itemID": 6308,
+    "trackingKind": "gather",
+    "zone": "elwynn"
+  },
+  "dm_ragged_young_wolf": {
+    "location": "Coldridge Valley",
+    "maxPlayerLevel": 3,
+    "name": "Ragged Young Wolf",
+    "maxAmount": 12,
+    "id": "dm_ragged_young_wolf",
+    "level": "1",
+    "minPlayerLevel": 1,
+    "minAmount": 8,
+    "category": "kill",
+    "targets": [
+      "Ragged Young Wolf"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_rockjaw_trogg": {
+    "location": "Coldridge Valley",
+    "maxPlayerLevel": 3,
+    "name": "Rockjaw Trogg",
+    "maxAmount": 12,
+    "id": "dm_rockjaw_trogg",
+    "level": "1-2",
+    "minPlayerLevel": 1,
+    "minAmount": 8,
+    "category": "kill",
+    "targets": [
+      "Rockjaw Trogg"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_burly_rockjaw_trogg": {
+    "location": "Coldridge Valley",
+    "maxPlayerLevel": 3,
+    "name": "Burly Rockjaw Trogg",
+    "maxAmount": 10,
+    "id": "dm_burly_rockjaw_trogg",
+    "level": "2",
+    "minPlayerLevel": 1,
+    "minAmount": 7,
+    "category": "kill",
+    "targets": [
+      "Burly Rockjaw Trogg"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_small_crag_boar": {
+    "location": "Coldridge Valley",
+    "maxPlayerLevel": 4,
+    "name": "Small Crag Boar",
+    "maxAmount": 9,
+    "id": "dm_small_crag_boar",
+    "level": "3",
+    "minPlayerLevel": 2,
+    "minAmount": 6,
+    "category": "kill",
+    "targets": [
+      "Small Crag Boar"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_frostmane_troll_whelp": {
+    "location": "the troll camps in Coldridge Valley",
+    "maxPlayerLevel": 4,
+    "name": "Frostmane Troll Whelp",
+    "maxAmount": 9,
+    "id": "dm_frostmane_troll_whelp",
+    "level": "3-4",
+    "minPlayerLevel": 2,
+    "minAmount": 6,
+    "category": "kill",
+    "targets": [
+      "Frostmane Troll Whelp"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_frostmane_novice": {
+    "location": "the troll cave in Coldridge Valley",
+    "maxPlayerLevel": 4,
+    "name": "Frostmane Novice",
+    "maxAmount": 9,
+    "id": "dm_frostmane_novice",
+    "level": "3-4",
+    "minPlayerLevel": 2,
+    "minAmount": 6,
+    "category": "kill",
+    "targets": [
+      "Frostmane Novice"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_rockjaw_raider": {
+    "location": "Coldridge Pass",
+    "maxPlayerLevel": 5,
+    "name": "Rockjaw Raider",
+    "maxAmount": 9,
+    "id": "dm_rockjaw_raider",
+    "level": "3-4",
+    "minPlayerLevel": 2,
+    "minAmount": 6,
+    "category": "kill",
+    "targets": [
+      "Rockjaw Raider"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_crag_boar": {
+    "location": "the slopes around Kharanos",
+    "maxPlayerLevel": 7,
+    "name": "Crag Boar",
+    "maxAmount": 9,
+    "id": "dm_crag_boar",
+    "level": "5-6",
+    "minPlayerLevel": 4,
+    "minAmount": 6,
+    "category": "kill",
+    "targets": [
+      "Crag Boar"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_large_crag_boar": {
+    "location": "the hills around Kharanos",
+    "maxPlayerLevel": 8,
+    "name": "Large Crag Boar",
+    "maxAmount": 9,
+    "id": "dm_large_crag_boar",
+    "level": "6-7",
+    "minPlayerLevel": 5,
+    "minAmount": 6,
+    "category": "kill",
+    "targets": [
+      "Large Crag Boar"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_young_black_bear": {
+    "location": "the woods around Kharanos",
+    "maxPlayerLevel": 7,
+    "name": "Young Black Bear",
+    "maxAmount": 9,
+    "id": "dm_young_black_bear",
+    "level": "5-6",
+    "minPlayerLevel": 4,
+    "minAmount": 6,
+    "category": "kill",
+    "targets": [
+      "Young Black Bear"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_young_wendigo": {
+    "location": "the entrance to the Grizzled Den",
+    "maxPlayerLevel": 7,
+    "name": "Young Wendigo",
+    "maxAmount": 9,
+    "id": "dm_young_wendigo",
+    "level": "5-6",
+    "minPlayerLevel": 4,
+    "minAmount": 6,
+    "category": "kill",
+    "targets": [
+      "Young Wendigo"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_wendigo": {
+    "location": "the Grizzled Den",
+    "maxPlayerLevel": 8,
+    "name": "Wendigo",
+    "maxAmount": 8,
+    "id": "dm_wendigo",
+    "level": "6-7",
+    "minPlayerLevel": 5,
+    "minAmount": 5,
+    "category": "kill",
+    "targets": [
+      "Wendigo"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_elder_crag_boar": {
+    "location": "the eastern hills",
+    "maxPlayerLevel": 9,
+    "name": "Elder Crag Boar",
+    "maxAmount": 8,
+    "id": "dm_elder_crag_boar",
+    "level": "7-8",
+    "minPlayerLevel": 6,
+    "minAmount": 5,
+    "category": "kill",
+    "targets": [
+      "Elder Crag Boar"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_ice_claw_bear": {
+    "location": "the snowy wilderness",
+    "maxPlayerLevel": 10,
+    "name": "Ice Claw Bear",
+    "maxAmount": 8,
+    "id": "dm_ice_claw_bear",
+    "level": "7-8",
+    "minPlayerLevel": 6,
+    "minAmount": 5,
+    "category": "kill",
+    "targets": [
+      "Ice Claw Bear"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_winter_wolf": {
+    "location": "the shores of Iceflow Lake",
+    "maxPlayerLevel": 10,
+    "name": "Winter Wolf",
+    "maxAmount": 8,
+    "id": "dm_winter_wolf",
+    "level": "7-8",
+    "minPlayerLevel": 6,
+    "minAmount": 5,
+    "category": "kill",
+    "targets": [
+      "Winter Wolf"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_rockjaw_skullthumper": {
+    "location": "Gol'Bolar Quarry",
+    "maxPlayerLevel": 10,
+    "name": "Rockjaw Skullthumper",
+    "maxAmount": 8,
+    "id": "dm_rockjaw_skullthumper",
+    "level": "8-9",
+    "minPlayerLevel": 7,
+    "minAmount": 5,
+    "category": "kill",
+    "targets": [
+      "Rockjaw Skullthumper"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_rockjaw_ambusher": {
+    "location": "Gol'Bolar Quarry",
+    "maxPlayerLevel": 10,
+    "name": "Rockjaw Ambusher",
+    "maxAmount": 7,
+    "id": "dm_rockjaw_ambusher",
+    "level": "9-10",
+    "minPlayerLevel": 8,
+    "minAmount": 4,
+    "category": "kill",
+    "targets": [
+      "Rockjaw Ambusher"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_rockjaw_bonesnapper": {
+    "location": "Gol'Bolar Quarry Mine",
+    "maxPlayerLevel": 10,
+    "name": "Rockjaw Bonesnapper",
+    "maxAmount": 7,
+    "id": "dm_rockjaw_bonesnapper",
+    "level": "9-10",
+    "minPlayerLevel": 8,
+    "minAmount": 4,
+    "category": "kill",
+    "targets": [
+      "Rockjaw Bonesnapper"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_frostmane_snowstrider": {
+    "location": "Frostmane Hold",
+    "maxPlayerLevel": 10,
+    "name": "Frostmane Snowstrider",
+    "maxAmount": 8,
+    "id": "dm_frostmane_snowstrider",
+    "level": "8-9",
+    "minPlayerLevel": 7,
+    "minAmount": 5,
+    "category": "kill",
+    "targets": [
+      "Frostmane Snowstrider"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_leper_gnome": {
+    "location": "the surface ruins outside Gnomeregan",
+    "maxPlayerLevel": 10,
+    "name": "Leper Gnome",
+    "maxAmount": 8,
+    "id": "dm_leper_gnome",
+    "level": "8-10",
+    "minPlayerLevel": 7,
+    "minAmount": 5,
+    "category": "kill",
+    "targets": [
+      "Leper Gnome"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_coldridge_trogg_spoils": {
+    "id": "dm_coldridge_trogg_spoils",
+    "targets": [
+      "Rockjaw Trogg",
+      "Burly Rockjaw Trogg"
+    ],
+    "minAmount": 3,
+    "maxPlayerLevel": 3,
+    "name": "Coldridge Trogg Spoils",
+    "target": "Rockjaw Trogg or Burly Rockjaw Trogg",
+    "location": "Coldridge Valley",
+    "level": "1-2",
+    "minPlayerLevel": 1,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "lootMode": "any_vendor_item",
+    "zone": "dun_morogh"
+  },
+  "dm_troll_camp_spoils": {
+    "id": "dm_troll_camp_spoils",
+    "targets": [
+      "Frostmane Troll Whelp"
+    ],
+    "minAmount": 3,
+    "maxPlayerLevel": 4,
+    "name": "Troll Camp Salvage",
+    "target": "Frostmane Troll Whelp",
+    "location": "the troll camps in Coldridge Valley",
+    "level": "3-4",
+    "minPlayerLevel": 2,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "lootMode": "any_vendor_item",
+    "zone": "dun_morogh"
+  },
+  "dm_novice_spoils": {
+    "id": "dm_novice_spoils",
+    "targets": [
+      "Frostmane Novice"
+    ],
+    "minAmount": 3,
+    "maxPlayerLevel": 4,
+    "name": "Cold Cave Supplies",
+    "target": "Frostmane Novice",
+    "location": "the troll cave in Coldridge Valley",
+    "level": "3-4",
+    "minPlayerLevel": 2,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "lootMode": "any_vendor_item",
+    "zone": "dun_morogh"
+  },
+  "dm_pass_spoils": {
+    "id": "dm_pass_spoils",
+    "targets": [
+      "Rockjaw Raider"
+    ],
+    "minAmount": 3,
+    "maxPlayerLevel": 5,
+    "name": "Coldridge Pass Salvage",
+    "target": "Rockjaw Raider",
+    "location": "Coldridge Pass",
+    "level": "3-4",
+    "minPlayerLevel": 2,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "lootMode": "any_vendor_item",
+    "zone": "dun_morogh"
+  },
+  "dm_boar_spoils": {
+    "id": "dm_boar_spoils",
+    "targets": [
+      "Crag Boar",
+      "Large Crag Boar"
+    ],
+    "minAmount": 4,
+    "maxPlayerLevel": 8,
+    "name": "Kharanos Boar Spoils",
+    "target": "Crag Boar or Large Crag Boar",
+    "location": "the hills around Kharanos",
+    "level": "5-7",
+    "minPlayerLevel": 4,
+    "maxAmount": 6,
+    "category": "collect_sell",
+    "lootMode": "any_vendor_item",
+    "zone": "dun_morogh"
+  },
+  "dm_bear_spoils": {
+    "id": "dm_bear_spoils",
+    "targets": [
+      "Young Black Bear"
+    ],
+    "minAmount": 3,
+    "maxPlayerLevel": 7,
+    "name": "Black Bear Spoils",
+    "target": "Young Black Bear",
+    "location": "the woods around Kharanos",
+    "level": "5-6",
+    "minPlayerLevel": 4,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "lootMode": "any_vendor_item",
+    "zone": "dun_morogh"
+  },
+  "dm_wendigo_spoils": {
+    "id": "dm_wendigo_spoils",
+    "targets": [
+      "Young Wendigo",
+      "Wendigo"
+    ],
+    "minAmount": 4,
+    "maxPlayerLevel": 8,
+    "name": "Grizzled Den Spoils",
+    "target": "Young Wendigo or Wendigo",
+    "location": "the Grizzled Den",
+    "level": "5-7",
+    "minPlayerLevel": 4,
+    "maxAmount": 6,
+    "category": "collect_sell",
+    "lootMode": "any_vendor_item",
+    "zone": "dun_morogh"
+  },
+  "dm_winter_wolf_spoils": {
+    "id": "dm_winter_wolf_spoils",
+    "targets": [
+      "Winter Wolf",
+      "Starving Winter Wolf"
+    ],
+    "minAmount": 3,
+    "maxPlayerLevel": 10,
+    "name": "Iceflow Wolf Spoils",
+    "target": "Winter Wolf or Starving Winter Wolf",
+    "location": "Iceflow Lake",
+    "level": "7-9",
+    "minPlayerLevel": 6,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "lootMode": "any_vendor_item",
+    "zone": "dun_morogh"
+  },
+  "dm_quarry_spoils": {
+    "id": "dm_quarry_spoils",
+    "targets": [
+      "Rockjaw Skullthumper",
+      "Rockjaw Ambusher",
+      "Rockjaw Bonesnapper"
+    ],
+    "minAmount": 3,
+    "maxPlayerLevel": 10,
+    "name": "Quarry Salvage",
+    "target": "Rockjaw Skullthumper or Rockjaw Ambusher or Rockjaw Bonesnapper",
+    "location": "Gol'Bolar Quarry",
+    "level": "8-10",
+    "minPlayerLevel": 7,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "lootMode": "any_vendor_item",
+    "zone": "dun_morogh"
+  },
+  "dm_frostmane_spoils": {
+    "id": "dm_frostmane_spoils",
+    "targets": [
+      "Frostmane Snowstrider",
+      "Frostmane Headhunter",
+      "Frostmane Hideskinner"
+    ],
+    "minAmount": 3,
+    "maxPlayerLevel": 10,
+    "name": "Frostmane Hold Supplies",
+    "target": "Frostmane Snowstrider or Frostmane Headhunter or Frostmane Hideskinner",
+    "location": "Frostmane Hold",
+    "level": "8-10",
+    "minPlayerLevel": 7,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "lootMode": "any_vendor_item",
+    "zone": "dun_morogh"
+  },
+  "dm_gnome_spoils": {
+    "id": "dm_gnome_spoils",
+    "targets": [
+      "Leper Gnome"
+    ],
+    "minAmount": 3,
+    "maxPlayerLevel": 10,
+    "name": "Gnomeregan Surface Salvage",
+    "target": "Leper Gnome",
+    "location": "the surface ruins outside Gnomeregan",
+    "level": "8-10",
+    "minPlayerLevel": 7,
+    "maxAmount": 5,
+    "category": "collect_sell",
+    "lootMode": "any_vendor_item",
+    "zone": "dun_morogh"
+  },
+  "dm_edan": {
+    "id": "dm_edan",
+    "minAmount": 1,
+    "maxPlayerLevel": 10,
+    "name": "Edan the Howler",
+    "location": "the Grizzled Den",
+    "level": "9",
+    "minPlayerLevel": 7,
+    "maxAmount": 1,
+    "category": "hunt",
+    "classification": "rare",
+    "targets": [
+      "Edan the Howler"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_timber": {
+    "id": "dm_timber",
+    "minAmount": 1,
+    "maxPlayerLevel": 10,
+    "name": "Timber",
+    "location": "the islands of Iceflow Lake",
+    "level": "10",
+    "minPlayerLevel": 8,
+    "maxAmount": 1,
+    "category": "hunt",
+    "classification": "rare",
+    "targets": [
+      "Timber"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_arctikus": {
+    "id": "dm_arctikus",
+    "minAmount": 1,
+    "maxPlayerLevel": 12,
+    "name": "Great Father Arctikus",
+    "location": "Frostmane Hold",
+    "level": "11",
+    "minPlayerLevel": 9,
+    "maxAmount": 1,
+    "category": "hunt",
+    "classification": "rare",
+    "targets": [
+      "Great Father Arctikus"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_gibblewilt": {
+    "id": "dm_gibblewilt",
+    "minAmount": 1,
+    "maxPlayerLevel": 12,
+    "name": "Gibblewilt",
+    "location": "the surface ruins outside Gnomeregan",
+    "level": "11",
+    "minPlayerLevel": 9,
+    "maxAmount": 1,
+    "category": "hunt",
+    "classification": "rare",
+    "targets": [
+      "Gibblewilt"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_hammerspine": {
+    "id": "dm_hammerspine",
+    "minAmount": 1,
+    "maxPlayerLevel": 12,
+    "name": "Hammerspine",
+    "location": "Gol'Bolar Quarry Mine",
+    "level": "12",
+    "minPlayerLevel": 10,
+    "maxAmount": 1,
+    "category": "hunt",
+    "classification": "rare",
+    "targets": [
+      "Hammerspine"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_bjarn": {
+    "id": "dm_bjarn",
+    "minAmount": 1,
+    "maxPlayerLevel": 12,
+    "name": "Bjarn",
+    "location": "the Tundrid Hills",
+    "level": "12",
+    "minPlayerLevel": 10,
+    "maxAmount": 1,
+    "category": "hunt",
+    "classification": "rare",
+    "targets": [
+      "Bjarn"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_vagash": {
+    "id": "dm_vagash",
+    "minAmount": 1,
+    "maxPlayerLevel": 12,
+    "name": "Vagash",
+    "location": "the cave above Amberstill Ranch",
+    "level": "11",
+    "minPlayerLevel": 9,
+    "maxAmount": 1,
+    "category": "hunt",
+    "classification": "elite",
+    "targets": [
+      "Vagash"
+    ],
+    "zone": "dun_morogh"
+  },
+  "dm_peacebloom": {
+    "id": "dm_peacebloom",
+    "minAmount": 4,
+    "maxPlayerLevel": 5,
+    "name": "Peacebloom",
+    "itemID": 2447,
+    "location": "the open slopes of Dun Morogh",
+    "level": "Herbalism 1",
+    "minPlayerLevel": 1,
+    "maxAmount": 8,
+    "category": "gather",
+    "profession": "herbalism",
+    "trackingKind": "gather",
+    "zone": "dun_morogh"
+  },
+  "dm_silverleaf": {
+    "id": "dm_silverleaf",
+    "minAmount": 4,
+    "maxPlayerLevel": 7,
+    "name": "Silverleaf",
+    "itemID": 765,
+    "location": "trees throughout Dun Morogh",
+    "level": "Herbalism 1",
+    "minPlayerLevel": 1,
+    "maxAmount": 8,
+    "category": "gather",
+    "profession": "herbalism",
+    "trackingKind": "gather",
+    "zone": "dun_morogh"
+  },
+  "dm_earthroot": {
+    "id": "dm_earthroot",
+    "minAmount": 3,
+    "maxPlayerLevel": 10,
+    "name": "Earthroot",
+    "itemID": 2449,
+    "location": "rocky hillsides in Dun Morogh",
+    "level": "Herbalism 15",
+    "minPlayerLevel": 3,
+    "maxAmount": 5,
+    "category": "gather",
+    "profession": "herbalism",
+    "trackingKind": "gather",
+    "zone": "dun_morogh"
+  },
+  "dm_copper_ore": {
+    "id": "dm_copper_ore",
+    "minAmount": 5,
+    "maxPlayerLevel": 12,
+    "name": "Copper Ore",
+    "itemID": 2770,
+    "location": "Copper Veins throughout Dun Morogh",
+    "level": "Mining 1",
+    "minPlayerLevel": 1,
+    "maxAmount": 9,
+    "category": "gather",
+    "profession": "mining",
+    "trackingKind": "gather",
+    "zone": "dun_morogh"
+  },
+  "dm_rough_stone": {
+    "id": "dm_rough_stone",
+    "minAmount": 5,
+    "maxPlayerLevel": 12,
+    "name": "Rough Stone",
+    "itemID": 2835,
+    "location": "Copper Veins throughout Dun Morogh",
+    "level": "Mining 1",
+    "minPlayerLevel": 1,
+    "maxAmount": 9,
+    "category": "gather",
+    "profession": "mining",
+    "trackingKind": "gather",
+    "zone": "dun_morogh"
+  },
+  "dm_copper_vein_prospecting": {
+    "trackingKind": "nodes",
+    "id": "dm_copper_vein_prospecting",
+    "minAmount": 3,
+    "maxPlayerLevel": 12,
+    "name": "Copper Vein Prospecting",
+    "itemID": 2770,
+    "location": "Copper Veins throughout Dun Morogh",
+    "level": "Mining 1",
+    "minPlayerLevel": 1,
+    "maxAmount": 5,
+    "category": "gather",
+    "profession": "mining",
+    "zone": "dun_morogh"
+  },
+  "dm_ruined_leather_scraps": {
+    "id": "dm_ruined_leather_scraps",
+    "minAmount": 4,
+    "maxPlayerLevel": 5,
+    "name": "Ruined Leather Scraps",
+    "itemID": 2934,
+    "location": "skinnable low-level beasts in Dun Morogh",
+    "level": "Skinning 1",
+    "minPlayerLevel": 1,
+    "maxAmount": 8,
+    "category": "gather",
+    "profession": "skinning",
+    "trackingKind": "gather",
+    "zone": "dun_morogh"
+  },
+  "dm_boar_leather": {
+    "id": "dm_boar_leather",
+    "targets": [
+      "Crag Boar",
+      "Large Crag Boar",
+      "Elder Crag Boar"
+    ],
+    "minAmount": 3,
+    "maxPlayerLevel": 8,
+    "name": "Light Leather from Crag Boars",
+    "itemID": 2318,
+    "location": "boars around Kharanos",
+    "level": "Skinning 1",
+    "minPlayerLevel": 4,
+    "maxAmount": 5,
+    "category": "gather",
+    "profession": "skinning",
+    "trackingKind": "gather",
+    "zone": "dun_morogh"
+  },
+  "dm_winter_leather": {
+    "id": "dm_winter_leather",
+    "targets": [
+      "Winter Wolf",
+      "Starving Winter Wolf",
+      "Ice Claw Bear"
+    ],
+    "minAmount": 3,
+    "maxPlayerLevel": 10,
+    "name": "Light Leather from Winter Beasts",
+    "itemID": 2318,
+    "location": "wolves and bears in Dun Morogh",
+    "level": "Skinning 1",
+    "minPlayerLevel": 6,
+    "maxAmount": 5,
+    "category": "gather",
+    "profession": "skinning",
+    "trackingKind": "gather",
+    "zone": "dun_morogh"
+  },
+  "dm_brilliant_smallfish": {
+    "id": "dm_brilliant_smallfish",
+    "minAmount": 5,
+    "maxPlayerLevel": 5,
+    "name": "Raw Brilliant Smallfish",
+    "itemID": 6291,
+    "location": "the open water of Iceflow Lake",
+    "level": "Fishing 1",
+    "minPlayerLevel": 1,
+    "maxAmount": 9,
+    "category": "gather",
+    "profession": "fishing",
+    "trackingKind": "gather",
+    "zone": "dun_morogh"
+  },
+  "dm_longjaw_mud_snapper": {
+    "id": "dm_longjaw_mud_snapper",
+    "minAmount": 4,
+    "maxPlayerLevel": 10,
+    "name": "Raw Longjaw Mud Snapper",
+    "itemID": 6289,
+    "location": "the open water of Iceflow Lake",
+    "level": "Fishing 50",
+    "minPlayerLevel": 4,
+    "maxAmount": 8,
+    "category": "gather",
+    "profession": "fishing",
+    "trackingKind": "gather",
+    "zone": "dun_morogh"
+  }
+}

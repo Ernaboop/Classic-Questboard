@@ -1,4 +1,4 @@
-# Alpha 0.7.1 tracking
+# Classic Questboard tracking
 
 ## Forever compatibility
 
@@ -12,13 +12,13 @@ See THIRD_PARTY_NOTICES.md for attribution and license.
 
 ## Player flow
 
-### Rename from WoWForever
+### Rename and saved quests
 
-The addon folder and manifest are now `Classic Questbook/Classic Questbook.toc`. Fully restart WoW after renaming the folder. For other installations, while WoW is closed, copy each character's `WTF/Account/.../SavedVariables/WoWForever.lua` to `Classic Questbook.lua` in the same directory (and copy the `.lua.bak` backup similarly). Preserve the originals and do not overwrite existing Classic Questbook saves. The internal `WoWForeverDB` variable and keybinding IDs deliberately retain their old names to preserve data and assigned keys.
+The addon folder and manifest are now `Classic Questboard/Classic Questboard.toc`. Fully restart WoW after replacing an older installation. While WoW is closed, copy each character's `WTF/Account/.../SavedVariables/Classic Questbook.lua` to `Classic Questboard.lua` in the same directory (and copy the `.lua.bak` backup similarly). For installations dating back to WoWForever, use `WoWForever.lua` if there is no Classic Questbook save. Preserve the originals and do not overwrite an existing Classic Questboard save. The internal `WoWForeverDB` variable and keybinding IDs deliberately retain their old names to preserve progress and assigned keys.
 
-Open `/cq`, click the minimap button, or assign Toggle Classic Questbook in WoW's Key Bindings settings (no default key). The board offers three quests from the existing Elwynn Forest pool, including when opened in a city. Other zones do not yet have objective data.
+Open `/cq`, click the minimap button, or assign Toggle Classic Questboard in WoW's Key Bindings settings (no default key). The board offers three quests from the selected registered zone, including Elwynn Forest, Dun Morogh, and Westfall.
 
-Eligible categories use relative weights: Kill 40, Collect & Sell 30, Gather 25, Hunt 5. Gather has one shared weight regardless of learned profession count. Unavailable categories are excluded and remaining weights are normalized. These are per-roll odds, not guaranteed proportions on a three-card board. Debug's forced left-card category overrides that card's random category choice.
+Eligible categories use relative weights: Kill 40, Supply 30, Gather 25, Hunt 5. Gather has one shared weight regardless of learned profession count. Unavailable categories are excluded and remaining weights are normalized. These are per-roll odds, not guaranteed proportions on a three-card board. Debug's forced left-card category overrides that card's random category choice.
 
 Accept one quest in an inn, city, or other area where WoW reports `IsResting()`. Progress continues with the board closed and outside rest areas, but kills and collection/gathering must occur in Elwynn Forest, including child maps such as Northshire.
 
@@ -28,15 +28,15 @@ Abandon is available on the active card anywhere. A ready quest has a smaller Ab
 
 Turning in replaces only the completed slot using current generation settings and excludes objectives already on the other two cards. The completed objective is also excluded when alternatives exist. Only Reroll Quests regenerates the entire board; it is disabled while a quest is active or ready. Debug level/mode changes apply to the next reroll or replacement.
 
-Debug Mode's +1 Progress control supports every active tracked quest type. Kill, Hunt, gathering, and node objectives gain one count. Collect & Sell advances collection until full, then selling. Counts are capped and use normal Ready to Turn In logic, requiring a manual turn-in. Debug increments do not create inventory items or perform actual sales. Matching creature tooltips display progress, updating while hovered and showing Ready to Turn In when finished.
+Debug Mode's +1 Progress control supports every active tracked quest type. Kill, Hunt, gathering, and node objectives gain one count. Supply advances collection until full, then selling. Counts are capped and use normal Ready to Turn In logic, requiring a manual turn-in. Debug increments do not create inventory items or perform actual sales. Matching creature tooltips display progress, updating while hovered and showing Ready to Turn In when finished.
 
-The Debug Mode left-card category dropdown offers Any category, Kill, Collect & Sell, Hunt, and Gather directly. Choose a category, then use Reroll Quests. The selection also applies to left-slot turn-in replacements when eligible objectives exist, without changing active quests or the other two slots. Normal eligibility rules remain enforced.
+The Debug Mode left-card category dropdown offers Any category, Kill, Supply, Hunt, and Gather directly. Choose a category, then use Reroll Quests. The selection also applies to left-slot turn-in replacements when eligible objectives exist, without changing active quests or the other two slots. Normal eligibility rules remain enforced.
 
 Debug Mode also exposes Required amount at the bottom of the board. Enter a whole number from 1 to 1000 and click Apply (or press Enter). This edits only the accepted quest and refreshes its objective text and readiness. Earned progress is preserved, including across reloads; lowering the target may show progress above the new requirement. Raising it can return a ready quest to Active. No quest is handed in automatically.
 
 Options, Help (the question-mark button), and Quest Browser toggle open/closed. Secondary windows open beside the previous visible window with support for nested windows; they use the left side when needed and remain clamped to the screen.
 
-Statistics opens a toggleable window with per-character totals for quests accepted, handed in, and abandoned. Each statistic has its own +/− button, expanding its Kill, Collect & Sell, Hunt, and Gather counts directly underneath. Sections expand independently and push later sections down. Totals include successful Debug Mode actions and persist independently of recent-completion history. Failed actions, cancelled abandonment, ready-state changes, and reloads do not increment totals. Existing totals without category records are listed under Earlier / unclassified rather than guessed or discarded.
+Statistics opens a toggleable window with per-character totals for quests accepted, handed in, and abandoned. Each statistic has its own +/− button, expanding its Kill, Supply, Hunt, and Gather counts directly underneath. Sections expand independently and push later sections down. Totals include successful Debug Mode actions and persist independently of recent-completion history. Failed actions, cancelled abandonment, ready-state changes, and reloads do not increment totals. Existing totals without category records are listed under Earlier / unclassified rather than guessed or discarded.
 
 The top-centre zone dropdown selects Elwynn Forest or Dun Morogh for the board, browser, and generator. Each zone's three offers are saved separately. First-time selection generates offers; returning to a zone restores its existing offers. Reroll only changes the selected board, and successful hand-in replaces only its completed slot. Both curated pools support generation levels 1–12; each category/profession still falls back independently to its highest eligible band for overleveled characters.
 
@@ -47,7 +47,7 @@ Quest Browser's Show all levels checkbox shows every objective in the selected z
 ## What earns progress
 
 - **Kill / Hunt:** a matching creature observed alive must have a confirmed death and readable player/group tag eligibility. Pet kills can count without an attacker event. Tap-denied kills, player-controlled creatures, and duplicate death notifications do not count. Rare target amounts remain one.
-- **Collect & Sell:** obtain the specified item, or vendor-value loot for generic spoils, from one of the objective's named creatures. Then sell qualifying quantities to a vendor. Sales require matching bag loss, buyback data, and money received. Existing inventory, purchases, trades, bank transfers, item destruction, and quest rewards do not earn collection credit. Removing eligible items from carried bags removes their remaining sale eligibility; buying them back does not restore it.
+- **Supply:** obtain the specified item, or vendor-value loot for generic spoils, from one of the objective's named creatures. Then sell qualifying quantities to a vendor. Sales require matching bag loss, buyback data, and money received. Existing inventory, purchases, trades, bank transfers, item destruction, and quest rewards do not earn collection credit. Removing eligible items from carried bags removes their remaining sale eligibility; buying them back does not restore it.
 - **Herbalism / Mining / Skinning / Fishing:** a gathering action (or fishing channel) must precede the loot, with the correct item ID and creature/object source. The player's own loot message, a cleared loot slot, and an inventory gain confirm receipt. Boar and eastern-beast leather objectives also check the corpse's name.
 - **Copper Vein Prospecting:** loot ore from the required number of different vein sources. Several ore from one vein count as one vein.
 

@@ -142,7 +142,7 @@ LOOT_ITEM_SELF = "You receive loot: %s."
 LOOT_ITEM_SELF_MULTIPLE = "You receive loot: %sx%d."
 local ns = {}
 local windowNS = {}
-assert(loadstring(windows_source))('Classic Questbook', windowNS)
+assert(loadstring(windows_source))('Classic Questboard', windowNS)
 local wm = windowNS.Windows
 local parentWindow, childWindow, nestedWindow = object(), object(), object()
 parentWindow:SetFrameLevel(20); childWindow:SetSize(400, 200); nestedWindow:SetSize(300, 200)
@@ -151,14 +151,14 @@ function parentWindow:GetLeft() return 1010 end
 wm.Register(parentWindow); wm.Register(childWindow, parentWindow); wm.Register(nestedWindow, childWindow)
 nestedWindow:Hide()
 wm.Open(childWindow, parentWindow)
-check(childWindow.point[1] == 'TOPRIGHT' and childWindow.point[3] == 'TOPLEFT', 'screen edge places child on available left side')
+check(childWindow.point[1] == 'TOPLEFT' and childWindow.point[3] == 'BOTTOMLEFT', 'screen edge places child below parent instead of over board to the left')
 wm.Open(nestedWindow, childWindow)
 wm.Raise(childWindow)
 check(nestedWindow:GetFrameLevel() > childWindow:GetFrameLevel() and parentWindow:GetFrameLevel() == 20,
     'raising parent keeps nested child above it and main below both')
 wm.Open(childWindow, nestedWindow)
 check(wm.entries[childWindow].parent == parentWindow, 'window manager rejects nesting cycles')
-assert(loadstring(tracking_source))('Classic Questbook', ns)
+assert(loadstring(tracking_source))('Classic Questboard', ns)
 local T = ns.Tracking
 local saved
 local function fresh()
@@ -171,7 +171,7 @@ local function fresh()
     T.OnEvent('PLAYER_ENTERING_WORLD')
 end
 local function quest(spec, amount)
-    if spec.kind == 'collect_sell' and not spec.vendorID then spec.vendorID = 295 end
+    if spec.kind == 'supply' and not spec.vendorID then spec.vendorID = 295 end
     return {id = 'test', title = 'Test', zone = 'Elwynn Forest', amount = amount or 2, tracking = spec}
 end
 local function killGUID(guid) return 'Creature-0-1-0-0-40-' .. guid:gsub('%W', '') end
@@ -230,7 +230,7 @@ q.state = 'Ready to Turn In'; q.progress.count = q.amount
 check(T.TurnIn(true), 'debug location override permits turn-in outside rest')
 check(not saved.activeQuest and saved.completedQuests[1].state == 'Completed', 'debug location override preserves normal completion state')
 
-fresh(); q = quest({kind = 'collect_sell', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
+fresh(); q = quest({kind = 'supply', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
 bags[2672] = 10; T.OnEvent('BAG_UPDATE_DELAYED')
 check(q.progress.collected == 0, 'existing or purchased inventory not credited')
 lootStart(2672, 2, 'Creature-wrong', 'Kobold Miner'); receive(2672, 2)
@@ -245,7 +245,7 @@ money = money + 20; buybacks = {{id = 2672, quantity = 2}}
 T.OnEvent('MERCHANT_UPDATE'); T.OnEvent('MERCHANT_CLOSED'); advance(1)
 check(q.progress.sold == 2 and q.state == 'Ready to Turn In', 'sale requires bag, buyback, and money evidence, including close race')
 
-fresh(); q = quest({kind = 'collect_sell', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
+fresh(); q = quest({kind = 'supply', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
 lootStart(2672, 2, 'Creature-wolf', 'Young Wolf'); receive(2672, 2)
 units.npc = {guid = 'Creature-0-1-0-0-66-321', name = 'Innkeeper Farley'}
 T.OnEvent('MERCHANT_SHOW'); bags[2672] = 1; money = money + 10; buybacks = {{id = 2672, quantity = 1}}
@@ -263,7 +263,7 @@ buybacks = {{id = 2672, quantity = 2}}
 T.OnEvent('BAG_UPDATE_DELAYED'); T.OnEvent('MERCHANT_CLOSED'); advance(1)
 check(q.progress.sold == 2 and q.state == 'Ready to Turn In', 'selling replacement gathered items to the assigned vendor counts')
 
-fresh(); q = quest({kind = 'collect_sell', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
+fresh(); q = quest({kind = 'supply', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
 lootStart(2672, 2, 'Creature-wolf', 'Young Wolf'); receive(2672, 2)
 T.OnEvent('MERCHANT_SHOW'); bags[2672] = 0; T.OnEvent('BAG_UPDATE_DELAYED'); advance(1)
 check(q.progress.sold == 0 and q.progress.held[2672] == 0, 'destroyed/traded items are not sales')
@@ -273,7 +273,7 @@ bags[2672] = 0; money = 120; buybacks = {{id = 2672, quantity = 2}}
 T.OnEvent('BAG_UPDATE_DELAYED'); advance(1)
 check(q.progress.sold == 0, 'replacement purchased items do not regain eligible balance')
 
-fresh(); q = quest({kind = 'collect_sell', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
+fresh(); q = quest({kind = 'supply', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
 lootStart(2672, 2, 'Creature-wolf', 'Young Wolf'); receive(2672, 2)
 buybacks = {{id = 2672, quantity = 2}}; T.OnEvent('MERCHANT_SHOW')
 C_Container.UseContainerItem(0, 1); bags[2672] = 0; money = money + 20
@@ -302,7 +302,7 @@ check(q.state == 'Active' and q.progress.count == 0 and q.amount == 1, 'legacy a
 T.Abandon(); die('Creature-old', 'Hogger')
 check(not saved.activeQuest, 'abandoned quest no longer tracks')
 
-fresh(); q = quest({kind = 'collect_sell', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
+fresh(); q = quest({kind = 'supply', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
 lootStart(2672, 2, 'Creature-wolf', 'Young Wolf')
 T.OnEvent('LOOT_SLOT_CLEARED', 1)
 bags[2672] = 2
@@ -325,7 +325,7 @@ bags[2447] = 2; T.OnEvent('CHAT_MSG_LOOT', 'You receive loot: item:2447x2.')
 T.OnEvent('BAG_UPDATE_DELAYED')
 check(q.progress.count == 2, 'delayed receipt after loot window closes is counted')
 
-fresh(); q = quest({kind = 'collect_sell', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
+fresh(); q = quest({kind = 'supply', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
 bags[2672] = 100
 lootStart(2672, 2, 'Creature-wolf', 'Young Wolf'); receive(2672, 2)
 bags[2672] = 100; T.OnEvent('BAG_UPDATE_DELAYED')
@@ -333,15 +333,15 @@ check(q.progress.held[2672] == 0, 'banking loses sale eligibility even with an e
 
 -- Exercise real generator/UI wiring with mocked WoW frame APIs.
 fresh(); local realNS = {}
-assert(loadstring(tracking_source))('Classic Questbook', realNS)
-assert(loadstring(windows_source))('Classic Questbook', realNS)
-assert(loadstring(board_source))('Classic Questbook', realNS)
+assert(loadstring(tracking_source))('Classic Questboard', realNS)
+assert(loadstring(windows_source))('Classic Questboard', realNS)
+assert(loadstring(board_source))('Classic Questboard', realNS)
 -- Fixed-seed distribution checks cover both category weighting and the shared
 -- Gather weight, independently of the number of learned professions.
 local function categorySample(slots, lines)
     professionSlots, professionLines = slots, lines
     math.randomseed(609)
-    local counts = {Kill = 0, ['Collect & Sell'] = 0, Gather = 0, Hunt = 0}
+    local counts = {Kill = 0, ['Supply'] = 0, Gather = 0, Hunt = 0}
     for _ = 1, 8000 do
         local offer = realNS.GenerateQuestForLevel(12, false)
         counts[offer.categoryName] = counts[offer.categoryName] + 1
@@ -350,14 +350,14 @@ local function categorySample(slots, lines)
 end
 local oneProfession = categorySample({1}, {[1] = 182})
 local allProfessions = categorySample({1, 2, 3, 4}, {[1] = 182, [2] = 186, [3] = 393, [4] = 356})
-for name, weight in pairs({Kill = 0.40, ['Collect & Sell'] = 0.30, Gather = 0.25, Hunt = 0.05}) do
+for name, weight in pairs({Kill = 0.40, ['Supply'] = 0.30, Gather = 0.25, Hunt = 0.05}) do
     check(math.abs(oneProfession[name] / 8000 - weight) < 0.025, 'weighted category frequency: ' .. name)
     check(math.abs(allProfessions[name] / 8000 - weight) < 0.025, 'additional professions preserve category weight: ' .. name)
 end
 local noProfessions = categorySample({}, {})
 check(noProfessions.Gather == 0, 'weighted generation excludes unlearned gathering')
 check(math.abs(noProfessions.Hunt / 8000 - 5 / 75) < 0.025, 'Hunt remains rare after eligibility renormalization')
-check(noProfessions.Kill > noProfessions['Collect & Sell'] and noProfessions['Collect & Sell'] > noProfessions.Hunt,
+check(noProfessions.Kill > noProfessions['Supply'] and noProfessions['Supply'] > noProfessions.Hunt,
     'weighted category ordering favors ordinary quests')
 math.randomseed(1)
 local outleveledSeen = {}
@@ -382,13 +382,13 @@ end
 for _ = 1, 1200 do
     local offer = realNS.GenerateQuestForLevel(12, true)
     outleveledSeen[offer.categoryName] = true
-    if offer.categoryName == 'Kill' or offer.categoryName == 'Collect & Sell' then
+    if offer.categoryName == 'Kill' or offer.categoryName == 'Supply' then
         check(offer.maxPlayerLevel == 10, offer.categoryName .. ' uses its own highest level band')
     elseif offer.categoryName == 'Hunt' then
         check(offer.maxPlayerLevel == 12, 'Hunt uses its own highest level band')
     end
 end
-check(outleveledSeen.Kill and outleveledSeen['Collect & Sell'] and outleveledSeen.Hunt,
+check(outleveledSeen.Kill and outleveledSeen['Supply'] and outleveledSeen.Hunt,
     'outleveled generation retains every non-profession category')
 check(not outleveledSeen.Gather, 'unlearned gathering professions remain excluded when outleveled')
 professionSlots, professionLines = {1}, {[1] = 182}
@@ -414,7 +414,7 @@ local function enumeratePool(generationLevel)
         excluded[offer.selectionId] = true
         categories[offer.categoryName] = true
         if offer.professionId then professions[offer.professionId] = true end
-        local ceiling = offer.categoryName == 'Kill' or offer.categoryName == 'Collect & Sell'
+        local ceiling = offer.categoryName == 'Kill' or offer.categoryName == 'Supply'
             or offer.professionId == 'skinning'
         if generationLevel >= 11 then
             check(offer.maxPlayerLevel == (ceiling and 10 or 12), 'fallback uses category highest pool at capped levels')
@@ -427,13 +427,13 @@ local function enumeratePool(generationLevel)
 end
 for _, generationLevel in ipairs({1, 6, 11, 12}) do
     local categories = enumeratePool(generationLevel)
-    check(categories.Kill and categories['Collect & Sell'], 'normal/debug level retains lower-ceiling categories')
+    check(categories.Kill and categories['Supply'], 'normal/debug level retains lower-ceiling categories')
     check(not categories.Gather, 'category fallback preserves profession gating')
 end
 professionSlots, professionLines = {1, 2, 3, 4}, {[1] = 182, [2] = 186, [3] = 393, [4] = 356}
 for _, generationLevel in ipairs({11, 12}) do
     local categories, professions = enumeratePool(generationLevel)
-    check(categories.Kill and categories['Collect & Sell'] and categories.Hunt and categories.Gather,
+    check(categories.Kill and categories['Supply'] and categories.Hunt and categories.Gather,
         'each category contributes independently at zone cap')
     check(professions.herbalism and professions.mining and professions.skinning and professions.fishing,
         'each learned profession contributes even below zone cap')
@@ -441,7 +441,7 @@ end
 professionSlots, professionLines = {}, {}
 WoWForeverDB = nil
 for _, frame in ipairs(frames) do
-    if frame.registered.ADDON_LOADED then frame.scripts.OnEvent(frame, 'ADDON_LOADED', 'Classic Questbook') end
+    if frame.registered.ADDON_LOADED then frame.scripts.OnEvent(frame, 'ADDON_LOADED', 'Classic Questboard') end
 end
 SlashCmdList.WOWFOREVERQUESTBOARD('')
 local board = WoWForeverQuestboard
@@ -472,13 +472,26 @@ board.statistics.scripts.OnClick()
 check(not statsWindow:IsShown(), 'statistics button toggles window closed')
 board.help.scripts.OnClick()
 check(WoWForeverHelp:IsShown(), 'help button opens help window')
+check(#realNS.RecentUpdates == 3, 'in-game changelog has exactly three recent releases')
+WoWForeverHelp.changelog.scripts.OnClick()
+local changelog = WoWForeverChangelog
+check(changelog:IsShown() and changelog.point[2] == WoWForeverHelp and changelog.point[3] == 'BOTTOMLEFT',
+    'Help changelog opens as a nested window below Help')
+for index, release in ipairs(realNS.RecentUpdates) do
+    check(changelog.entries[index].heading.text == 'Alpha ' .. release.version
+        and changelog.entries[index].summary.text == release.text,
+        'in-game changelog renders release ' .. index)
+end
+WoWForeverHelp.changelog.scripts.OnClick()
+check(not changelog:IsShown() and WoWForeverHelp:IsShown(), 'changelog button toggles only its own window')
+WoWForeverHelp.changelog.scripts.OnClick()
 board.help.scripts.OnClick()
-check(not WoWForeverHelp:IsShown(), 'help button closes help window')
+check(not WoWForeverHelp:IsShown() and not changelog:IsShown(), 'closing Help also closes its changelog')
 board.options.scripts.OnClick()
 check(WoWForeverOptions:IsShown(), 'options button opens options')
 check(WoWForeverOptions.point[2] == board and WoWForeverOptions.point[3] == 'TOPRIGHT', 'secondary opens beside main window')
 board.help.scripts.OnClick()
-check(WoWForeverHelp.point[2] == WoWForeverOptions, 'nested window opens beside previous window')
+check(WoWForeverHelp.point[2] == WoWForeverOptions and WoWForeverHelp.point[3] == 'BOTTOMLEFT', 'nested window opens below previous window')
 check(WoWForeverHelp:GetFrameLevel() > WoWForeverOptions:GetFrameLevel(), 'nested window stacks above parent')
 board.help.scripts.OnClick()
 board.options.scripts.OnClick()
@@ -518,10 +531,10 @@ for _ = 1, 60 do
         ids[offer.selectionId] = true
     end
 end
-check(debugCategories.Kill and debugCategories['Collect & Sell'] and debugCategories.Hunt,
+check(debugCategories.Kill and debugCategories['Supply'] and debugCategories.Hunt,
     'debug level 12 rerolls include lower-ceiling categories')
 local otherCategories = {}
-for _, expected in ipairs({'Kill', 'Collect & Sell', 'Hunt'}) do
+for _, expected in ipairs({'Kill', 'Supply', 'Hunt'}) do
     local previous = WoWForeverDB.displayedQuests
     selectCategory(board.debugCategory, expected)
     check(WoWForeverDB.displayedQuests == previous, 'category selection leaves existing offers unchanged')
@@ -535,7 +548,7 @@ for _, expected in ipairs({'Kill', 'Collect & Sell', 'Hunt'}) do
         otherCategories[offers[3].categoryName] = true
     end
 end
-check(otherCategories.Kill and otherCategories['Collect & Sell'] and otherCategories.Hunt, 'other slots retain normal category selection')
+check(otherCategories.Kill and otherCategories['Supply'] and otherCategories.Hunt, 'other slots retain normal category selection')
 selectCategory(board.debugCategory, 'Gather') -- no profession
 local beforeUnavailable = WoWForeverDB.displayedQuests
 board.reroll.scripts.OnClick()
@@ -633,11 +646,11 @@ end
 WoWForeverDB.settings.showAbandonConfirmation = false
 WoWForeverDB = clone(WoWForeverDB) -- SavedVariables reload recreates independent tables.
 local reloadNS = {}
-assert(loadstring(tracking_source))('Classic Questbook', reloadNS)
-assert(loadstring(windows_source))('Classic Questbook', reloadNS)
-assert(loadstring(board_source))('Classic Questbook', reloadNS)
+assert(loadstring(tracking_source))('Classic Questboard', reloadNS)
+assert(loadstring(windows_source))('Classic Questboard', reloadNS)
+assert(loadstring(board_source))('Classic Questboard', reloadNS)
 for _, frame in ipairs(frames) do
-    if frame.registered.ADDON_LOADED then frame.scripts.OnEvent(frame, 'ADDON_LOADED', 'Classic Questbook') end
+    if frame.registered.ADDON_LOADED then frame.scripts.OnEvent(frame, 'ADDON_LOADED', 'Classic Questboard') end
 end
 check(WoWForeverDB.activeQuest.id == persistent.id and WoWForeverDB.activeQuest.amount == persistent.amount
     and WoWForeverDB.activeQuest.progress.count == 1, 'real saved-state migration preserves identity, amount, and progress')
@@ -698,11 +711,11 @@ WoWForeverQuestboard.reroll.scripts.OnClick()
 reloadedCards[1].button.scripts.OnClick()
 local forcedActive = WoWForeverDB.activeQuest
 local keptRight = {WoWForeverDB.displayedQuests[2], WoWForeverDB.displayedQuests[3]}
-selectCategory(WoWForeverQuestboard.debugCategory, 'Collect & Sell')
+selectCategory(WoWForeverQuestboard.debugCategory, 'Supply')
 check(WoWForeverDB.activeQuest == forcedActive and forcedActive.categoryName == 'Kill', 'changing forced category preserves active quest')
 forcedActive.state = 'Ready to Turn In'
 reloadedCards[1].button.scripts.OnClick()
-check(not WoWForeverDB.activeQuest and WoWForeverDB.displayedQuests[1].categoryName == 'Collect & Sell',
+check(not WoWForeverDB.activeQuest and WoWForeverDB.displayedQuests[1].categoryName == 'Supply',
     'left-slot replacement uses selected forced category')
 check(WoWForeverDB.displayedQuests[2] == keptRight[1] and WoWForeverDB.displayedQuests[3] == keptRight[2],
     'forced replacement leaves other slots unchanged')
@@ -743,7 +756,7 @@ for _, spec in ipairs({
     check(T.DebugAddProgress(true) and q.state == 'Ready to Turn In', 'debug gathering/node reaches ready state')
     check(not T.DebugAddProgress(true) and q.progress.count == 2, 'debug gathering/node count is capped')
 end
-T.Abandon(); q = quest({kind = 'collect_sell', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
+T.Abandon(); q = quest({kind = 'supply', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
 check(T.DebugAddProgress(true) and q.progress.collected == 1 and q.progress.sold == 0, 'debug collect increments collection first')
 check(T.DebugAddProgress(true) and q.progress.collected == 2 and q.state == 'Active', 'full collection still requires selling')
 check(T.DebugAddProgress(true) and q.progress.sold == 1 and q.state == 'Active', 'debug then advances selling')
@@ -766,7 +779,7 @@ T.DebugAddProgress(true); T.DebugAddProgress(true)
 check(T.DebugSetAmount(true, 1, q) and q.state == 'Ready to Turn In' and q.progress.count == 2, 'lowering kill amount marks ready and preserves kills')
 check(T.DebugSetAmount(true, 4, q) and q.state == 'Active' and q.progress.count == 2, 'raising kill amount reactivates without resetting progress')
 T.Abandon(); q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 2); q.categoryName = 'Kill'; T.Accept(q)
-assert(loadstring(tooltip_source))('Classic Questbook', ns)
+assert(loadstring(tooltip_source))('Classic Questboard', ns)
 tooltipUnit = 'mouseover'; GameTooltip:Show()
 GameTooltip.scripts.OnTooltipCleared(GameTooltip); tooltipLines = {}
 GameTooltip.scripts.OnTooltipSetUnit(GameTooltip)
@@ -783,7 +796,7 @@ for _, build in ipairs({16001, 120000, 11507}) do
     interfaceVersion = build
     restrictedCombat = build == 11507 -- Also honor the public restriction predicate.
     local restrictedNS = {}
-    assert(loadstring(tracking_source))('Classic Questbook', restrictedNS)
+    assert(loadstring(tracking_source))('Classic Questboard', restrictedNS)
     local t = restrictedNS.Tracking
     local kept = quest({kind = 'kill', targets = {'Kobold Miner'}}, 4)
     kept.state, kept.progress = 'Active', {count = 2}
@@ -796,7 +809,7 @@ for _, build in ipairs({16001, 120000, 11507}) do
     check(kept.progress.count == 2, 'restricted combat payload never read')
     resting = true; t.Abandon()
     check(t.Accept(kept), 'kill quests can be accepted without combat-log access'); t.Abandon()
-    check(t.Accept(quest({kind = 'collect_sell', targets = {'Young Wolf'}, itemID = 2672}, 2)), 'collection quests remain available')
+    check(t.Accept(quest({kind = 'supply', targets = {'Young Wolf'}, itemID = 2672}, 2)), 'collection quests remain available')
     local secret = {}
     issecretvalue = function(value) return value == secret end
     units.target = {guid = secret, name = secret}
@@ -912,7 +925,7 @@ check(not T.Abandon() and saved.statistics.abandoned == 1, 'repeated abandonment
 check(saved.statistics.acceptedByCategory.Kill == 1 and saved.statistics.abandonedByCategory.Kill == 1,
     'successful acceptance and abandonment count by category exactly once')
 resting = true
-for _, category in ipairs({'Kill', 'Collect & Sell', 'Hunt', 'Gather'}) do
+for _, category in ipairs({'Kill', 'Supply', 'Hunt', 'Gather'}) do
     q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 1); q.categoryName = category
     T.Accept(q); T.DebugAddProgress(true); T.TurnIn()
     check(saved.statistics.completedByCategory[category] == 1, 'completion category counted: ' .. category)
@@ -940,7 +953,7 @@ T.Initialize(saved, function(v) return v.tracking end, function() end)
 check(saved.statistics.accepted == 20 and saved.statistics.abandoned == 10
     and saved.statistics.completedByCategory.Kill == 5 and saved.statistics.acceptedByCategory.Kill == 0,
     'upgrade preserves old totals and completion categories without inventing historical category counts')
-for _, category in ipairs({'Kill', 'Collect & Sell', 'Hunt', 'Gather'}) do
+for _, category in ipairs({'Kill', 'Supply', 'Hunt', 'Gather'}) do
     q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 1); q.categoryName = category
     T.Accept(q); T.Abandon()
     check(saved.statistics.acceptedByCategory[category] == 1 and saved.statistics.abandonedByCategory[category] == 1,
@@ -952,11 +965,11 @@ do
     local function loadZoneBoard(data)
         WoWForeverDB = data
         local addon = {}
-        assert(loadstring(tracking_source))('Classic Questbook', addon)
-        assert(loadstring(windows_source))('Classic Questbook', addon)
-        assert(loadstring(board_source))('Classic Questbook', addon)
+        assert(loadstring(tracking_source))('Classic Questboard', addon)
+        assert(loadstring(windows_source))('Classic Questboard', addon)
+        assert(loadstring(board_source))('Classic Questboard', addon)
         for _, frame in ipairs(frames) do
-            if frame.registered.ADDON_LOADED then frame.scripts.OnEvent(frame, 'ADDON_LOADED', 'Classic Questbook') end
+            if frame.registered.ADDON_LOADED then frame.scripts.OnEvent(frame, 'ADDON_LOADED', 'Classic Questboard') end
         end
         SlashCmdList.WOWFOREVERQUESTBOARD('')
         return addon, WoWForeverQuestboard
@@ -966,7 +979,7 @@ do
         menuEntries = {}
         local dropdown = ui.zoneDropdown
         dropdown.initialize(dropdown, 1)
-        check(#menuEntries == 2, 'zone dropdown lists both supported zones')
+        check(#menuEntries == 3, 'zone dropdown lists all registered zones')
         for _, entry in ipairs(menuEntries) do
             if entry.text == name then entry.func(); check(dropdown.text == name, 'zone selection updates label'); return end
         end
@@ -997,11 +1010,11 @@ do
             and offer.description:find(offer.flavorText, 1, true)
             and offer.description:find(offer.questGiverLocation, 1, true),
             'quest carries a specific saved flavour line and giver location')
-        if offer.categoryName == 'Collect & Sell' then
+        if offer.categoryName == 'Supply' then
             check(verifiedVendors[offer.zoneId][offer.questGiverID]
                 and offer.tracking.vendorID == offer.questGiverID
                 and offer.objective:find(offer.source, 1, true),
-                'Collect & Sell names and tracks only its assigned local vendor')
+                'Supply names and tracks only its assigned local vendor')
         end
     end
     for _, offer in ipairs(elwynnOffers) do checkNarrative(offer) end
@@ -1016,7 +1029,7 @@ do
     check(WoWForeverDB.displayedQuests == elwynnOffers, 'switching back preserves all Elwynn offers')
     chooseZone('Dun Morogh')
     check(WoWForeverDB.displayedQuests == dunOffers, 'switching back preserves all Dun Morogh offers')
-    local pool, counts = {}, {Kill = 0, ['Collect & Sell'] = 0, Hunt = 0, Gather = 0}
+    local pool, counts = {}, {Kill = 0, ['Supply'] = 0, Hunt = 0, Gather = 0}
     local miningFlavors, miningGivers = {}, {}
     professionSlots, professionLines = {1, 2, 3, 4}, {[1] = 182, [2] = 186, [3] = 393, [4] = 356}
     for testLevel = 1, 12 do
@@ -1042,7 +1055,7 @@ do
         end
         check(reachedEnd, 'Dun Morogh pool enumeration terminates without duplicates')
     end
-    check(counts.Kill == 20 and counts['Collect & Sell'] == 11 and counts.Hunt == 7 and counts.Gather == 11,
+    check(counts.Kill == 20 and counts['Supply'] == 11 and counts.Hunt == 7 and counts.Gather == 11,
         'Dun Morogh has 49 objectives across every category')
     local flavorCount, giverCount = 0, 0
     for _ in pairs(miningFlavors) do flavorCount = flavorCount + 1 end
@@ -1059,7 +1072,7 @@ do
         cappedCategories[offer.categoryName] = true
         if offer.professionId then cappedProfessions[offer.professionId] = true end
     end
-    check(cappedCategories.Kill and cappedCategories['Collect & Sell'] and cappedCategories.Hunt and cappedCategories.Gather,
+    check(cappedCategories.Kill and cappedCategories['Supply'] and cappedCategories.Hunt and cappedCategories.Gather,
         'outleveled Dun Morogh keeps all category ceilings')
     for _, profession in ipairs({'herbalism', 'mining', 'skinning', 'fishing'}) do
         check(cappedProfessions[profession], 'outleveled Dun Morogh retains learned profession ' .. profession)
@@ -1087,10 +1100,12 @@ do
     end
     ui.debugButton.scripts.OnClick()
     local browser = WoWForeverQuestBrowser
+    menuEntries = {}; browser.zoneDropdown.initialize(browser.zoneDropdown, 1)
+    for _, entry in ipairs(menuEntries) do if entry.text == 'Dun Morogh' then entry.func(); break end end
     browser.allLevels:SetChecked(true); browser.allLevels.scripts.OnClick()
     local n = 0
     for _, row in ipairs(browser.objectiveRows) do if row:IsShown() then n = n + 1 end end
-    check(n == 20 and browser.levelLabel.text:find('Dun Morogh'), 'all-level browser shows selected zone and all 20 Kill objectives')
+    check(n == 20 and browser.zoneDropdown.text == 'Dun Morogh', 'all-level browser shows selected zone and all 20 Kill objectives')
     local firstRow = browser.objectiveRows[1]
     check(firstRow.amount.text:find('Level %d+–%d+') and not firstRow.amount.text:find('%('),
         'Quest Browser row displays eligible character level range instead of amount')
@@ -1102,8 +1117,10 @@ do
     check(amountTooltip, 'Quest Browser hover shows objective amount range')
     firstRow.scripts.OnClick()
     check(browser.preview.text:find('Amount range', 1, true), 'Quest Browser click preview shows amount range')
+    local previousPreview = browser.preview.text
     chooseZone('Elwynn Forest')
-    check(browser.preview.text == '' and browser.levelLabel.text:find('Elwynn Forest'), 'zone switch refreshes browser and clears stale preview')
+    check(browser.preview.text == previousPreview and browser.zoneDropdown.text == 'Dun Morogh',
+        'main zone switch leaves independent browser zone and preview untouched')
     chooseZone('Dun Morogh')
     local active = pool.dm_crag_boar
     WoWForeverDB.displayedQuests[2] = active
@@ -1204,7 +1221,7 @@ do
         and migratedSale.progress.collected == 1 and verifiedVendors.dun_morogh[migratedSale.questGiverID]
         and migratedSale.tracking.vendorID == migratedSale.questGiverID
         and migratedSale.objective:find(migratedSale.source, 1, true),
-        'accepted old Collect & Sell quest gains a real vendor without losing amount or progress')
+        'accepted old Supply quest gains a real vendor without losing amount or progress')
     WoWForeverDB.statistics.accepted, WoWForeverDB.statistics.handedIn, WoWForeverDB.statistics.abandoned = 7, 3, 2
     WoWForeverDB.statistics.acceptedByCategory.Kill = 4
     WoWForeverDB.statistics.completedByCategory.Hunt = 2
@@ -1227,3 +1244,36 @@ do
     T = previousT
 end
 print('PASS: ' .. passed .. ' tracking and UI assertions (Lua 5.1)')
+
+-- Reuse the same client simulation for database integration tests.
+TestEnvironment = {
+    load = function(data, register)
+        fresh()
+        WoWForeverDB = data
+        local addon = {}
+        for _, source in ipairs(data_sources) do assert(loadstring(source))('Classic Questboard', addon) end
+        if register then register(addon.Database) end
+        assert(loadstring(tracking_source))('Classic Questboard', addon)
+        assert(loadstring(windows_source))('Classic Questboard', addon)
+        assert(loadstring(board_source))('Classic Questboard', addon)
+        for _, frame in ipairs(frames) do
+            if frame.registered.ADDON_LOADED then frame.scripts.OnEvent(frame, 'ADDON_LOADED', 'Classic Questboard') end
+        end
+        SlashCmdList.WOWFOREVERQUESTBOARD('')
+        return addon, WoWForeverQuestboard
+    end,
+    select = function(dropdown, label)
+        menuEntries = {}; dropdown.initialize(dropdown, 1)
+        for _, entry in ipairs(menuEntries) do if entry.text == label then entry.func(); return end end
+        error('Missing dropdown option: ' .. label)
+    end,
+    zone = function(value) zone = value end,
+    level = function(value) level = value end,
+    faction = function(value) faction = value end,
+    professions = function(lines)
+        professionSlots, professionLines = {}, {}
+        for index, skillLine in ipairs(lines) do professionSlots[index] = index; professionLines[index] = skillLine end
+    end,
+    unit = function(token, value) units[token] = value end,
+    frames = frames,
+}

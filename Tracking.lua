@@ -12,7 +12,7 @@ local names, loot, gathering, merchant = {}, nil, nil, nil
 local killEvidence = {}
 local pendingLoot = {}
 local ACTIVE, READY, COMPLETED = "Active", "Ready to Turn In", "Completed"
-local statisticCategories = {Kill = true, ["Collect & Sell"] = true, Hunt = true, Gather = true}
+local statisticCategories = {Kill = true, ["Supply"] = true, Hunt = true, Gather = true}
 local function Refresh() if changed then changed() end end
 local function ItemID(link) return link and tonumber(link:match("item:(%d+)")) end
 local function Count(id)
@@ -25,9 +25,10 @@ local function ItemInfo(id)
 end
 local function InZone()
     local quest = db and db.activeQuest
-    local zoneName = quest and quest.zone or "Elwynn Forest"
-    local mapIDs = zoneName == "Dun Morogh" and {[48] = true, [1426] = true}
-        or zoneName == "Elwynn Forest" and {[37] = true, [1429] = true} or {}
+    local zoneName = quest and quest.zone
+    local zone = ns.Database and quest and ns.Database.zones[quest.zoneId]
+    local mapIDs = {}
+    for _, id in ipairs(quest and quest.zoneMapIDs or zone and zone.mapIDs or {}) do mapIDs[id] = true end
     if C_Map and C_Map.GetBestMapForUnit and C_Map.GetMapInfo then
         local id = C_Map.GetBestMapForUnit("player")
         for _ = 1, 12 do
@@ -48,6 +49,17 @@ local function Matches(list, name)
     for _, value in ipairs(list or {}) do if value == name then return true end end
     return false
 end
+local function NPCID(guid)
+    if not Public(guid) or type(guid) ~= "string" then return nil end
+    return tonumber(guid:match("^Creature%-[^%-]+%-[^%-]+%-[^%-]+%-[^%-]+%-(%d+)%-"))
+end
+local function TargetMatches(spec, name, guid)
+    if spec.npcID or spec.npcIDs then
+        local id = NPCID(guid)
+        return id ~= nil and (id == spec.npcID or Matches(spec.npcIDs, id))
+    end
+    return Matches(spec.targets, name)
+end
 local function Observe(unit)
     if not Public(unit) then return end
     local guid, name = UnitGUID(unit), UnitName(unit)
@@ -61,10 +73,10 @@ local function ResetTransient()
     pendingLoot = {}
 end
 local function UpdateState(q)
-    local amount = q.tracking.kind == "collect_sell" and q.progress.sold or q.progress.count
+    local amount = q.tracking.kind == "supply" and q.progress.sold or q.progress.count
     if amount >= q.amount and q.state == ACTIVE then
         q.state = READY
-        print('|cffffd27fClassic Questbook:|r "' .. q.title .. '" is Ready to Turn In. Visit a rested location and open /cq.')
+        print('|cffffd27fClassic Questboard:|r "' .. q.title .. '" is Ready to Turn In. Visit a rested location and open /cq.')
     end
     Refresh()
 end
@@ -85,7 +97,7 @@ local function Normalize(q)
     end
     -- Older quests have no progress; preserve their target and rolled amount.
     if q.tracking then
-        local count = q.tracking.kind == "collect_sell" and q.progress.sold or q.progress.count
+        local count = q.tracking.kind == "supply" and q.progress.sold or q.progress.count
         q.state = count >= q.amount and READY or ACTIVE
     else
         q.state = ACTIVE
@@ -136,7 +148,7 @@ function Tracking.TurnIn(bypassLocation)
     while #db.completedQuests > 20 do table.remove(db.completedQuests, 1) end
     db.activeQuest = nil
     ResetTransient()
-    print('|cffffd27fClassic Questbook:|r Completed "' .. q.title .. '".')
+    print('|cffffd27fClassic Questboard:|r Completed "' .. q.title .. '".')
     return true
 end
 function Tracking.GetStatistics()
@@ -165,7 +177,7 @@ end
 function Tracking.ProgressText(q)
     if not q.tracking then return "Tracking unavailable for this legacy objective. You may abandon it." end
     local p = q.progress
-    if q.tracking.kind == "collect_sell" then
+    if q.tracking.kind == "supply" then
         return q.state .. "\nCollected: " .. p.collected .. "/" .. q.amount .. "   Sold: " .. p.sold .. "/" .. q.amount
     end
     return q.state .. "\nProgress: " .. p.count .. "/" .. q.amount
@@ -173,7 +185,7 @@ end
 function Tracking.DebugAddProgress(enabled)
     local q = Working()
     if not enabled or not q then return false end
-    if q.tracking.kind == "collect_sell" then
+    if q.tracking.kind == "supply" then
         local field = q.progress.collected < q.amount and "collected" or "sold"
         q.progress[field] = math.min(q.amount, q.progress[field] + 1)
     elseif q.tracking.kind == "kill" or q.tracking.kind == "gather" or q.tracking.kind == "nodes" then
@@ -194,7 +206,7 @@ function Tracking.DebugSetAmount(enabled, amount, expected)
         return false
     end
     q.amount = amount
-    local count = q.tracking.kind == "collect_sell" and q.progress.sold or q.progress.count
+    local count = q.tracking.kind == "supply" and q.progress.sold or q.progress.count
     if count < amount then q.state = ACTIVE end
     UpdateState(q)
     return true
@@ -205,11 +217,11 @@ function Tracking.TooltipText(unit)
     if not q or not q.tracking or not Public(unit) or type(unit) ~= "string" then return nil end
     local name = Read(UnitName, unit)
     if type(name) ~= "string" or Read(UnitPlayerControlled, unit) ~= false then return nil end
-    if not Matches(q.tracking.targets, name) then return nil end
+    if not TargetMatches(q.tracking, name, Read(UnitGUID, unit)) then return nil end
     local p = q.progress
     local action = q.tracking.kind == "kill" and "Kill " or "Collect from "
-    local count = q.tracking.kind == "collect_sell" and p.collected or p.count
-    return "Classic Questbook: " .. action .. name .. " " .. count .. "/" .. q.amount
+    local count = q.tracking.kind == "supply" and p.collected or p.count
+    return "Classic Questboard: " .. action .. name .. " " .. count .. "/" .. q.amount
         .. (q.state == READY and " (Ready to Turn In)" or "")
 end
 -- Adapted from Azeroth Fieldbook's BestiaryJournal living-observation,
@@ -273,7 +285,7 @@ local function ObserveKill(unit)
     local entry = killEvidence[guid]
     if dead == false then
         local name = Read(UnitName, unit)
-        if not Matches(q.tracking.targets, name) or Read(UnitGUID, unit) ~= guid then return end
+        if not TargetMatches(q.tracking, name, guid) or Read(UnitGUID, unit) ~= guid then return end
         if not entry then
             local count, oldestGUID, oldestAt = 0, nil, math.huge
             for key, value in pairs(killEvidence) do
@@ -352,9 +364,10 @@ local function EligibleSources(q, slot, context)
         if Public(guid) and Public(quantity) and type(guid) == "string" and type(quantity) == "number" then
             local creature = guid:match("^Creature%-") ~= nil
             local object = guid:match("^GameObject%-") ~= nil
-            local allowed = spec.kind == "collect_sell" and creature and Matches(spec.targets, names[guid])
+            local allowed = spec.kind == "supply" and creature and TargetMatches(spec, names[guid], guid)
             if spec.profession and context and context.profession == spec.profession and context.expires >= GetTime() then
-                allowed = (spec.profession == "skinning" and creature and (not spec.targets or Matches(spec.targets, names[guid])))
+                allowed = (spec.profession == "skinning" and creature and
+                    (not (spec.targets or spec.npcID or spec.npcIDs) or TargetMatches(spec, names[guid], guid)))
                     or (spec.profession ~= "skinning" and object)
             end
             if allowed then result[#result + 1] = {guid = guid, quantity = quantity} end
@@ -390,13 +403,13 @@ local function SettleLoot(session)
     for _, entry in pairs(session.slots) do
         if entry.cleared and not entry.done then
             local _, _, _, _, _, _, _, _, _, _, price = ItemInfo(entry.id)
-            if q.tracking.kind ~= "collect_sell" or (price and price > 0) then
+            if q.tracking.kind ~= "supply" or (price and price > 0) then
                 local available = math.min(session.receipts[entry.id] or 0,
                     math.max(0, Count(entry.id) - session.baseline[entry.id] - (session.credited[entry.id] or 0)))
                 for _, source in ipairs(entry.sources) do
                     local received = math.min(available, source.quantity)
                     if received > 0 then
-                        if q.tracking.kind == "collect_sell" then
+                        if q.tracking.kind == "supply" then
                             q.progress.collected = math.max(q.progress.collected, math.min(q.amount, q.progress.collected + received))
                             q.progress.held[entry.id] = (q.progress.held[entry.id] or 0) + received
                             q.progress.inventory[entry.id] = Count(entry.id)
@@ -477,14 +490,11 @@ local function BagSlots()
     return slots
 end
 local function InteractingMerchantID()
-    local guid = UnitGUID and UnitGUID("npc")
-    if not Public(guid) or type(guid) ~= "string" then return nil end
-    -- Creature-0-server-instance-zone-NPCID-spawnID.
-    return tonumber(guid:match("^Creature%-[^%-]+%-[^%-]+%-[^%-]+%-[^%-]+%-(%d+)%-"))
+    return NPCID(Read(UnitGUID, "npc"))
 end
 local function StartMerchant()
     local q = Working()
-    if not q or q.tracking.kind ~= "collect_sell" then return end
+    if not q or q.tracking.kind ~= "supply" then return end
     if not q.tracking.vendorID or InteractingMerchantID() ~= q.tracking.vendorID then
         merchant = nil
         return
@@ -538,7 +548,7 @@ local function SaleIntent(bag, slot)
 end
 local function ReconcileHeld()
     local q = Working()
-    if q and q.tracking.kind == "collect_sell" then
+    if q and q.tracking.kind == "supply" then
         for id, count in pairs(q.progress.held) do
             local current = Count(id)
             local previous = tonumber(q.progress.inventory[id]) or current

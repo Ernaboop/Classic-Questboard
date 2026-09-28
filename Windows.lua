@@ -46,14 +46,23 @@ function Windows.Open(frame, parent)
     if not entry or not parent or IsBelow(parent, frame) then return end
     entry.parent = parent
     frame:ClearAllPoints()
+    frame:SetScale(1)
     local right, left = parent:GetRight(), parent:GetLeft()
     local parentScale = parent:GetEffectiveScale()
     local scale = frame:GetEffectiveScale()
     local screenWidth = UIParent:GetWidth() * UIParent:GetEffectiveScale()
     local required = (frame:GetWidth() + 8) * scale
-    if right and left and right * parentScale + required > screenWidth
-        and left * parentScale >= required then
-        frame:SetPoint("TOPRIGHT", parent, "TOPLEFT", -8, 0)
+    local parentEntry = Windows.entries[parent]
+    if (parentEntry and parentEntry.parent) or (right and right * parentScale + required > screenWidth) then
+        -- Nested windows continue down the auxiliary column, never back over
+        -- the main board to the left. Fit that column when screen space permits.
+        local bottom = parent:GetBottom()
+        if left and bottom and bottom > 20 then
+            local availableWidth = math.max(100, screenWidth - left * parentScale - 12)
+            local availableHeight = math.max(100, bottom * parentScale - 12)
+            frame:SetScale(math.min(1, availableWidth / (frame:GetWidth() * scale), availableHeight / (frame:GetHeight() * scale)))
+        end
+        frame:SetPoint("TOPLEFT", parent, "BOTTOMLEFT", 0, -8)
     else
         frame:SetPoint("TOPLEFT", parent, "TOPRIGHT", 8, 0)
     end
