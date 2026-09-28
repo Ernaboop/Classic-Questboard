@@ -108,6 +108,10 @@ function UnitIsDead(unit) return units[unit] and units[unit].dead end
 function UnitPlayerControlled(unit) return units[unit] and units[unit].controlled end
 function UnitIsTapDenied(unit) return units[unit] and units[unit].denied end
 function UnitAffectingCombat(unit) return units[unit] and units[unit].inCombat end
+function UnitThreatSituation(actor, unit)
+    local mob = units[unit]
+    return mob and mob.tagger == actor and 0 or nil
+end
 function UnitIsUnit(a, b) return units[a] ~= nil and units[b] ~= nil and units[a].guid == units[b].guid end
 function GetProfessions() return unpack(professionSlots) end
 function GetProfessionInfo(index) return nil, nil, nil, nil, nil, nil, professionLines[index] end
@@ -170,7 +174,10 @@ end
 local function killGUID(guid) return 'Creature-0-1-0-0-40-' .. guid:gsub('%W', '') end
 local function hit(guid, name, source)
     units.target = {guid = killGUID(guid), name = name, dead = false, controlled = false,
-        denied = source == 'Stranger', inCombat = true}
+        denied = source == 'Stranger', inCombat = true,
+        tagger = source == 'Pet-1' and 'pet' or source == 'Player-party' and 'party1'
+            or (source == 'Stranger' or source == 'Unrelated') and 'outsider'
+            or source == 'NPC' and 'npc' or 'player'}
     T.OnEvent('PLAYER_TARGET_CHANGED')
 end
 local function die(guid, name)
@@ -777,6 +784,53 @@ for _, build in ipairs({16001, 120000, 11507}) do
     issecretvalue = nil
 end
 -- Fieldbook-style evidence: live observation + death + public tag eligibility.
+fresh(); q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 20); T.Accept(q)
+units.target = {guid = killGUID('untagged'), name = 'Kobold Miner', dead = false,
+    controlled = false, denied = false, inCombat = false}
+T.OnEvent('PLAYER_TARGET_CHANGED')
+units.target.dead = true; T.PollKills(); T.OnEvent('UNIT_DIED', killGUID('untagged'))
+check(q.progress.count == 0, 'an untapped target dying does not grant quest credit')
+hit('foreign', 'Kobold Miner', 'Stranger'); die('foreign', 'Kobold Miner')
+check(q.progress.count == 0, 'another player tapping the mob denies quest credit')
+hit('stillalive', 'Kobold Miner')
+T.OnEvent('PARTY_KILL', 'Player-1', killGUID('stillalive'))
+check(q.progress.count == 0, 'a kill notification without confirmed death does not grant credit')
+hit('soloeligible', 'Kobold Miner'); die('soloeligible', 'Kobold Miner')
+check(q.progress.count == 1, 'a tagged mob dying grants solo credit')
+units.party1 = {guid = 'Player-party', name = 'Party Member'}
+hit('partyeligible', 'Kobold Miner', 'Player-party'); T.OnEvent('PARTY_KILL', 'Player-party', killGUID('partyeligible'))
+units.target = nil; T.OnEvent('UNIT_DIED', killGUID('partyeligible'))
+check(q.progress.count == 2, 'a tagged mob killed by a party member grants credit after death')
+hit('partyTagOtherFinisher', 'Kobold Miner', 'Player-party')
+-- A party member's tap belongs to the group even if no PARTY_KILL reaches
+-- this client (or an outsider lands the finishing blow).
+die('partyTagOtherFinisher', 'Kobold Miner')
+check(q.progress.count == 3, 'eligible party tap and confirmed death count without PARTY_KILL')
+hit('resetbeforedeath', 'Kobold Miner'); units.target.inCombat = false; T.PollKills()
+units.target.dead = true; T.PollKills()
+check(q.progress.count == 3, 'a mob that resets before dying loses earlier tap evidence')
+hit('contested', 'Kobold Miner'); units.target.denied = true; T.PollKills()
+units.target.dead = true; units.target.denied = false; T.PollKills()
+check(q.progress.count == 3, 'a contested mob cannot gain credit when its corpse becomes readable')
+hit('npcfight', 'Kobold Miner', 'NPC'); units.target.dead = true; T.PollKills()
+check(q.progress.count == 3, 'a mob fighting an NPC with no party threat does not grant credit')
+hit('unrelatedplayer', 'Kobold Miner', 'Unrelated'); units.target.dead = true; T.PollKills()
+check(q.progress.count == 3, 'another player fighting a not-denied target still lacks party-tag evidence')
+local secretThreat = {}
+local originalThreat = UnitThreatSituation
+UnitThreatSituation = function() return secretThreat end
+issecretvalue = function(value) return value == secretThreat end
+hit('secretthreat', 'Kobold Miner'); units.target.dead = true; T.PollKills()
+check(q.progress.count == 3, 'secret threat data cannot prove a group tag')
+UnitThreatSituation = originalThreat; issecretvalue = nil
+local hiddenTap = {}; issecretvalue = function(value) return value == hiddenTap end
+units.target = {guid = killGUID('secretlive'), name = 'Kobold Miner', dead = false,
+    controlled = false, denied = hiddenTap, inCombat = true}
+T.OnEvent('PLAYER_TARGET_CHANGED')
+units.target.dead = true; units.target.denied = false; T.PollKills()
+check(q.progress.count == 3, 'secret live tap evidence cannot become a credited kill after death')
+issecretvalue = nil
+
 fresh(); q = quest({kind = 'kill', targets = {'Kobold Miner'}}, 20); T.Accept(q)
 units.target = {guid = killGUID('corpse'), name = 'Kobold Miner', dead = true, controlled = false, denied = false}
 T.PollKills(); die('corpse', 'Kobold Miner')

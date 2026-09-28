@@ -213,20 +213,38 @@ local function PruneKills(at)
     end
 end
 local function ClearTerminal(entry)
-    entry.dead, entry.eligible, entry.rejected, entry.deadline = nil, nil, nil, nil
+    entry.dead, entry.eligible, entry.rejected, entry.deadline, entry.tagged = nil, nil, nil, nil, nil
 end
-local function SampleEligibility(entry, unit, guid)
+local threatActors = {"player", "pet", "party1", "partypet1", "party2", "partypet2",
+    "party3", "partypet3", "party4", "partypet4"}
+local function GroupHasThreat(unit)
+    if type(UnitThreatSituation) ~= "function" then return false end
+    for _, actor in ipairs(threatActors) do
+        if Read(UnitExists, actor) == true then
+            -- Zero is valid: it means this party unit is on the mob's threat
+            -- list without being its primary target. Nil/secret is no proof.
+            local threat = Read(UnitThreatSituation, actor, unit)
+            if type(threat) == "number" and threat >= 0 and threat <= 3 then return true end
+        end
+    end
+    return false
+end
+local function SampleEligibility(entry, unit, guid, livingCombat)
     if Read(UnitGUID, unit) ~= guid then return end
     local exists, controlled, denied = Read(UnitExists, unit), Read(UnitPlayerControlled, unit), Read(UnitIsTapDenied, unit)
     if Read(UnitGUID, unit) ~= guid then return end
     if controlled == true or denied == true then
         entry.rejected, entry.eligible = true, nil
     elseif exists == true and controlled == false and denied == false then
-        entry.eligible = true
+        if livingCombat then
+            entry.tagged = true
+        else
+            entry.eligible = true
+        end
     end
 end
 local function CompleteKill(q, guid, entry)
-    if not entry.dead or entry.eligible ~= true or entry.rejected or q.progress.seen[guid] then return end
+    if not entry.dead or entry.tagged ~= true or entry.eligible ~= true or entry.rejected or q.progress.seen[guid] then return end
     if not InZone() then return end
     -- Consume evidence before callbacks and persist the GUID across reloads.
     killEvidence[guid], q.progress.seen[guid] = nil, true
@@ -255,8 +273,14 @@ local function ObserveKill(unit)
             entry = {}; killEvidence[guid] = entry
         end
         entry.seenAt = at
-        if Read(UnitAffectingCombat, unit) ~= true then ClearTerminal(entry) end
-        return -- A living mob's unclaimed tag never grants kill eligibility.
+        if Read(UnitAffectingCombat, unit) == true then
+            -- An untapped, idle mob also reports tap-not-denied. Only remember
+            -- the party's permitted tap while this mob is alive and engaged.
+            if GroupHasThreat(unit) then SampleEligibility(entry, unit, guid, true) end
+        else
+            ClearTerminal(entry) -- The mob reset; previous tap/death evidence is stale.
+        end
+        return
     end
     if dead ~= true or not entry then return end
     entry.dead, entry.deadline = true, entry.deadline or at + 10

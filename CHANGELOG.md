@@ -2,6 +2,14 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.7.1] - 2026-09-28
+
+### Fixed
+
+- Kill and Hunt progress now requires a matching creature observed alive, in combat, with a permitted tap and public threat evidence from the player, a party member, or one of their pets, followed by a confirmed death. Seeing an untapped creature die no longer grants credit merely because its corpse reports tap-not-denied.
+- Rejected/secret tap evidence never grants credit, and a living creature that resets loses prior tag evidence. A valid party tap can still count when the death is confirmed without a `PARTY_KILL` event.
+- Added regressions for solo/party/pet taps, missing death, untapped and contested kills, NPC/outsider fights, reset, secret tap/threat data, and corpse state.
+
 ## [0.7.0] - 2026-09-28
 
 ### Added
