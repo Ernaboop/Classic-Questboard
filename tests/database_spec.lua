@@ -425,7 +425,10 @@ local pvpOffer = WoWForeverDB.pvpQuest
 pvpCard.button.scripts.OnClick()
 check(WoWForeverDB.activeQuest == pvpOffer and pvpOffer.tracking.kind == 'pvp_honor',
     'PvP card accepts through the normal one-active-quest flow')
-for _ = 1, pvpOffer.amount do addon.Tracking.OnEvent('PLAYER_PVP_KILLS_CHANGED', 'player') end
+for _ = 1, pvpOffer.amount do
+    TestEnvironment.honorKill()
+    addon.Tracking.OnEvent('PLAYER_PVP_KILLS_CHANGED', 'player')
+end
 check(pvpOffer.state == 'Ready to Turn In' and pvpCard.button.text == 'Turn In Quest',
     'honorable kill credit makes the PvP card ready')
 pvpCard.button.scripts.OnClick()

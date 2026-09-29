@@ -6,7 +6,8 @@ local function check(value, message)
     assert(value, message)
     passed = passed + 1
 end
-local clock, timers, resting, zone, bags, money, buybacks, lootItems, combat, level, faction, pvpFlagged
+local clock, timers, resting, zone, bags, money, buybacks, lootItems, combat, level, faction, pvpFlagged, honorKills
+local craftEventSupported, smeltStartSupported, pvpEventSupported, honorStatsAvailable = true, true, true, true
 local professionSlots, professionLines, professionSkills = {}, {}, {}
 local units, hooks, frames = {}, {}, {}
 local function object(name, parent)
@@ -22,6 +23,9 @@ local function object(name, parent)
     function o:SetChecked(v) self.checked = not not v end
     function o:GetChecked() return self.checked end
     function o:RegisterEvent(e)
+        if (e == 'TRADE_SKILL_ITEM_CRAFTED_RESULT' and not craftEventSupported)
+            or (e == 'UNIT_SPELLCAST_START' and not smeltStartSupported)
+            or (e == 'PLAYER_PVP_KILLS_CHANGED' and not pvpEventSupported) then error('unsupported event') end
         if e == 'COMBAT_LOG_EVENT_UNFILTERED' and (restrictedCombat or interfaceVersion == 16001 or interfaceVersion >= 120000) then
             error('ADDON_ACTION_FORBIDDEN: forbidden combat-log registration')
         end
@@ -112,6 +116,8 @@ function UnitName(unit) return units[unit] and units[unit].name end
 function UnitLevel() return level end
 function UnitFactionGroup() return faction end
 function UnitIsPVP() return pvpFlagged end
+function GetPVPLifetimeStats() return honorStatsAvailable and honorKills or nil end
+function GetPVPSessionStats() return honorStatsAvailable and honorKills or nil end
 function UnitExists(unit) return units[unit] ~= nil end
 function UnitIsDead(unit) return units[unit] and units[unit].dead end
 function UnitPlayerControlled(unit) return units[unit] and units[unit].controlled end
@@ -185,8 +191,13 @@ check(edgeX >= 0 and edgeX + edgeChild:GetWidth() <= UIParent:GetWidth()
 assert(loadstring(tracking_source))('Classic Questboard', ns)
 local T = ns.Tracking
 local saved
-local function fresh()
-    clock, timers, resting, zone, bags, money, buybacks, lootItems, level, faction, pvpFlagged = 0, {}, true, 'Elwynn Forest', {}, 100, {}, {}, 6, 'Alliance', false
+local function fresh(options)
+    options = options or {}
+    craftEventSupported = options.craftEvent ~= false
+    smeltStartSupported = options.smeltStart ~= false
+    pvpEventSupported = options.pvpEvent ~= false
+    honorStatsAvailable = options.honorStats ~= false
+    clock, timers, resting, zone, bags, money, buybacks, lootItems, level, faction, pvpFlagged, honorKills = 0, {}, true, 'Elwynn Forest', {}, 100, {}, {}, 6, 'Alliance', false, 0
     units = {player = {guid = 'Player-1', name = 'Tester'}, pet = {guid = 'Pet-1', name = 'Pet'},
         npc = {guid = 'Creature-0-1-0-0-295-123', name = 'Innkeeper Farley'}}
     professionSlots, professionLines, professionSkills = {}, {}, {}
@@ -267,7 +278,18 @@ T.OnEvent('MERCHANT_SHOW'); bags[2672] = bags[2672] - 2
 T.OnEvent('BAG_UPDATE_DELAYED') -- client can deliver bag changes before money/buyback
 money = money + 20; buybacks = {{id = 2672, quantity = 2}}
 T.OnEvent('MERCHANT_UPDATE'); T.OnEvent('MERCHANT_CLOSED'); advance(1)
-check(q.progress.sold == 2 and q.state == 'Ready to Turn In', 'sale requires bag, buyback, and money evidence, including close race')
+check(q.progress.sold == 2 and q.state == 'Ready to Turn In', 'sale requires bag and buyback evidence, including close race')
+
+fresh(); q = quest({kind = 'supply', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
+lootStart(2672, 2, 'Creature-wolf', 'Young Wolf'); receive(2672, 2)
+T.OnEvent('MERCHANT_SHOW'); bags[2672] = 0; money = 90 -- a purchase offsets the sale income
+T.OnEvent('BAG_UPDATE_DELAYED'); advance(0.3)
+check(q.progress.sold == 0 and q.progress.held[2672] == 2,
+    'merchant holds uncertain losses while buyback evidence is delayed')
+buybacks = {{id = 2672, quantity = 2}}
+T.OnEvent('MERCHANT_UPDATE'); T.OnEvent('MERCHANT_CLOSED'); advance(1)
+check(q.progress.sold == 2 and q.state == 'Ready to Turn In',
+    'assigned-vendor sale counts despite net money loss and delayed buyback update')
 
 fresh(); q = quest({kind = 'supply', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
 lootStart(2672, 2, 'Creature-wolf', 'Young Wolf'); receive(2672, 2)
@@ -290,8 +312,10 @@ check(q.progress.sold == 2 and q.state == 'Ready to Turn In', 'selling replaceme
 fresh(); q = quest({kind = 'supply', targets = {'Young Wolf'}, itemID = 2672}, 2); T.Accept(q)
 lootStart(2672, 2, 'Creature-wolf', 'Young Wolf'); receive(2672, 2)
 T.OnEvent('MERCHANT_SHOW'); bags[2672] = 0; T.OnEvent('BAG_UPDATE_DELAYED'); advance(1)
-check(q.progress.sold == 0 and q.progress.held[2672] == 0, 'destroyed/traded items are not sales')
+check(q.progress.sold == 0 and q.progress.held[2672] == 2,
+    'missing buyback evidence remains pending until the merchant closes')
 T.OnEvent('MERCHANT_CLOSED'); advance(1)
+check(q.progress.sold == 0 and q.progress.held[2672] == 0, 'destroyed/traded items are not sales')
 bags[2672] = 2; T.OnEvent('BAG_UPDATE_DELAYED'); T.OnEvent('MERCHANT_SHOW')
 bags[2672] = 0; money = 120; buybacks = {{id = 2672, quantity = 2}}
 T.OnEvent('BAG_UPDATE_DELAYED'); advance(1)
@@ -331,6 +355,8 @@ lootStart(2770, 2, 'GameObject-copper-approved'); receive(2770, 2)
 check(q.progress.mined == 2 and q.progress.smelted == 0, 'work order credits newly mined ore only')
 T.OnEvent('TRADE_SKILL_ITEM_CRAFTED_RESULT', {itemID = 9999, quantity = 2})
 check(q.progress.smelted == 0, 'wrong crafted item cannot advance a work order')
+T.OnEvent('TRADE_SKILL_ITEM_CRAFTED_RESULT', {itemID = 2840, recipeID = 9999, quantity = 2})
+check(q.progress.smelted == 0, 'wrong recipe cannot advance a work order even with a matching output item')
 T.OnEvent('TRADE_SKILL_ITEM_CRAFTED_RESULT', {itemID = 2840, quantity = 2})
 bags[2840] = 2; T.OnEvent('BAG_UPDATE_DELAYED')
 check(q.progress.smelted == 2 and q.state == 'Active', 'smelting advances before assigned-vendor handoff')
@@ -352,14 +378,70 @@ T.OnEvent('UNIT_SPELLCAST_SUCCEEDED', 'player', 'cast', 2575)
 lootStart(2770, 1, 'GameObject-copper-simple'); receive(2770, 1)
 T.OnEvent('TRADE_SKILL_ITEM_CRAFTED_RESULT', {itemID = 2840, quantity = 1})
 check(q.state == 'Ready to Turn In' and q.progress.smelted == 1, 'mine-and-smelt order completes without vendor sale')
-fresh(); q = quest({kind = 'pvp_honor'}, 2); T.Accept(q)
+fresh(); q = quest({kind = 'mining_workorder', profession = 'mining', oreItemID = 2770,
+    itemID = 2840, smeltSpellID = 2657}, 2); T.Accept(q)
+T.OnEvent('UNIT_SPELLCAST_SUCCEEDED', 'player', 'cast', 2575)
+lootStart(2770, 2, 'GameObject-copper-both-signals'); receive(2770, 2)
+T.OnEvent('UNIT_SPELLCAST_START', 'player', 'cast', 2657)
+T.OnEvent('UNIT_SPELLCAST_SUCCEEDED', 'player', 'cast', 2657)
+bags[2840] = 1; T.OnEvent('BAG_UPDATE_DELAYED')
+check(q.progress.smelted == 1, 'smelt fallback works even when craft-result event registered but silent')
+T.OnEvent('TRADE_SKILL_ITEM_CRAFTED_RESULT', {itemID = 2840, recipeID = 2657, quantity = 1})
+check(q.progress.smelted == 1, 'late crafted-result event does not double-count fallback credit')
+T.OnEvent('UNIT_SPELLCAST_START', 'player', 'cast', 2657)
+T.OnEvent('UNIT_SPELLCAST_SUCCEEDED', 'player', 'cast', 2657)
+T.OnEvent('TRADE_SKILL_ITEM_CRAFTED_RESULT', {itemID = 2840, recipeID = 2657, quantity = 1})
+bags[2840] = 2; T.OnEvent('BAG_UPDATE_DELAYED')
+check(q.progress.smelted == 2 and q.state == 'Ready to Turn In',
+    'crafted-result credit and bag fallback count a second cast only once')
+fresh({craftEvent = false}); q = quest({kind = 'mining_workorder', profession = 'mining', oreItemID = 2770,
+    itemID = 2840, smeltSpellID = 2657}, 1)
+check(T.CanTrack(q) and T.Accept(q), 'Mining work order stays available with smelt-cast fallback')
+T.OnEvent('UNIT_SPELLCAST_SUCCEEDED', 'player', 'cast', 2575)
+lootStart(2770, 1, 'GameObject-copper-fallback'); receive(2770, 1)
+T.OnEvent('UNIT_SPELLCAST_START', 'player', 'cast', 9999)
+bags[2840] = 1; T.OnEvent('BAG_UPDATE_DELAYED')
+check(q.progress.smelted == 0, 'bar gain without the matching smelt cast is ignored')
+bags[2840] = 0; T.OnEvent('BAG_UPDATE_DELAYED')
+T.OnEvent('UNIT_SPELLCAST_START', 'player', 'cast', 2657)
+T.OnEvent('UNIT_SPELLCAST_SUCCEEDED', 'player', 'cast', 2657)
+check(q.progress.smelted == 0, 'fallback waits for the crafted bar to enter the bag')
+bags[2840] = 1; T.OnEvent('BAG_UPDATE_DELAYED')
+check(q.progress.smelted == 1 and q.state == 'Ready to Turn In',
+    'matching smelt cast and bar gain complete a work order without craft-result event')
+fresh({craftEvent = false, smeltStart = false}); q = quest({kind = 'mining_workorder',
+    profession = 'mining', oreItemID = 2770, itemID = 2840, smeltSpellID = 2657}, 1)
+check(not T.CanTrack(q) and not T.Accept(q), 'work orders fail closed if neither smelting signal is available')
+fresh(); q = quest({kind = 'pvp_honor'}, 3); T.Accept(q)
 T.OnEvent('UNIT_DIED', 'Player-enemy')
 T.OnEvent('PLAYER_PVP_KILLS_CHANGED', 'party1')
 check(q.progress.count == 0, 'PvP progress ignores raw deaths and other units')
 T.OnEvent('PLAYER_PVP_KILLS_CHANGED', 'player')
-check(q.progress.count == 1 and q.state == 'Active', 'player honorable-kill event advances PvP quest')
+check(q.progress.count == 0, 'PvP stats event alone cannot grant honorable-kill credit')
+honorKills = 2
 T.OnEvent('PLAYER_PVP_KILLS_CHANGED', 'player')
-check(q.progress.count == 2 and q.state == 'Ready to Turn In', 'PvP quest becomes ready after required honor kills')
+check(q.progress.count == 2 and q.state == 'Active', 'honorable-kill counter delta credits multiple kills once')
+T.OnEvent('PLAYER_PVP_KILLS_CHANGED', 'player')
+check(q.progress.count == 2, 'repeat PvP stats event does not duplicate honor credit')
+honorKills = 3
+T.OnEvent('PLAYER_PVP_KILLS_CHANGED', 'player')
+check(q.progress.count == 3 and q.state == 'Ready to Turn In', 'PvP quest becomes ready after verified honor kills')
+fresh(); q = quest({kind = 'pvp_honor'}, 1); T.Accept(q)
+T.OnEvent('PLAYER_PVP_KILLS_CHANGED', 'player'); honorKills = 1; advance(1)
+check(q.progress.count == 1 and q.state == 'Ready to Turn In',
+    'delayed honor-counter update is credited after the PvP event')
+fresh({pvpEvent = false}); q = quest({kind = 'pvp_honor'}, 1)
+check(not T.CanTrack(q) and not T.Accept(q), 'PvP quest fails closed without its event')
+fresh({honorStats = false}); q = quest({kind = 'pvp_honor'}, 1)
+check(not T.CanTrack(q) and not T.Accept(q), 'PvP quest fails closed without an honorable-kill counter')
+fresh(); q = quest({kind = 'pvp_honor'}, 3); T.Accept(q)
+honorKills = 1; T.OnEvent('PLAYER_PVP_KILLS_CHANGED', 'player')
+check(q.progress.count == 1, 'PvP quest credits the first verified kill before reload')
+honorKills = 2; T.Initialize(saved, function(v) return v.tracking end, function() end)
+T.OnEvent('PLAYER_PVP_KILLS_CHANGED', 'player')
+check(q.progress.count == 1, 'reload preserves PvP progress without backfilling missed kills')
+honorKills = 3; T.OnEvent('PLAYER_PVP_KILLS_CHANGED', 'player')
+check(q.progress.count == 2, 'PvP quest resumes from its new counter baseline')
 fresh(); q = quest({kind = 'kill', targets = {'Hogger'}}, 1); saved.activeQuest = q
 T.Initialize(saved, function(v) return v.tracking end, function() end)
 check(q.state == 'Active' and q.progress.count == 0 and q.amount == 1, 'legacy active quest upgraded without changing amount')
@@ -536,7 +618,7 @@ board.statistics.scripts.OnClick()
 check(not statsWindow:IsShown(), 'statistics button toggles window closed')
 board.help.scripts.OnClick()
 check(WoWForeverHelp:IsShown(), 'help button opens help window')
-check(#realNS.RecentUpdates == 41, 'in-game changelog includes every recorded release')
+check(#realNS.RecentUpdates == 42, 'in-game changelog includes every recorded release')
 WoWForeverHelp.changelog.scripts.OnClick()
 local changelog = WoWForeverChangelog
 check(changelog:IsShown() and changelog.point[2] == WoWForeverHelp and changelog.point[3] == 'BOTTOMLEFT',
@@ -1362,6 +1444,7 @@ TestEnvironment = {
             if frame.registered.UNIT_FLAGS then frame.scripts.OnEvent(frame, 'UNIT_FLAGS', 'player') end
         end
     end,
+    honorKill = function() honorKills = honorKills + 1 end,
     professions = function(lines, skills)
         professionSlots, professionLines, professionSkills = {}, {}, {}
         for index, skillLine in ipairs(lines) do

@@ -1,4 +1,4 @@
-# Classic Questboard data format — Alpha 0.13.0
+# Classic Questboard data format — Alpha 0.13.1
 
 ## Files and load order
 

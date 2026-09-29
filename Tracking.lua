@@ -8,7 +8,8 @@ local function Read(fn, ...)
     local ok, value = pcall(fn, ...)
     if ok and Public(value) then return value end
 end
-local names, loot, gathering, merchant = {}, nil, nil, nil
+local names, loot, gathering, merchant, smelt = {}, nil, nil, nil, nil
+local craftEventAvailable, smeltStartAvailable, pvpEventAvailable = false, false, false
 local killEvidence = {}
 local pendingLoot = {}
 local ACTIVE, READY, COMPLETED = "Active", "Ready to Turn In", "Completed"
@@ -68,9 +69,22 @@ local function Observe(unit)
     end
 end
 local function ResetTransient()
-    names, loot, gathering, merchant = {}, nil, nil, nil
+    names, loot, gathering, merchant, smelt = {}, nil, nil, nil, nil
     killEvidence = {}
     pendingLoot = {}
+end
+local function HonorableTotal(preferred)
+    -- Lifetime honorable kills do not reset when a session ends. Fall back to
+    -- the session counter on clients that do not expose lifetime statistics.
+    local sources = {{"lifetime", GetPVPLifetimeStats}, {"session", GetPVPSessionStats}}
+    for _, source in ipairs(sources) do
+        if not preferred or source[1] == preferred then
+            local value = Read(source[2])
+            if type(value) == "number" and value >= 0 and value == math.floor(value) then
+                return value, source[1]
+            end
+        end
+    end
 end
 local function UpdateState(q)
     local amount = q.tracking.kind == "supply" and q.progress.sold
@@ -103,13 +117,23 @@ local function Normalize(q)
             or q.tracking.kind == "mining_workorder" and (q.tracking.handoff == "sale" and q.progress.sold or q.progress.smelted)
             or q.progress.count
         q.state = count >= q.amount and READY or ACTIVE
+        if q.tracking.kind == "pvp_honor" then
+            local total, source = HonorableTotal()
+            if total and (q.progress.honorSource ~= source or type(q.progress.honorBaseline) ~= "number"
+                or total < q.progress.honorBaseline) then
+                q.progress.honorBaseline, q.progress.honorSource = total, source
+            end
+        end
     else
         q.state = ACTIVE
     end
 end
 function Tracking.CanTrack(q)
     local spec = resolve and resolve(q) or q.tracking
-    return spec ~= nil
+    if not spec then return false end
+    if spec.kind == "pvp_honor" then return pvpEventAvailable and HonorableTotal() ~= nil end
+    if spec.kind == "mining_workorder" then return craftEventAvailable or smeltStartAvailable end
+    return true
 end
 function Tracking.Accept(q, bypassLocation)
     if not db or db.activeQuest or (not bypassLocation and not Tracking.IsResting()) then return false end
@@ -348,11 +372,26 @@ function Tracking.PollKills()
 end
 local function HonorKill(unit)
     local q = Working()
-    -- Forever sends this only for honorable enemy-player kill credit. Do not
-    -- infer honor from combat-log deaths, which can include trivial targets.
     if not q or q.tracking.kind ~= "pvp_honor" or unit ~= "player" then return end
-    q.progress.count = math.min(q.amount, q.progress.count + 1)
-    UpdateState(q)
+    local function ReconcileHonor()
+        if Working() ~= q then return end
+        local total, source = HonorableTotal(q.progress.honorSource)
+        if not total then return end
+        local previous = q.progress.honorBaseline
+        if q.progress.honorSource ~= source or type(previous) ~= "number" or total < previous then
+            q.progress.honorBaseline, q.progress.honorSource = total, source
+            return
+        end
+        if total > previous then
+            q.progress.honorBaseline = total
+            q.progress.count = math.min(q.amount, q.progress.count + total - previous)
+            UpdateState(q)
+        end
+    end
+    ReconcileHonor()
+    -- The PvP counter can update after its event. A delayed read also handles
+    -- several kills being merged into one statistics change.
+    C_Timer.After(1, ReconcileHonor)
 end
 local function HealthEvent(unit)
     if not Public(unit) or type(unit) ~= "string" then return end
@@ -381,22 +420,56 @@ local function Cast(event, unit, castGUID, spellID)
         Observe("mouseover")
     end
 end
-local function Crafted(result)
-    local q = Working()
-    if not q or q.tracking.kind ~= "mining_workorder" or type(result) ~= "table" then return end
-    local itemID, quantity = result.itemID, tonumber(result.quantity)
-    if itemID ~= q.tracking.itemID then return end
-    if not quantity or quantity < 1 or quantity ~= math.floor(quantity) then return end
+local function CreditSmelt(q, quantity)
     local p = q.progress
     local credited = math.min(quantity, q.amount - p.smelted, p.mined - p.smelted)
-    if credited <= 0 then return end
+    if credited <= 0 then return 0 end
     p.smelted = p.smelted + credited
     if q.tracking.handoff == "sale" then
+        local itemID = q.tracking.itemID
         p.held[itemID] = (p.held[itemID] or 0) + credited
-        -- Keep the pre-update count; a later bag increase is not a loss.
         p.inventory[itemID] = Count(itemID)
     end
     UpdateState(q)
+    return credited
+end
+local function Crafted(result)
+    local q = Working()
+    if not q or q.tracking.kind ~= "mining_workorder" or type(result) ~= "table" then return end
+    local itemID = result.itemID
+    if not Public(itemID) or not Public(result.quantity) then return end
+    local quantity = tonumber(result.quantity)
+    if itemID ~= q.tracking.itemID then return end
+    local recipeID = result.recipeID or result.spellID
+    if recipeID and not Public(recipeID) then return end
+    if recipeID and recipeID ~= q.tracking.smeltSpellID then return end
+    if not quantity or quantity < 1 or quantity ~= math.floor(quantity) then return end
+    if smelt and smelt.quest == q and smelt.credited then smelt = nil; return end
+    CreditSmelt(q, quantity)
+    if smelt and smelt.quest == q then smelt = nil end -- The result supersedes bag-delta fallback.
+end
+local function ReconcileSmelt()
+    local q = Working()
+    if not smelt or not smelt.succeeded or not q or smelt.quest ~= q then return end
+    if GetTime() > smelt.expires then smelt = nil; return end
+    if not smelt.credited and Count(q.tracking.itemID) > smelt.baseline then
+        local credited = CreditSmelt(q, 1) -- Current work orders produce one bar per cast.
+        if credited > 0 then smelt.credited = true end
+    end
+end
+local function ObserveSmelt(event, unit, spellID)
+    local q = Working()
+    if not q or q.tracking.kind ~= "mining_workorder"
+        or not Public(unit) or not Public(spellID) or unit ~= "player"
+        or spellID ~= q.tracking.smeltSpellID then return end
+    if event == "UNIT_SPELLCAST_START" then
+        smelt = {quest = q, baseline = Count(q.tracking.itemID), expires = GetTime() + 15}
+    elseif event == "UNIT_SPELLCAST_SUCCEEDED" and smelt and smelt.quest == q then
+        smelt.succeeded = true
+        ReconcileSmelt()
+        C_Timer.After(0.3, ReconcileSmelt)
+        C_Timer.After(1, ReconcileSmelt)
+    end
 end
 local function EligibleSources(q, slot, context)
     if not GetLootSourceInfo then return {} end
@@ -546,15 +619,15 @@ local function StartMerchant()
         merchant = nil
         return
     end
-    merchant = {quest = q, counts = {}, buyback = Buyback(), money = GetMoney(), slots = BagSlots(), intents = {}}
+    merchant = {quest = q, counts = {}, buyback = Buyback(), slots = BagSlots(), intents = {},
+        pendingLoss = {}, pendingBuyback = {}}
     for id in pairs(q.progress.held) do merchant.counts[id] = Count(id) end
 end
 local function SettleMerchant(session)
     local q = Working()
     if not session or session ~= merchant or not q or session.quest ~= q then return end
     local merchant = session
-    local now, money = Buyback(), GetMoney()
-    local budget = math.max(0, money - merchant.money)
+    local now = Buyback()
     for id, previous in pairs(merchant.counts) do
         local current = Count(id)
         local lost = math.max(0, previous - current)
@@ -562,21 +635,21 @@ local function SettleMerchant(session)
         -- A full buyback list can replace an identical stack without changing
         -- its totals. Also require an observed sell action in that case.
         if merchant.intents[id] then newBuyback = math.max(newBuyback, now[id] or 0) end
+        merchant.pendingLoss[id] = (merchant.pendingLoss[id] or 0) + lost
+        merchant.pendingBuyback[id] = (merchant.pendingBuyback[id] or 0) + newBuyback
         local _, _, _, _, _, _, _, _, _, _, price = ItemInfo(id)
-        if lost > 0 then
-            local sold = 0
-            if price and price > 0 then
-                sold = math.min(lost, newBuyback, q.progress.held[id] or 0, math.floor(budget / price))
-                budget = budget - sold * price
-            end
+        if price and price > 0 then
+            local sold = math.min(merchant.pendingLoss[id], merchant.pendingBuyback[id], q.progress.held[id] or 0)
+            merchant.pendingLoss[id] = merchant.pendingLoss[id] - sold
+            merchant.pendingBuyback[id] = merchant.pendingBuyback[id] - sold
             q.progress.sold = math.min(q.amount, q.progress.sold + sold)
-            q.progress.held[id] = math.max(0, (q.progress.held[id] or 0) - lost)
-            UpdateState(q)
+            q.progress.held[id] = math.max(0, (q.progress.held[id] or 0) - sold)
+            if sold > 0 then UpdateState(q) end
         end
         merchant.counts[id] = current
         q.progress.inventory[id] = current
     end
-    merchant.buyback, merchant.money = now, money
+    merchant.buyback = now
     merchant.slots, merchant.intents = BagSlots(), {}
 end
 local function ScheduleMerchant(session)
@@ -607,6 +680,10 @@ local function ReconcileHeld()
     end
 end
 local events = CreateFrame("Frame")
+local function RegisterOptional(event)
+    if C_EventUtils and C_EventUtils.IsEventValid and not C_EventUtils.IsEventValid(event) then return false end
+    return pcall(events.RegisterEvent, events, event)
+end
 function Tracking.Initialize(saved, resolver, callback)
     db, resolve, changed = saved, resolver, callback
     db.statistics = type(db.statistics) == "table" and db.statistics or {}
@@ -622,23 +699,29 @@ function Tracking.Initialize(saved, resolver, callback)
         end
     end
     db.completedQuests = type(db.completedQuests) == "table" and db.completedQuests or {}
-    if db.activeQuest then Normalize(db.activeQuest) end
+    if db.activeQuest then
+        Normalize(db.activeQuest)
+        if db.activeQuest.tracking and db.activeQuest.tracking.kind == "pvp_honor" then
+            local total, source = HonorableTotal()
+            if total then
+                db.activeQuest.progress.honorBaseline = total
+                db.activeQuest.progress.honorSource = source
+            end
+        end
+    end
     for _, event in ipairs({"PLAYER_UPDATE_RESTING", "PLAYER_ENTERING_WORLD",
         "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "LOOT_READY", "LOOT_OPENED", "LOOT_SLOT_CLEARED", "LOOT_CLOSED",
         "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START", "BAG_UPDATE_DELAYED", "MERCHANT_SHOW", "MERCHANT_CLOSED",
         "MERCHANT_UPDATE", "PLAYER_MONEY", "GET_ITEM_INFO_RECEIVED", "CHAT_MSG_LOOT", "UNIT_HEALTH", "PLAYER_REGEN_ENABLED"}) do
         events:RegisterEvent(event)
     end
-    -- These are standalone GUID events in Forever, not combat-log subevents.
-    -- Older clients may lack them; watched-unit death polling remains usable.
-    for _, event in ipairs({"PARTY_KILL", "UNIT_DIED", "TRADE_SKILL_ITEM_CRAFTED_RESULT"}) do
-        if not C_EventUtils or not C_EventUtils.IsEventValid or C_EventUtils.IsEventValid(event) then
-            pcall(events.RegisterEvent, events, event)
-        end
-    end
-    if not C_EventUtils or not C_EventUtils.IsEventValid or C_EventUtils.IsEventValid("PLAYER_PVP_KILLS_CHANGED") then
-        pcall(events.RegisterEvent, events, "PLAYER_PVP_KILLS_CHANGED")
-    end
+    -- These events are optional on older clients. A missing craft-result event
+    -- uses a matching smelt cast plus a resulting bag increase instead.
+    RegisterOptional("PARTY_KILL")
+    RegisterOptional("UNIT_DIED")
+    craftEventAvailable = RegisterOptional("TRADE_SKILL_ITEM_CRAFTED_RESULT")
+    smeltStartAvailable = RegisterOptional("UNIT_SPELLCAST_START")
+    pvpEventAvailable = RegisterOptional("PLAYER_PVP_KILLS_CHANGED")
     if not Tracking.hooked and hooksecurefunc then
         if C_Container and C_Container.UseContainerItem then hooksecurefunc(C_Container, "UseContainerItem", SaleIntent) end
         if UseContainerItem then hooksecurefunc("UseContainerItem", SaleIntent) end
@@ -658,7 +741,11 @@ function Tracking.OnEvent(event, ...)
     elseif event == "PLAYER_ENTERING_WORLD" then ResetTransient(); ReconcileHeld(); Refresh()
     elseif event == "PLAYER_TARGET_CHANGED" then Observe("target"); ObserveKill("target")
     elseif event == "UPDATE_MOUSEOVER_UNIT" then Observe("mouseover"); ObserveKill("mouseover")
-    elseif event == "UNIT_SPELLCAST_SUCCEEDED" or event == "UNIT_SPELLCAST_CHANNEL_START" then Cast(event, ...)
+    elseif event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_SUCCEEDED" then
+        local unit, _, spellID = ...
+        ObserveSmelt(event, unit, spellID)
+        if event == "UNIT_SPELLCAST_SUCCEEDED" then Cast(event, ...) end
+    elseif event == "UNIT_SPELLCAST_CHANNEL_START" then Cast(event, ...)
     elseif event == "TRADE_SKILL_ITEM_CRAFTED_RESULT" then Crafted(...)
     elseif event == "LOOT_READY" or event == "LOOT_OPENED" then CaptureLoot()
     elseif event == "LOOT_SLOT_CLEARED" then
@@ -678,13 +765,16 @@ function Tracking.OnEvent(event, ...)
     elseif event == "MERCHANT_SHOW" then StartMerchant()
     elseif event == "MERCHANT_CLOSED" then
         local session = merchant
-        C_Timer.After(0.2, function()
+        C_Timer.After(1, function()
             SettleMerchant(session)
-            if merchant == session then merchant = nil end
-            ReconcileHeld()
+            if merchant == session then
+                merchant = nil
+                ReconcileHeld()
+            end
         end)
     elseif event == "MERCHANT_UPDATE" or event == "PLAYER_MONEY" then ScheduleMerchant(merchant)
     elseif event == "BAG_UPDATE_DELAYED" or event == "GET_ITEM_INFO_RECEIVED" then
+        ReconcileSmelt()
         SettleLoot(loot)
         for i = #pendingLoot, 1, -1 do
             if pendingLoot[i].expires < GetTime() then table.remove(pendingLoot, i)

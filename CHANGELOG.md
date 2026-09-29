@@ -2,6 +2,14 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.13.1] - 2026-09-29
+
+### Fixed
+
+- PvP quests now advance from the actual increase in honorable kills, including delayed or combined counter updates. A PvP event alone cannot grant progress.
+- Selling qualifying items to the assigned vendor no longer loses credit when a purchase or repair offsets the money earned, or when buyback evidence arrives shortly after the bag changes.
+- Mining work orders can track a matching smelt cast and resulting bar when the client lacks the crafted-result event. Orders stay unavailable if neither smelting signal is supported; crafted-result data with a recipe ID must match the requested smelt.
+
 ## [0.13.0] - 2026-09-29
 
 ### Added
