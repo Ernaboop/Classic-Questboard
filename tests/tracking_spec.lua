@@ -656,7 +656,8 @@ board.statistics.scripts.OnClick()
 check(not statsWindow:IsShown(), 'statistics button toggles window closed')
 board.help.scripts.OnClick()
 check(WoWForeverHelp:IsShown(), 'help button opens help window')
-check(#realNS.RecentUpdates == 43, 'in-game changelog includes every recorded release')
+check(#realNS.RecentUpdates > 43 and realNS.RecentUpdates[1].version == '0.13.3',
+    'in-game changelog includes the new release and prior history')
 WoWForeverHelp.changelog.scripts.OnClick()
 local changelog = WoWForeverChangelog
 check(changelog:IsShown() and changelog.point[2] == WoWForeverHelp and changelog.point[3] == 'BOTTOMLEFT',
@@ -775,15 +776,71 @@ pvpFlagged = true
 for _, frame in ipairs(frames) do
     if frame.registered.UNIT_FLAGS then frame.scripts.OnEvent(frame, 'UNIT_FLAGS', 'player') end
 end
-check(cs[4]:IsShown() and board:GetWidth() == 1108 and WoWForeverDB.pvpQuest.amount >= 1
-    and WoWForeverDB.pvpQuest.amount <= 5 and #WoWForeverDB.displayedQuests == 3,
-    'PvP flag expands the board with a separate one-to-five-kill card')
+check(cs[4]:IsShown() and board:GetWidth() == 840 and cs[4]:GetWidth() == 192
+    and cs[4]:GetHeight() == 300 and board.pvpToggle:IsShown()
+    and WoWForeverDB.pvpQuest.amount >= 1 and WoWForeverDB.pvpQuest.amount <= 5
+    and #WoWForeverDB.displayedQuests == 3,
+    'PvP flag reveals a compact side notice without changing the three-card board')
+local pvpGiver = realNS.Database:Get('questGivers', WoWForeverDB.pvpQuest.questGiverEntryID)
+check(pvpGiver and realNS.Database.HasTags(pvpGiver, {'guard'})
+    and WoWForeverDB.pvpQuest.source == pvpGiver.name
+    and WoWForeverDB.pvpQuest.questGiverFaction == 'Alliance',
+    'PvP notices come from a friendly guard in the selected zone')
+for _ = 1, 8 do advance(0.03) end
+check(cs[4].point[2] == board and cs[4].point[3] == 'TOPRIGHT'
+    and cs[4].point[4] == 8,
+    'PvP notice finishes sliding out beside the Questboard')
+board.pvpToggle.scripts.OnClick()
+for _ = 1, 8 do advance(0.03) end
+check(not cs[4]:IsShown() and board.pvpToggle:IsShown() and board.pvpToggle.arrow.text == '>',
+    'PvP tab slides the notice closed but remains available')
+board.pvpToggle.scripts.OnClick()
+for _ = 1, 8 do advance(0.03) end
+check(cs[4]:IsShown() and board.pvpToggle.arrow.text == '<'
+    and cs[4].point[4] == 8,
+    'PvP tab slides the same notice open again')
 pvpFlagged = false
 for _, frame in ipairs(frames) do
     if frame.registered.UNIT_FLAGS then frame.scripts.OnEvent(frame, 'UNIT_FLAGS', 'player') end
 end
-check(not cs[4]:IsShown() and board:GetWidth() == 840,
-    'losing the PvP flag hides the extra card and restores board width')
+check(not cs[4]:IsShown() and not board.pvpToggle:IsShown() and board:GetWidth() == 840,
+    'losing the PvP flag hides the notice and its tab')
+WoWForeverDebugModeButton.scripts.OnClick()
+check(board.debugPvPToggle:IsShown() and board.debugPvPToggle.text == 'PvP OFF' and not pvpFlagged,
+    'debug PvP control starts from the real flag without changing it')
+local pvpAmounts = {}
+for _ = 1, 30 do
+    board.debugPvPToggle.scripts.OnClick()
+    check(cs[4]:IsShown() and board.pvpToggle:IsShown() and board.debugPvPToggle.text == 'PvP ON'
+        and not pvpFlagged, 'debug PvP control reveals the notice without changing the actual flag')
+    local offer = WoWForeverDB.pvpQuest
+    check(offer and offer.amount >= 1 and offer.amount <= 5, 'PvP offers use the full 1–5 target range')
+    pvpAmounts[offer.amount] = true
+    board.debugPvPToggle.scripts.OnClick()
+    check(not cs[4]:IsShown() and not board.pvpToggle:IsShown()
+        and board.debugPvPToggle.text == 'PvP OFF', 'debug PvP control hides the notice')
+end
+local pvpVariety = 0
+for _ in pairs(pvpAmounts) do pvpVariety = pvpVariety + 1 end
+check(pvpVariety > 1, 'fresh PvP activations vary their target amount')
+WoWForeverDebugModeButton.scripts.OnClick()
+check(not board.debugPvPToggle:IsShown() and not cs[4]:IsShown(),
+    'turning Debug Mode off restores the real PvP flag state')
+pvpFlagged = true
+for _, frame in ipairs(frames) do
+    if frame.registered.UNIT_FLAGS then frame.scripts.OnEvent(frame, 'UNIT_FLAGS', 'player') end
+end
+WoWForeverDebugModeButton.scripts.OnClick()
+check(board.debugPvPToggle.text == 'PvP ON', 'debug PvP control starts on for a truly flagged player')
+board.debugPvPToggle.scripts.OnClick()
+check(not cs[4]:IsShown() and pvpFlagged, 'debug PvP off only hides the simulated flag')
+WoWForeverDebugModeButton.scripts.OnClick()
+check(cs[4]:IsShown() and board.pvpToggle:IsShown(),
+    'disabling Debug Mode restores a genuinely active PvP flag')
+pvpFlagged = false
+for _, frame in ipairs(frames) do
+    if frame.registered.UNIT_FLAGS then frame.scripts.OnEvent(frame, 'UNIT_FLAGS', 'player') end
+end
 local seen = {}
 for _, offer in ipairs(WoWForeverDB.displayedQuests) do
     check(not seen[offer.selectionId], 'unique objective offers'); seen[offer.selectionId] = true

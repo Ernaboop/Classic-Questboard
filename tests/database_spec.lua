@@ -418,10 +418,14 @@ for _, frame in ipairs(TestEnvironment.frames) do
         pvpCard = frame; break
     end
 end
-check(pvpCard and pvpCard:IsShown() and board:GetWidth() == 1108
+check(pvpCard and pvpCard:IsShown() and board:GetWidth() == 840 and pvpCard:GetWidth() == 192
     and WoWForeverDB.displayedQuests == originalOffers,
-    'PvP flag reveals an independent card beside unchanged zone offers')
+    'PvP flag reveals a compact side card beside unchanged zone offers')
 local pvpOffer = WoWForeverDB.pvpQuest
+local localGuard = addon.Database:Get('questGivers', pvpOffer.questGiverEntryID)
+check(localGuard and addon.Database.HasTags(localGuard, {'guard'})
+    and localGuard.faction == 'Alliance' and pvpOffer.source == localGuard.name,
+    'PvP notice is issued by a friendly tagged guard')
 pvpCard.button.scripts.OnClick()
 check(WoWForeverDB.activeQuest == pvpOffer and pvpOffer.tracking.kind == 'pvp_honor',
     'PvP card accepts through the normal one-active-quest flow')

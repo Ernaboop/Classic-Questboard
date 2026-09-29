@@ -8,8 +8,48 @@ local CreateMinimapButton
 local RefreshQuestBrowser, SetDebugMode
 local CreateBoard
 local debugMode = false
+local debugPvPFlagged
 local forcedLeftCategory
 local QuestGenerationLevel
+local pvpPanelExpanded, pvpPanelProgress, pvpSlideToken, pvpWasFlagged = true, 0, 0, false
+local PVP_CARD_WIDTH, PVP_CARD_HEIGHT = 192, 300
+
+local function PositionPvPCard(progress)
+    if not board or not cards or not cards[4] then return end
+    pvpPanelProgress = progress
+    local card = cards[4]
+    card:ClearAllPoints()
+    card:SetPoint("TOPLEFT", board, "TOPRIGHT", 8 - (PVP_CARD_WIDTH + 8) * (1 - progress), -130)
+    card:SetAlpha(0.35 + 0.65 * progress)
+end
+
+local function SlidePvPCard(expanded, animate)
+    if not board or not cards or not cards[4] then return end
+    local card = cards[4]
+    pvpSlideToken = pvpSlideToken + 1
+    local token = pvpSlideToken
+    board.pvpToggle.arrow:SetText(expanded and "<" or ">")
+    if not animate or not C_Timer or not C_Timer.After then
+        PositionPvPCard(expanded and 1 or 0)
+        card:SetShown(expanded)
+        return
+    end
+    local start, finish, steps = pvpPanelProgress, expanded and 1 or 0, 8
+    if start == finish then card:SetShown(expanded); return end
+    card:Show()
+    local function Step(index)
+        if token ~= pvpSlideToken then return end
+        local fraction = index / steps
+        fraction = fraction * (2 - fraction) -- A restrained ease-out.
+        PositionPvPCard(start + (finish - start) * fraction)
+        if index < steps then
+            C_Timer.After(0.025, function() Step(index + 1) end)
+        elseif not expanded then
+            card:Hide()
+        end
+    end
+    Step(1)
+end
 
 -- Content comes from the validated, merged database. These views preserve the
 -- existing category -> objective -> amount-range generator and browser.
@@ -444,18 +484,30 @@ local function ValidQuest(quest)
         and type(quest.objective) == "string"
         and type(quest.amount) == "number" and quest.amount >= 1 and quest.amount <= 1000 and quest.amount == math.floor(quest.amount)
 end
-local function IsPvPFlagged()
+local function RealPvPFlagged()
     if type(UnitIsPVP) ~= "function" then return false end
     local ok, flagged = pcall(function() return not not UnitIsPVP("player") end)
     return ok and flagged
 end
+local function IsPvPFlagged()
+    if debugMode and debugPvPFlagged ~= nil then return debugPvPFlagged end
+    return RealPvPFlagged()
+end
+local pvpObjective = {minAmount = 1, maxAmount = 5, requiredNPCTags = {"guard"}}
 local function NewPvPQuest()
-    local amount = math.random(1, 5)
-    return {id = "pvp:honorable_kills:" .. amount, selectionId = "pvp:honorable_kills",
+    local zone = SelectedZone()
+    local giver = RandomFrom(EligibleGivers(zone, "pvp", pvpObjective))
+    if not giver then return nil end
+    local amount = RollAmount(pvpObjective)
+    return {id = table.concat({"pvp", "honorable_kills", zone.id, giver.id, amount}, ":"),
+        selectionId = "pvp:honorable_kills",
         title = "Honorable Combat", kind = "PvP", categoryName = "PvP",
         zone = "Any contested area", amount = amount,
-        level = "Honorable targets", source = "Classic Questboard",
-        description = "The call to arms is open to anyone willing to face a worthy opponent.",
+        issuerZoneId = zone.id, level = "Honorable targets", source = giver.name,
+        questGiverID = giver.id, questGiverEntryID = giver.databaseID,
+        questGiverFaction = giver.faction, questGiverLocation = giver.location,
+        description = "From " .. giver.location .. ": " .. giver.name
+            .. " calls for a worthy opponent to be met in honorable combat.",
         objective = "Defeat " .. amount .. (amount == 1 and " honorable enemy player." or " honorable enemy players."),
         tracking = {kind = "pvp_honor"}}
 end
@@ -1216,30 +1268,32 @@ CreateBoard = function()
         local isPvP = index == 4
         local card = CreateFrame("Frame", nil, board, BackdropTemplateMixin and "BackdropTemplate" or nil)
         cards[index] = card
-        card:SetSize(256, 396)
-        card:SetPoint("TOPLEFT", 24 + (index - 1) * 268, -82)
+        card:SetFrameLevel(board:GetFrameLevel() + (isPvP and 1 or 3))
+        card:SetSize(isPvP and PVP_CARD_WIDTH or 256, isPvP and PVP_CARD_HEIGHT or 396)
+        if not isPvP then card:SetPoint("TOPLEFT", 24 + (index - 1) * 268, -82) end
+        if isPvP then card:SetClampedToScreen(true) end
         card:SetBackdrop({bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12, insets = {left = 3, right = 3, top = 3, bottom = 3}})
         card:SetBackdropColor(0.16, 0.135, 0.09, 0.96)
         if isPvP then card:SetBackdropBorderColor(0.8, 0.28, 0.18, 1) end
         card.heading = Text(card, "GameFontNormalLarge")
-        card.heading:SetPoint("TOPLEFT", 14, -16)
-        card.heading:SetSize(228, 44)
+        card.heading:SetPoint("TOPLEFT", 14, isPvP and -12 or -16)
+        card.heading:SetSize(isPvP and 164 or 228, isPvP and 32 or 44)
         card.meta = Text(card, "GameFontHighlightSmall", {0.72, 0.65, 0.49})
-        card.meta:SetPoint("TOPLEFT", 14, -62)
-        card.meta:SetSize(228, 42)
+        card.meta:SetPoint("TOPLEFT", 14, isPvP and -52 or -62)
+        card.meta:SetSize(isPvP and 164 or 228, 42)
         card.story = Text(card)
-        card.story:SetPoint("TOPLEFT", 14, -108)
-        card.story:SetSize(228, 88)
+        card.story:SetPoint("TOPLEFT", 14, isPvP and -98 or -108)
+        card.story:SetSize(isPvP and 164 or 228, isPvP and 54 or 88)
         card.objective = Text(card, "GameFontNormal")
-        card.objective:SetPoint("TOPLEFT", 14, -202)
-        card.objective:SetSize(228, 92)
+        card.objective:SetPoint("TOPLEFT", 14, isPvP and -155 or -202)
+        card.objective:SetSize(isPvP and 164 or 228, isPvP and 56 or 92)
         card.progress = Text(card, "GameFontNormalSmall")
-        card.progress:SetPoint("TOPLEFT", 14, -302)
-        card.progress:SetSize(228, 36)
+        card.progress:SetPoint("TOPLEFT", 14, isPvP and -213 or -302)
+        card.progress:SetSize(isPvP and 164 or 228, isPvP and 22 or 36)
         card.marker = Text(card, "GameFontNormalSmall", {0.5, 0.9, 0.5})
         card.marker:SetPoint("BOTTOM", 0, 43)
         card.button = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-        card.button:SetSize(218, 26)
+        card.button:SetSize(isPvP and 160 or 218, 26)
         card.button:SetPoint("BOTTOM", 0, 12)
         card.button:SetScript("OnClick", function()
             local quest = isPvP and db.pvpQuest or db.displayedQuests[offerIndex]
@@ -1271,6 +1325,34 @@ CreateBoard = function()
         end)
         card.abandon:Hide()
     end
+
+    -- The narrow handle stays on the Questboard; the compact PvP notice
+    -- slides out from behind its right edge without widening the three-card UI.
+    board.pvpToggle = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
+    board.pvpToggle:SetSize(26, 52)
+    board.pvpToggle:SetPoint("TOPLEFT", board, "TOPRIGHT", -25, -248)
+    board.pvpToggle:SetFrameLevel(cards[4]:GetFrameLevel() + 5)
+    board.pvpToggle.icon = board.pvpToggle:CreateTexture(nil, "ARTWORK")
+    board.pvpToggle.icon:SetTexture("Interface\\Icons\\Ability_DualWield")
+    board.pvpToggle.icon:SetSize(18, 18)
+    board.pvpToggle.icon:SetPoint("TOP", 0, -5)
+    board.pvpToggle.arrow = Text(board.pvpToggle, "GameFontNormalSmall")
+    board.pvpToggle.arrow:SetPoint("BOTTOM", 0, 5)
+    board.pvpToggle.arrow:SetText("<")
+    board.pvpToggle:SetScript("OnClick", function()
+        if not IsPvPFlagged() then return end
+        pvpPanelExpanded = not pvpPanelExpanded
+        SlidePvPCard(pvpPanelExpanded, true)
+    end)
+    board.pvpToggle:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(pvpPanelExpanded and "Hide PvP notice" or "Show PvP notice")
+        GameTooltip:Show()
+    end)
+    board.pvpToggle:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    board.pvpToggle:Hide()
+    cards[4]:Hide()
+    PositionPvPCard(0)
 
     board.status = Text(board, "GameFontNormal")
     board.status:SetPoint("TOPLEFT", 24, -489)
@@ -1340,6 +1422,22 @@ CreateBoard = function()
     end)
     board.debugProgress:SetScript("OnLeave", function() GameTooltip:Hide() end)
     board.debugProgress:Hide()
+    board.debugPvPToggle = CreateFrame("Button", nil, board, "UIPanelButtonTemplate")
+    board.debugPvPToggle:SetSize(72, 24)
+    board.debugPvPToggle:SetPoint("TOPLEFT", 401, -47)
+    board.debugPvPToggle:SetScript("OnClick", function()
+        if not debugMode then return end
+        debugPvPFlagged = not IsPvPFlagged()
+        Refresh()
+    end)
+    board.debugPvPToggle:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Simulate PvP flag")
+        GameTooltip:AddLine("Show or hide the PvP notice for testing. Your actual PvP flag is unchanged.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    board.debugPvPToggle:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    board.debugPvPToggle:Hide()
     local categoryChoices = {
         {label = "Any category"}, {id = "kill", label = "Kill"},
         {id = "supply", label = "Supply"},
@@ -1418,7 +1516,13 @@ CreateBoard = function()
 end
 
 SetDebugMode = function(enabled, openBrowser)
+    local wasDebugMode = debugMode
     debugMode = not not enabled
+    if debugMode and not wasDebugMode then
+        debugPvPFlagged = RealPvPFlagged()
+    elseif not debugMode then
+        debugPvPFlagged = nil
+    end
     if not board then CreateBoard() end
     if debugMode then
         if not ValidDisplayedQuests(db.displayedQuests) then db.displayedQuests = PickDisplayedQuests() end
@@ -1453,14 +1557,31 @@ Refresh = function()
     local resting = Tracking.IsResting()
     local locationAllowed = debugMode or resting
     local pvpFlagged = IsPvPFlagged()
-    if pvpFlagged and not ValidQuest(db.pvpQuest) then db.pvpQuest = NewPvPQuest() end
-    local width = pvpFlagged and 1108 or 840
-    board:SetWidth(width)
-    board:SetScale(math.min(1, UIParent:GetWidth() / (width + 40), UIParent:GetHeight() / (debugMode and 650 or 610)))
-    board.note:SetWidth(width - 50)
+    local activePvP = db.activeQuest and db.activeQuest.tracking
+        and db.activeQuest.tracking.kind == "pvp_honor"
+    -- A fresh flag activation gets a fresh 1–5 target roll. An accepted
+    -- quest keeps its original target and progress until hand-in/abandon.
+    if pvpFlagged and not activePvP and (not pvpWasFlagged or not ValidQuest(db.pvpQuest)
+        or not db.pvpQuest.questGiverID or db.pvpQuest.issuerZoneId ~= SelectedZone().id) then
+        db.pvpQuest = NewPvPQuest()
+    end
+    board:SetWidth(840)
+    board:SetScale(math.min(1, UIParent:GetWidth() / 880, UIParent:GetHeight() / (debugMode and 650 or 610)))
+    board.note:SetWidth(790)
+    if pvpFlagged ~= pvpWasFlagged then
+        pvpWasFlagged = pvpFlagged
+        board.pvpToggle:SetShown(pvpFlagged)
+        if pvpFlagged then
+            SlidePvPCard(pvpPanelExpanded, board:IsShown())
+        else
+            pvpSlideToken = pvpSlideToken + 1
+            PositionPvPCard(0)
+            cards[4]:Hide()
+        end
+    end
     for index, card in ipairs(cards) do
         local isPvP = index == 4
-        card:SetShown(not isPvP or pvpFlagged)
+        if not isPvP then card:Show() end
         local quest = isPvP and db.pvpQuest or db.displayedQuests[index]
         local accepted = quest and db.activeQuest and db.activeQuest.id == quest.id
         if accepted then quest = db.activeQuest end
@@ -1470,7 +1591,8 @@ Refresh = function()
         local hunt = quest and quest.categoryName == "Hunt"
         local objectiveText = hunt and UpdatedObjectiveText(quest) or (quest and quest.objective)
         card.heading:SetText(quest and quest.title or "No suitable quest")
-        card.meta:SetText(quest and (quest.kind .. "  |  " .. quest.zone .. "\n" .. (hunt and "" or ("Level or skill: " .. quest.level .. "  |  ")) .. quest.source) or SelectedZone().name)
+        card.meta:SetText(quest and (isPvP and ("PvP  |  " .. quest.zone .. "\nHonorable targets")
+            or (quest.kind .. "  |  " .. quest.zone .. "\n" .. (hunt and "" or ("Level or skill: " .. quest.level .. "  |  ")) .. quest.source)) or SelectedZone().name)
         card.story:SetText(quest and quest.description or "No objectives match your current level and known professions.")
         card.objective:SetText(quest and ("Your objective\n|cffffffff" .. objectiveText .. "|r") or "")
         card.progress:SetText(accepted and Tracking.ProgressText(quest) or (quest and not trackable and "Automatic tracking is unavailable for this objective on this client." or ""))
@@ -1495,6 +1617,8 @@ Refresh = function()
     board.debugCategory:SetShown(debugMode)
     board.debugProgress:SetShown(debugMode)
     board.debugProgress:SetEnabled(debugMode and active ~= nil and Tracking.CanTrack(active) and active.state == "Active")
+    board.debugPvPToggle:SetShown(debugMode)
+    board.debugPvPToggle:SetText(pvpFlagged and "PvP ON" or "PvP OFF")
     if abandonDialog and abandonDialog:IsShown() and abandonDialog.quest ~= active then abandonDialog:Hide() end
     local hasFriendlyGiver = #EligibleGivers(SelectedZone(), "kill") > 0
     board.status:SetText(active and (active.state .. ": " .. active.title) or (#db.displayedQuests == 0 and

@@ -2,6 +2,14 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.13.3] - 2026-09-29
+
+### Changed
+
+- The PvP notice is now a compact side card, about three-quarters the size of a normal quest card. A PvP tab slides it open or closed while flagged, without widening the three-card Questboard.
+- Debug Mode has a PvP switch so the side card can be tested without changing the character's real PvP flag.
+- New PvP notices choose a friendly guard from the selected zone and reroll their 1–5 honorable-kill target when PvP is newly enabled. Accepted quests retain their target and progress.
+
 ## [0.13.2] - 2026-09-29
 
 ### Fixed
