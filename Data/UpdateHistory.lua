@@ -2,6 +2,7 @@ local _, ns = ...
 
 -- Player-facing summaries of every CHANGELOG.md release, newest first.
 ns.UpdateHistory = {
+    {version = "0.13.2", text = "Extra windows now choose the clearest spot beside or below the Questboard, and closing one also closes any windows opened from it. The in-game version now matches the addon metadata and tagged GitHub releases."},
     {version = "0.13.1", text = "PvP notices now check your actual honorable-kill total, so other PvP updates cannot grant credit. Vendor hand-ins keep their credit when you also buy or repair something. Mining jobs can still count smelted bars on clients without the newer crafting event."},
     {version = "0.13.0", text = "Notices now choose local people whose jobs fit the request. New Mining jobs let you mine ore and smelt bars; some ask you to sell the bars to a blacksmith. A fourth card appears while you are PvP flagged and counts honorable enemy-player kills. This window now shows every past update."},
     {version = "0.12.0", text = "Darkshore joins the board with 50 notices and local quest givers. Elwynn and Dun Morogh quests now remain available across more nearby levels."},

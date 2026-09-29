@@ -314,7 +314,7 @@ local function Create()
         GameTooltip:Show()
     end)
     frame:HookScript("OnLeave", function() GameTooltip:Hide() end)
-    frame:SetScript("OnHide", function() if frame.confirmation then frame.confirmation:Hide() end end)
+    frame:HookScript("OnHide", function() if frame.confirmation then frame.confirmation:Hide() end end)
 end
 function Editor.Toggle(parent)
     if frame and frame:IsShown() then frame:Hide(); return end

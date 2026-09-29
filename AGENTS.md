@@ -6,14 +6,15 @@ This repository contains the Classic Questboard roleplay questboard addon. Keep 
 
 ## Semantic versioning
 
-- Treat the Version field in Classic Questboard.toc as the authoritative release version and always use Semantic Versioning 2.0.0: MAJOR.MINOR.PATCH.
-- The current release is 0.13.1. Keep the first component at 0 throughout Alpha; use 1.0.0 for the full release, or another first-component change only when the user explicitly requests it.
-- Increase the second component for major feature updates such as a new zone. Increase the third component for bug fixes and minor updates. The Westfall/Supply update is 0.11.0; follow-up fixes or small changes become 0.11.1, 0.11.2, and so on. The user may explicitly specify a different version.
-- Use SemVer prerelease identifiers such as 0.2.0-alpha.1 when a prerelease version is needed. Do not put labels such as Alpha into the TOC version field.
-- Keep user-facing labels, such as the version shown in the questboard window, consistent with the TOC release. A display label may be friendlier (for example, Alpha V0.1) but must not replace the SemVer release value.
+- Treat the Version field in Classic Questboard.toc as the single authoritative release version. Use Semantic Versioning 2.0.0 with an alpha suffix during Alpha, for example `0.13.2-alpha`; derive the current version from the TOC rather than recording it again here.
+- Keep the first component at 0 throughout Alpha; use 1.0.0 for the full release, or another first-component change only when the user explicitly requests it.
+- Increase the second component for major feature updates such as a new zone. Increase the third component for bug fixes and minor updates. The user may explicitly specify a different version.
+- Use SemVer prerelease identifiers such as `0.13.2-alpha` in the TOC; do not include the word `Alpha` outside the prerelease suffix in that metadata field.
+- The Questboard reads the TOC version at runtime and presents an alpha release as `Alpha v0.13.2`. Never hardcode a second version in Lua.
 - Version each completed change set, including documentation-only changes. Increment only once per completed change set, not for individual file edits or intermediate fixes. The user's versioning convention above takes precedence over generic feature/patch rules for this project.
 - Add a matching release entry to CHANGELOG.md whenever the TOC version changes.
-- Update the TOC version, in-window Alpha label, and current release note in this file together for every versioned change set.
+- Update the TOC version and matching changelog/history entries for each release. Run `python scripts/check_release.py`; it checks these records and, when given `--tag`, the annotated release tag against the TOC.
+- Publish alpha releases using annotated tags named `v<TOC version>`, such as `v0.13.2-alpha`. The GitHub release workflow packages them as `ClassicQuestboard-v0.13.2-alpha.zip`. CurseForge project 1715617 should be set to **Package tagged commits** so its GitHub webhook builds only those same tagged versions rather than hash-named commit builds.
 - Keep the in-game Help → Recent Updates history in Data/UpdateHistory.lua aligned with every CHANGELOG.md release. Write its summaries in plain language and add each new release there.
 
 ## Git workflow
@@ -31,5 +32,5 @@ This repository contains the Classic Questboard roleplay questboard addon. Keep 
 - Keep generated quests grounded in locations, creatures, and items that exist in the targeted game client. Clearly label any objective the addon does not mechanically track.
 - Keep addon metadata and the file list in Classic Questboard.toc in sync with the project.
 
-- Tracking.lua owns gameplay events, saved progress, rest-area checks, and quest lifecycle transitions. Questboard.lua owns generation and board/browser UI; Windows.lua owns nesting and placement. Secondary windows continue downward rather than falling back left over the main board.
+- Tracking.lua owns gameplay events, saved progress, rest-area checks, and quest lifecycle transitions. Questboard.lua owns generation and board/browser UI; Windows.lua owns nesting and placement. Secondary windows may open on either side or below their parent according to available space and overlap.
 - Run tests/run.py with Lua 5.1 via lupa, including database_spec.lua and the original content manifest check, when changing the content schema, overrides, generation, editor, or tracking.

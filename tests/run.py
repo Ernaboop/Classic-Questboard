@@ -2,6 +2,8 @@
 from pathlib import Path
 import json
 import re
+import subprocess
+import sys
 from lupa.lua51 import LuaRuntime
 root = Path(__file__).resolve().parents[1]
 lua = LuaRuntime(unpack_returned_tuples=True)
@@ -11,9 +13,10 @@ toc = (root / "Classic Questboard.toc").read_text(encoding="utf-8")
 load_order = [line.strip().replace(chr(92), "/") for line in toc.splitlines() if line.strip() and not line.startswith("#")]
 assert load_order == data_files + ["Tracking.lua", "Windows.lua", "DatabaseEditor.lua", "Questboard.lua", "Tooltips.lua"], "TOC load order differs from tests"
 version = next(line.split(":", 1)[1].strip() for line in toc.splitlines() if line.startswith("## Version:"))
-assert "Alpha V" + version in (root / "Questboard.lua").read_text(encoding="utf-8")
-assert "current release is " + version in (root / "AGENTS.md").read_text(encoding="utf-8")
-assert "## [" + version + "]" in (root / "CHANGELOG.md").read_text(encoding="utf-8")
+subprocess.run([sys.executable, str(root / "scripts" / "check_release.py")], check=True)
+assert "GetAddOnMetadata(addonName, \"Version\")" in (root / "Questboard.lua").read_text(encoding="utf-8")
+base_version = version.split("-", 1)[0]
+assert "## [" + base_version + "]" in (root / "CHANGELOG.md").read_text(encoding="utf-8")
 changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
 release_versions = re.findall(r"^## \[(\d+\.\d+\.\d+)\]", changelog, flags=re.MULTILINE)
 in_game_versions = re.findall(r'\{version = "(\d+\.\d+\.\d+)", text = ', (root / "Data/UpdateHistory.lua").read_text(encoding="utf-8"))
@@ -30,6 +33,7 @@ end
 assert(loadstring(editor_source))(testName, testNS)
 ''' + (root / "Questboard.lua").read_text(encoding="utf-8")
 lua.globals().windows_source = (root / "Windows.lua").read_text(encoding="utf-8")
+lua.globals().toc_version = version
 lua.globals().tooltip_source = (root / "Tooltips.lua").read_text(encoding="utf-8")
 from xml.etree import ElementTree
 bindings = ElementTree.parse(root / "Bindings.xml").getroot()

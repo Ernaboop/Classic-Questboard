@@ -1040,7 +1040,7 @@ local function ToggleHelp()
         helpWindow.changelog:SetPoint("BOTTOMLEFT", 28, 16)
         helpWindow.changelog:SetText("Changelog")
         helpWindow.changelog:SetScript("OnClick", ToggleChangelog)
-        helpWindow:SetScript("OnHide", function()
+        helpWindow:HookScript("OnHide", function()
             if changelogWindow then changelogWindow:Hide() end
         end)
     end
@@ -1091,7 +1091,7 @@ local function RequestAbandon()
         abandonDialog.cancel:SetPoint("BOTTOMRIGHT", -40, 24)
         abandonDialog.cancel:SetText("Cancel")
         abandonDialog.cancel:SetScript("OnClick", function() abandonDialog:Hide() end)
-        abandonDialog:SetScript("OnHide", function(self) self.quest = nil end)
+        abandonDialog:HookScript("OnHide", function(self) self.quest = nil end)
     end
     abandonDialog.quest = active
     abandonDialog.skip:SetChecked(false)
@@ -1146,7 +1146,12 @@ CreateBoard = function()
     title:SetText("Classic Questboard")
     local version = Text(board, "GameFontHighlightSmall")
     version:SetPoint("TOPLEFT", 54, -31)
-    version:SetText("Alpha V0.13.1")
+    board.versionLabel = version
+    local releaseVersion = (C_AddOns and C_AddOns.GetAddOnMetadata
+        and C_AddOns.GetAddOnMetadata(addonName, "Version"))
+        or (GetAddOnMetadata and GetAddOnMetadata(addonName, "Version")) or "unknown"
+    local baseVersion = releaseVersion:match("^([0-9]+%.[0-9]+%.[0-9]+)%-alpha")
+    version:SetText(baseVersion and ("Alpha v" .. baseVersion) or ("v" .. releaseVersion))
     board.zoneDropdown = CreateFrame("Frame", "WoWForeverZoneDropdown", board, "UIDropDownMenuTemplate")
     board.zoneDropdown:SetPoint("TOP", board, "TOP", 0, -8)
     UIDropDownMenu_SetWidth(board.zoneDropdown, 190)

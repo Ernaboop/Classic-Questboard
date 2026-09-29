@@ -2,6 +2,17 @@
 
 This project follows Semantic Versioning 2.0.0.
 
+## [0.13.2] - 2026-09-29
+
+### Fixed
+
+- Extra windows choose the clearer side of their parent or continue below it when there is room, staying full-sized and visible near screen edges.
+- Closing the Questboard or another addon window also closes every window opened from it.
+
+### Changed
+
+- The in-game version comes from addon metadata. Release tags are checked against that same version, and GitHub release archives include it in their names.
+
 ## [0.13.1] - 2026-09-29
 
 ### Fixed

@@ -6,6 +6,9 @@ manual-changelog:
 
 ignore:
   - AGENTS.md
+  - RELEASE.md
+  - scripts
+  - .github
   - DATA_FORMAT.md
   - QUEST_GIVERS.md
   - TRACKING.md

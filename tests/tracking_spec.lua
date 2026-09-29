@@ -1,5 +1,6 @@
 local interfaceVersion, restrictedCombat = 11507, false
 function GetBuildInfo() return "test", "1", "date", interfaceVersion end
+function GetAddOnMetadata(_, key) return key == 'Version' and toc_version or nil end
 C_CombatLog = {IsCombatLogRestricted = function() return restrictedCombat end}
 local passed = 0
 local function check(value, message)
@@ -158,36 +159,71 @@ local ns = {}
 local windowNS = {}
 assert(loadstring(windows_source))('Classic Questboard', windowNS)
 local wm = windowNS.Windows
+local function rectangle(frame, left, bottom, right, top)
+    function frame:GetLeft() return left end
+    function frame:GetBottom() return bottom end
+    function frame:GetRight() return right end
+    function frame:GetTop() return top end
+end
 local parentWindow, childWindow, nestedWindow = object(), object(), object()
 parentWindow:SetFrameLevel(20); childWindow:SetSize(400, 200); nestedWindow:SetSize(300, 200)
-function parentWindow:GetRight() return 1850 end
-function parentWindow:GetLeft() return 1010 end
+rectangle(parentWindow, 1010, 400, 1850, 900)
+rectangle(childWindow, 602, 700, 1002, 900)
 wm.Register(parentWindow); wm.Register(childWindow, parentWindow); wm.Register(nestedWindow, childWindow)
 nestedWindow:Hide()
 wm.Open(childWindow, parentWindow)
-check(childWindow.point[1] == 'TOPLEFT' and childWindow.point[3] == 'BOTTOMLEFT', 'screen edge places child below parent instead of over board to the left')
+check(childWindow.point[1] == 'TOPRIGHT' and childWindow.point[3] == 'TOPLEFT'
+    and childWindow.point[4] == -8, 'screen edge opens a full-sized child on the clear left side')
 wm.Open(nestedWindow, childWindow)
+check(nestedWindow.point[2] == childWindow and nestedWindow.point[3] == 'BOTTOMLEFT',
+    'nested window continues downward when there is room')
 wm.Raise(childWindow)
 check(nestedWindow:GetFrameLevel() > childWindow:GetFrameLevel() and parentWindow:GetFrameLevel() == 20,
     'raising parent keeps nested child above it and main below both')
 wm.Open(childWindow, nestedWindow)
 check(wm.entries[childWindow].parent == parentWindow, 'window manager rejects nesting cycles')
+childWindow:Hide()
+check(not nestedWindow:IsShown() and parentWindow:IsShown(), 'closing a child closes its descendant only')
+wm.Open(childWindow, parentWindow); wm.Open(nestedWindow, childWindow)
+parentWindow:Hide()
+check(not childWindow:IsShown() and not nestedWindow:IsShown(),
+    'closing the root recursively closes every descendant')
 local edgeParent, edgeChild = object(), object()
 edgeChild:SetSize(440, 260)
-function edgeParent:GetLeft() return 1050 end
-function edgeParent:GetRight() return 1890 end
-function edgeParent:GetTop() return 610 end
-function edgeParent:GetBottom() return 40 end
+rectangle(edgeParent, 1050, 40, 1890, 610)
 function edgeChild:SetScale(value) self.scale = value end
 wm.Register(edgeParent); wm.Register(edgeChild, edgeParent)
 wm.Open(edgeChild, edgeParent)
 check(edgeChild.scale == 1, 'edge placement keeps a window at full scale when it fits the screen')
-check(edgeChild.point[2] == UIParent and edgeChild.point[3] == 'TOPLEFT',
-    'window without room below is anchored to the screen instead of shrinking')
-local edgeX, edgeTop = edgeChild.point[4], UIParent:GetHeight() + edgeChild.point[5]
-check(edgeX >= 0 and edgeX + edgeChild:GetWidth() <= UIParent:GetWidth()
-    and edgeTop - edgeChild:GetHeight() >= 0 and edgeTop <= UIParent:GetHeight(),
-    'edge placement keeps the entire secondary window visible')
+check(edgeChild.point[1] == 'TOPRIGHT' and edgeChild.point[2] == edgeParent
+    and edgeChild.point[3] == 'TOPLEFT',
+    'bottom-right placement uses the available left side instead of shrinking or leaving the screen')
+local leftParent, rightChild = object(), object()
+rectangle(leftParent, 20, 300, 400, 800)
+rightChild:SetSize(300, 200)
+wm.Register(leftParent); wm.Register(rightChild, leftParent)
+wm.Open(rightChild, leftParent)
+check(rightChild.point[1] == 'TOPLEFT' and rightChild.point[3] == 'TOPRIGHT'
+    and rightChild.point[4] == 8, 'left-side parent opens its child on the right')
+leftParent:Hide()
+local crowdedParent, crowdedChild, blocker = object(), object(), object()
+rectangle(crowdedParent, 500, 400, 900, 900)
+rectangle(blocker, 900, 700, 1300, 900)
+crowdedChild:SetSize(300, 200)
+wm.Register(crowdedParent); wm.Register(crowdedChild, crowdedParent); wm.Register(blocker)
+wm.Open(crowdedChild, crowdedParent)
+check(crowdedChild.point[1] == 'TOPRIGHT' and crowdedChild.point[3] == 'TOPLEFT',
+    'a blocked right side makes a secondary window choose the clear left side')
+UIParent:SetSize(900, 600)
+local narrowParent, narrowChild = object(), object()
+rectangle(narrowParent, 150, 100, 750, 500)
+narrowChild:SetSize(440, 260)
+wm.Register(narrowParent); wm.Register(narrowChild, narrowParent)
+wm.Open(narrowChild, narrowParent)
+check(narrowChild.point[2] == UIParent and narrowChild.point[3] == 'TOPLEFT'
+    and narrowChild.point[4] >= 0 and narrowChild.point[4] + narrowChild:GetWidth() <= UIParent:GetWidth(),
+    'when neither side fits, the whole window is clamped into view without shrinking')
+UIParent:SetSize(1920, 1080)
 assert(loadstring(tracking_source))('Classic Questboard', ns)
 local T = ns.Tracking
 local saved
@@ -591,6 +627,8 @@ for _, frame in ipairs(frames) do
 end
 SlashCmdList.WOWFOREVERQUESTBOARD('')
 local board = WoWForeverQuestboard
+check(board.versionLabel.text == 'Alpha v' .. toc_version:match('^([%d%.]+)%-alpha$'),
+    'the board label uses the TOC version through addon metadata')
 local function cards()
     local result = {}
     for _, frame in ipairs(frames) do if frame.parent == board and rawget(frame, 'heading') then result[#result + 1] = frame end end
@@ -618,7 +656,7 @@ board.statistics.scripts.OnClick()
 check(not statsWindow:IsShown(), 'statistics button toggles window closed')
 board.help.scripts.OnClick()
 check(WoWForeverHelp:IsShown(), 'help button opens help window')
-check(#realNS.RecentUpdates == 42, 'in-game changelog includes every recorded release')
+check(#realNS.RecentUpdates == 43, 'in-game changelog includes every recorded release')
 WoWForeverHelp.changelog.scripts.OnClick()
 local changelog = WoWForeverChangelog
 check(changelog:IsShown() and changelog.point[2] == WoWForeverHelp and changelog.point[3] == 'BOTTOMLEFT',
@@ -650,6 +688,13 @@ check(WoWForeverHelp:GetFrameLevel() > WoWForeverOptions:GetFrameLevel(), 'neste
 board.help.scripts.OnClick()
 board.options.scripts.OnClick()
 check(not WoWForeverOptions:IsShown(), 'options button closes options')
+board.options.scripts.OnClick(); board.help.scripts.OnClick()
+WoWForeverHelp.changelog.scripts.OnClick()
+board:Hide()
+check(not WoWForeverOptions:IsShown() and not WoWForeverHelp:IsShown()
+    and not WoWForeverChangelog:IsShown(),
+    'closing the main Questboard recursively closes its nested addon windows')
+board:Show()
 -- Exercise the actual debug selector and Reroll button at the zone cap.
 WoWForeverDebugModeButton.scripts.OnClick()
 board.debugButton.scripts.OnClick()
